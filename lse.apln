@@ -1,5 +1,4 @@
-:Namespace lse 
-    path ← 'todo'
+:Namespace lse
     ⎕FIX 'file://easy_na.apln'
 
     bool ← 'I1'
@@ -11,8 +10,12 @@
 
     fns ← ⍬
     fns,←⊂ 'LSE_PollEvent' bool ⍬
+    fns,←⊂ 'LSE_CheckEvent' bool i32
+    fns,←⊂ 'LSE_GetKeyPressed' u32 ⍬
 
-    ∇ load_lib
+    fns,←⊂ 'LSE_GetMouseMove' ⍬ ('>'i32 '>'i32)
+
+    ∇ load_lib path
       'lse'path easy_na.safe_load fns
     ∇
 :EndNamespace

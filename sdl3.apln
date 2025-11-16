@@ -1,5 +1,4 @@
 ﻿:Namespace sdl3
-    path ← '/opt/homebrew/Cellar/sdl3/3.2.24/lib/libSDL3.0.dylib'
     ⎕FIX 'file://easy_na.apln'
 
     bool ← 'I1'
@@ -21,7 +20,8 @@
 
     fns,←⊂ 'SDL_PumpEvents' ⍬ ⍬
 
-    ∇ load_lib
+    ∇ load_lib path
+    ⎕ ← path
       'sdl3'path easy_na.safe_load fns
     ∇
 :EndNamespace
