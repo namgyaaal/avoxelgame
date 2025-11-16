@@ -1,0 +1,65 @@
+﻿:Namespace easy_na
+
+      clean_def←{
+          ⍝ Cases where <>= have a space after the struct/type they're on.
+          ⍝ One-letter characters are too weird to handle properly, for now
+          ⍝ just use '-' in the definition and collapse it after done with
+          ⍝ parsing
+          ⍝ Dirty, but it works
+          out←⍵/⍨~((⍵=' ')∧¯1⌽⍵∊'<>=')∨(⍵='-')
+          out
+      }
+
+      build_args←{
+          (⍵≡⍳0):⍬
+          2=|≡⍵:1↓∊' '∘,¨⍵ ⍝ flat-vector
+          1≥⌈/|≡¨⍵:⍵ ⍝ 1-itemed
+          deep←1<|≡¨⍵
+          args←⍵
+          args[deep/⍳≢args]←{'}',⍨'{',build_args ⍵}¨deep/args
+          1↓∊' '∘,¨args
+          args
+      }
+
+      load_def←{
+          102::,'Error: File not found for ',⍵
+          6::,'Error: Function not found in library for',⍵
+          _←⎕NA ⍵
+          ''
+      }
+
+      safe_load←{
+          ⍝ ⍺ - (namespace, library_path)
+          ⍝ ⍵ - symbol vector
+          (ns lib_name)←⍺
+          ⍝ global is all we need
+          ns←'#.',ns
+          ⍝ for error handling, not used yet
+          error_vec←,⊂/{
+              fn_name←1⌷⍵
+              formatted←∊lib_name,'|',fn_name
+              def←1↓∊' '∘,¨(clean_def ⊃2⌷⍵)formatted(clean_def build_args⊃3⌷⍵)
+              res←fn_name load_def def
+              _←ns ⎕NS fn_name
+              res
+          }¨⍵
+      }
+
+      example_test←{
+          ⍝ requires dll existing in this path to work
+          i32←'I4'
+          f32←'F4'
+          ptr←'P'
+          pair←(i32 i32)
+     
+          real_dylib←'libbasic.dylib'
+          str←'<0T1[]'
+          symbol_vector←⍬
+          symbol_vector,←⊂'print'⍬ ⍬
+          symbol_vector,←⊂'print_str'⍬ str
+          symbol_vector,←⊂'call_with_side_effects'⍬ ⍬
+          symbol_vector,←⊂'get_side_effects'i32 ⍬
+          symbol_vector,←⊂'call_with_input'i32 i32
+          'example_namespace'real_dylib safe_load symbol_vector
+      }
+:EndNamespace
