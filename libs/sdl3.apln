@@ -1,0 +1,21 @@
+﻿:Namespace sdl3
+    path ← '/opt/homebrew/Cellar/sdl3/3.2.24/lib/libSDL3.0.dylib'
+    ⎕FIX 'file://easy_na.apln'
+
+    bool ← 'I1'
+    i32 ← 'I4'
+    u32 ← 'U4'
+    ptr ← 'P-'
+    cstr ← '<0C1[]'
+
+    fns ← ⍬
+    fns,←⊂ 'SDL_Init' bool u32
+    fns,←⊂ 'SDL_Quit' ⍬ ⍬
+
+    fns,←⊂ 'SDL_ClearError' bool ⍬
+    fns,←⊂ 'SDL_GetError' ptr ⍬
+
+    ∇ load_lib
+      'sdl3'path easy_na.safe_load fns
+    ∇
+:EndNamespace
