@@ -5,6 +5,7 @@
     bool ← 'I1'
     i32 ← 'I4'
     u32 ← 'U4'
+    u64 ← 'U8'
     ptr ← 'P-'
     cstr ← '<0C1[]'
 
@@ -14,6 +15,11 @@
 
     fns,←⊂ 'SDL_ClearError' bool ⍬
     fns,←⊂ 'SDL_GetError' ptr ⍬
+
+    fns,←⊂ 'SDL_CreateWindow' ptr (cstr i32 i32 u64)
+    fns,←⊂ 'SDL_DestroyWindow' ⍬ ptr
+
+    fns,←⊂ 'SDL_PumpEvents' ⍬ ⍬
 
     ∇ load_lib
       'sdl3'path easy_na.safe_load fns

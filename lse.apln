@@ -1,0 +1,18 @@
+:Namespace lse 
+    path ← 'todo'
+    ⎕FIX 'file://easy_na.apln'
+
+    bool ← 'I1'
+    i32 ← 'I4'
+    u32 ← 'U4'
+    u64 ← 'U8'
+    ptr ← 'P-'
+    cstr ← '<0C1[]'
+
+    fns ← ⍬
+    fns,←⊂ 'LSE_PollEvent' bool ⍬
+
+    ∇ load_lib
+      'lse'path easy_na.safe_load fns
+    ∇
+:EndNamespace
