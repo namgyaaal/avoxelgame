@@ -16,6 +16,15 @@ window ← sdl3.SDL_CreateWindow 'Hello World' 900 600 0
     ⎕SIGNAL 200
 :Endif 
 
+device ← sdl3.SDL_CreateGPUDevice sdl3.SDL_GPU_SHADERFORMAT_MSL 1 'metal'
+:If 0 = device 
+    ⎕ ← 'Error creating a GPU device'
+    ⎕SIGNAL 200
+:Elseif 0 = sdl3.SDL_ClaimWindowForGPUDevice device window 
+    ⎕ ← 'Erorr attaching device to window'
+    ⎕SIGNAL 200
+:Endif
+
 
 
 running ← 1 
@@ -36,12 +45,22 @@ running ← 1
     :Elseif lse.LSE_CheckEvent 1024
         ⎕ ← 'Mouse move: ', ⍕lse.LSE_GetMouseMove 0 0
     :EndIf
-
-
     :EndWhile
+
+    cmd_buf ← sdl3.SDL_AcquireGPUCommandBuffer device
+    res texture width height ← sdl3.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
+    :If 0 = res 
+        ⎕ ← 'Error acquiring swapchain texture'
+        ⎕SIGNAL 200
+    :EndIf
+    color_info ← ⊂(texture 0 0 (0.1 0.2 0.3 1) 1 0 0 0 0 0 0 0 0)
+    pass ← sdl3.SDL_BeginGPURenderPass cmd_buf color_info 1 0
+    sdl3.SDL_EndGPURenderPass pass
+    sdl3.SDL_SubmitGPUCommandBuffer cmd_buf
 
 :EndWhile
 
 
+sdl3.SDL_DestroyGPUDevice device
 sdl3.SDL_DestroyWindow window
 sdl3.SDL_Quit

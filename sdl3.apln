@@ -3,9 +3,11 @@
     ⎕FIX 'file://const_loader.apln'
 
     bool ← 'I1'
+    u8 ← 'U1'
     i32 ← 'I4'
     u32 ← 'U4'
     u64 ← 'U8'
+    f32 ← 'F4'
     ptr ← 'P-'
     cstr ← '<0C1[]'
 
@@ -21,8 +23,42 @@
 
     fns,←⊂ 'SDL_PumpEvents' ⍬ ⍬
 
+    ⍝ GPU Stuff
+
+    ⍝ Device
+    fns,←⊂ 'SDL_CreateGPUDevice' ptr (u32 bool cstr)
+    fns,←⊂ 'SDL_DestroyGPUDevice' ⍬ ptr
+    fns,←⊂ 'SDL_ClaimWindowForGPUDevice' bool (ptr ptr)
+
+    ⍝ Command Buffer
+    fns,←⊂ 'SDL_AcquireGPUCommandBuffer' ptr ptr
+    fns,←⊂ 'SDL_SubmitGPUCommandBuffer' ⍬ ptr
+
+    ⍝ Swapchain
+    fns,←⊂ 'SDL_WaitAndAcquireGPUSwapchainTexture' bool (ptr ptr '>' ptr '>' u32 '>' u32)
+
+    ⍝ Buffers
+    fns,←⊂ 'SDL_CreateGPUBuffer' ptr (ptr '<' (u32 u32 u32))
+    fns,←⊂ 'SDL_ReleaseGPUBuffer' ⍬ (ptr ptr)
+    fns,←⊂ 'SDL_UploadToGPUBuffer' ⍬ (ptr '<' (ptr u32) '<' (ptr u32 u32) bool)
+    fns,←⊂ 'SDL_DownloadFromGPUBuffer' ⍬ (ptr '<' (ptr u32 u32) '<' (ptr u32))
+
+    fns,←⊂ 'SDL_CreateGPUTransferBuffer' ptr (ptr '<' (u32 u32 u32))
+    fns,←⊂ 'SDL_ReleaseGPUTransferBuffer' ⍬ (ptr ptr)
+    fns,←⊂ 'SDL_MapGPUTransferBuffer' ptr (ptr ptr bool)
+    fns,←⊂ 'SDL_UnmapGPUTransferBuffer' ⍬ (ptr ptr)
+
+    ⍝ Passes
+    SDL_FColor ← (f32 f32 f32 f32)
+    SDL_GPUColorTargetInfo ← (ptr u32 u32 SDL_FColor i32 i32 ptr u32 u32 bool bool u8 u8)
+    fns,←⊂ 'SDL_BeginGPURenderPass' ptr (ptr '<' SDL_GPUColorTargetInfo u32 ptr)
+    fns,←⊂ 'SDL_EndGPURenderPass' ⍬ ptr
+
+    fns,←⊂ 'SDL_BeginGPUCopyPass' ptr ptr 
+    fns,←⊂ 'SDL_EndGPUCopyPass' ptr ptr
+
     ∇ load_lib path
-      const_loader.load_dir 'sdl3' 'sdl3_consts'
+      const_loader.load_dir'sdl3' 'sdl3_consts'
       'sdl3'path easy_na.safe_load fns
     ∇
 :EndNamespace
