@@ -5,7 +5,7 @@
 sdl3.load_lib 'libs/libLSE.dylib'
 lse.load_lib 'libs/libLSE.dylib'
 
-:If 0 = sdl3.SDL_Init 32 
+:If 0 = sdl3.SDL_Init sdl3.SDL_INIT_VIDEO
     ⎕ ← 'Error initializing SDL3' 
     ⎕SIGNAL 200
 :Endif
@@ -24,9 +24,15 @@ running ← 1
     :If lse.LSE_CheckEvent 256
         running ← 0
     :Elseif lse.LSE_CheckEvent 768
-        ⎕ ← 'Key Down: ', ⍕lse.LSE_GetKeyPressed⍬
+        key ← ⊃lse.LSE_GetKeyPressed⍬
+        :If key = sdl3.SDLK_RETURN
+            ⎕ ← 'Pressed the enter key'
+        :Endif
     :Elseif lse.LSE_CheckEvent 769
-        ⎕ ← 'Key Up: ', ⍕lse.LSE_GetKeyPressed⍬
+        key ← ⊃lse.LSE_GetKeyPressed⍬
+        :If key = sdl3.SDLK_BACKSPACE 
+            ⎕ ← 'Released the backspace key'
+        :EndIf
     :Elseif lse.LSE_CheckEvent 1024
         ⎕ ← 'Mouse move: ', ⍕lse.LSE_GetMouseMove 0 0
     :EndIf

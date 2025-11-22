@@ -1,5 +1,6 @@
 ﻿:Namespace sdl3
     ⎕FIX 'file://easy_na.apln'
+    ⎕FIX 'file://const_loader.apln'
 
     bool ← 'I1'
     i32 ← 'I4'
@@ -21,7 +22,7 @@
     fns,←⊂ 'SDL_PumpEvents' ⍬ ⍬
 
     ∇ load_lib path
-    ⎕ ← path
+      const_loader.load_dir 'sdl3' 'sdl3_consts'
       'sdl3'path easy_na.safe_load fns
     ∇
 :EndNamespace

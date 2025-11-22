@@ -1,0 +1,38 @@
+﻿:Namespace const_loader
+    ⍝ From https://dfns.dyalog.com/c_dec.htm
+      dec←{⎕IO ⎕ML←0 1                                ⍝ Decimal from hexadecimal
+          ⍺←0                                         ⍝ unsigned by default.
+          1<⍴⍴⍵:⍺∘∇⍤1⊢⍵                               ⍝ vector-wise:
+          0=≢⍵:0                                      ⍝ dec'' → 0.
+          1≠≡,⍵:⍺ ∇¨⍵                                 ⍝ simple-array-wise:
+          ws←∊∘(⎕UCS 9 10 13 32 133 160)              ⍝ white-space?
+          ws⊃⍵:⍺ ∇ 1↓⍵                                ⍝ ignoring leading and
+          ws⊃⌽⍵:⍺ ∇ ¯1↓⍵                              ⍝ ... trailing blanks.
+          ∨/ws ⍵:⍺ ∇¨(1+ws ⍵)⊆⍵                       ⍝ white-space-separated:
+          v←16|'0123456789abcdef0123456789ABCDEF'⍳⍵   ⍝ hex digits.
+          11::'Too big'⎕SIGNAL 11                     ⍝ number too big.
+          (16⊥v)-⍺×(8≤⊃v)×16*≢v                       ⍝ (signed) decimal number.
+      }
+
+    ∇ parse_def(ns file_name);lines;wc;mask;names;nums
+      lines←⊃⎕NGET file_name 1
+      wc←≢∘(' '∘≠⊆⊢)¨lines
+      lines←(' '∘≠⊆⊢)¨(wc=2)/lines
+      names←1⌷¨lines
+      nums←{'0x'≡2↑∊⍵:dec ⍵ ⋄ ⍵}¨2⌷¨lines
+      {
+          6::⎕←'Namespace "',ns,'" is not loaded'
+          {('#.',ns)⍎∊(⍵[1])' ← '(⍕⍵[2])}¨↓⍉↑names nums
+      }⍬
+    ∇
+
+    ∇ parse_enum(ns file_name);lines;wc;mask;names;nums
+      ⍝ todo 
+      ⍝ Somehow set missing lines to 1 and rest to their numbers
+      ⍝ Use Scan (\) over it with closure where != 1 -> no-op
+    ∇
+
+    ∇ load_dir (ns dir)
+      {parse_def ns ⍵}¨⊃(⎕NINFO⍠1)dir,'/*.def'
+    ∇
+:EndNamespace
