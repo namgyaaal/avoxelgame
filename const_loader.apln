@@ -14,25 +14,34 @@
           (16⊥v)-⍺×(8≤⊃v)×16*≢v                       ⍝ (signed) decimal number.
       }
 
-    ∇ parse_def(ns file_name);lines;wc;mask;names;nums
-      lines←⊃⎕NGET file_name 1
-      wc←≢∘(' '∘≠⊆⊢)¨lines
-      lines←(' '∘≠⊆⊢)¨(wc=2)/lines
-      names←1⌷¨lines
-      nums←{'0x'≡2↑∊⍵:dec ⍵ ⋄ ⍵}¨2⌷¨lines
+    ∇ parse_file(ns file_name);entries;names;values;assign_mask;assign_idx;vmask;val_map
+      ⍝ Three groups: Self, another enum, empty
+      entries ← (' '∘≠⊆⊢)¨({0∘≠∘≢¨⍵}⊢⍤/⊢)⊃⎕NGET file_name 1
+      names ← {∊1⌷⍵}¨entries
+      values ← {1=≢⍵: ¯1 ⋄ ∊2⌷⍵}¨entries
+      ⍝ If it's an empty enum skip this process
+      :If 0 < +/(2∘=∘≢)¨entries
+        ⍝ Where enum_B = enum_A
+        ⍝ Take the names to get indices of where the values are
+        assign_mask ← ∊{⎕A∊⍨1↑⍵}¨values
+        assign_idx ← names⍳assign_mask/values
+        vmask ← {('0x'≡2↑⍵)∨(^/⍵∊⎕D)}¨values
+
+        val_map ← 1+(⍴entries)↑¯1
+        val_map[⍸vmask] ← {'0x'≡2↑⍵: dec ⍵ ⋄ ⍎⍵}¨vmask/values
+        val_map ← ∊+\¨(1∘({⍺=⍳⍴⍵}∨≠)⊂⊢)val_map
+        val_map[⍸assign_mask] ← val_map[assign_idx]
+      :Else
+        val_map ← ¯1+⍳⍴names
+      :Endif
       {
-          6::⎕←'Namespace "',ns,'" is not loaded'
-          {('#.',ns)⍎∊(⍵[1])' ← '(⍕⍵[2])}¨↓⍉↑names nums
+        6::⎕←'Namespace "', ns, '" is not loaded'
+        {('#.',ns)⍎∊(⍵[1])' ← '(⍕⍵[2])}¨↓⍉↑names val_map
       }⍬
     ∇
 
-    ∇ parse_enum(ns file_name);lines;wc;mask;names;nums
-      ⍝ todo 
-      ⍝ Somehow set missing lines to 1 and rest to their numbers
-      ⍝ Use Scan (\) over it with closure where != 1 -> no-op
-    ∇
-
-    ∇ load_dir (ns dir)
-      {parse_def ns ⍵}¨⊃(⎕NINFO⍠1)dir,'/*.def'
+    ∇ load_dir(ns dir)
+      {parse_file ns ⍵}¨⊃(⎕NINFO⍠1)dir,'/*.def'
+      {parse_file ns ⍵}¨⊃(⎕NINFO⍠1)dir,'/*.enum'
     ∇
 :EndNamespace
