@@ -6,7 +6,7 @@
           ⍝ just use '-' in the definition and collapse it after done with
           ⍝ parsing
           ⍝ Dirty, but it works
-          out←⍵/⍨~((⍵=' ')∧¯1⌽⍵∊'<>=')∨(⍵='-')
+          out←⍵/⍨~((⍵=' ')∧((¯1⌽⍵∊'<>=')∨(1⌽⍵∊'[]')))∨(⍵='-')
           out
       }
 
@@ -38,7 +38,7 @@
           error_vec←,⊂/{
               fn_name←1⌷⍵
               formatted←∊lib_name,'|',fn_name
-              def←1↓∊' '∘,¨(clean_def ⊃2⌷⍵)formatted(clean_def build_args⊃3⌷⍵)
+              def←1↓∊' '∘,¨(clean_def⊃2⌷⍵)formatted(clean_def build_args⊃3⌷⍵)
               res←fn_name load_def def
               _←ns ⎕NS fn_name
               res

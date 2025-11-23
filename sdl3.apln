@@ -12,6 +12,8 @@
     cstr ← '<0C1[]'
 
     fns ← ⍬
+    ⍝ Core Stuff
+
     fns,←⊂ 'SDL_Init' bool u32
     fns,←⊂ 'SDL_Quit' ⍬ ⍬
 
@@ -22,6 +24,9 @@
     fns,←⊂ 'SDL_DestroyWindow' ⍬ ptr
 
     fns,←⊂ 'SDL_PumpEvents' ⍬ ⍬
+
+    fns,←⊂ 'SDL_LoadFile' ptr (cstr '>' u64)
+    fns,←⊂ 'SDL_free' ⍬ ptr
 
     ⍝ GPU Stuff
 
@@ -36,6 +41,7 @@
 
     ⍝ Swapchain
     fns,←⊂ 'SDL_WaitAndAcquireGPUSwapchainTexture' bool (ptr ptr '>' ptr '>' u32 '>' u32)
+    fns,←⊂ 'SDL_GetGPUSwapchainTextureFormat' i32 (ptr ptr)
 
     ⍝ Buffers
     fns,←⊂ 'SDL_CreateGPUBuffer' ptr (ptr '<' (u32 u32 u32))
@@ -48,14 +54,26 @@
     fns,←⊂ 'SDL_MapGPUTransferBuffer' ptr (ptr ptr bool)
     fns,←⊂ 'SDL_UnmapGPUTransferBuffer' ⍬ (ptr ptr)
 
+    ⍝ Shaders
+    ⍝ Creation covered by LSE_CreateGPUShader
+    fns,←⊂ 'SDL_ReleaseGPUShader' ⍬ (ptr ptr)
+
+    ⍝ Pipeline Handling (Creation managed by LSE)
+    fns,←⊂ 'SDL_BindGPUGraphicsPipeline' ⍬ (ptr ptr)
+    fns,←⊂ 'SDL_ReleaseGPUGraphicsPipeline' ⍬ (ptr ptr)
+
     ⍝ Passes
     SDL_FColor ← (f32 f32 f32 f32)
     SDL_GPUColorTargetInfo ← (ptr u32 u32 SDL_FColor i32 i32 ptr u32 u32 bool bool u8 u8)
     fns,←⊂ 'SDL_BeginGPURenderPass' ptr (ptr '<' SDL_GPUColorTargetInfo u32 ptr)
     fns,←⊂ 'SDL_EndGPURenderPass' ⍬ ptr
 
-    fns,←⊂ 'SDL_BeginGPUCopyPass' ptr ptr 
+    fns,←⊂ 'SDL_BeginGPUCopyPass' ptr ptr
     fns,←⊂ 'SDL_EndGPUCopyPass' ptr ptr
+
+    
+    fns,←⊂ 'SDL_BindGPUVertexBuffers' ⍬ (ptr u32 '<' (ptr u32) '[]' u32)
+    fns,←⊂ 'SDL_DrawGPUPrimitives' ⍬ (ptr u32 u32 u32 u32)
 
     ∇ load_lib path
       const_loader.load_dir'sdl3' 'sdl3_consts'

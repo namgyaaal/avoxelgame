@@ -2,18 +2,42 @@
     ⎕FIX 'file://easy_na.apln'
 
     bool ← 'I1'
+    u8 ← 'U1'
     i32 ← 'I4'
     u32 ← 'U4'
     u64 ← 'U8'
+    f32 ← 'F4'
+    f32_arr ← '<F4[]'
     ptr ← 'P-'
     cstr ← '<0C1[]'
 
     fns ← ⍬
+
+    ⍝ Util
+    fns,←⊂ 'LSE_PrintError' ⍬ ptr
+    fns,←⊂ 'LSE_MemcpyF32' ⍬ (ptr f32_arr u32)
+
+    ⍝ Events
+
     fns,←⊂ 'LSE_PollEvent' bool ⍬
     fns,←⊂ 'LSE_CheckEvent' bool i32
     fns,←⊂ 'LSE_GetKeyPressed' u32 ⍬
-
     fns,←⊂ 'LSE_GetMouseMove' ⍬ ('>'i32 '>'i32)
+
+    ⍝ General Graphics
+    fns ,←⊂ 'LSE_CreateGPUShader' ptr (ptr '<'(u64 ptr ptr u32 i32 u32 u32 u32 u32 u32) cstr)
+
+    ⍝ Pipeline Handling
+    fns,←⊂ 'LSE_PipelineClearParams' ⍬ ⍬
+    fns,←⊂ 'LSE_PipelineCreate' ptr ptr
+    fns,←⊂ 'LSE_PipelineSetShaders' ⍬ (ptr ptr)
+    fns,←⊂ 'LSE_PipelineSetVertexInput' ⍬ ('<'(u32 u32 i32 u32) '[]' u32 '<'(u32 u32 i32 u32) '[]' u32)
+    fns,←⊂ 'LSE_PipelineSetPrimitive' ⍬ i32
+    fns,←⊂ 'LSE_PipelineSetRasterizer' ⍬ (i32 i32 i32 f32 f32 f32 bool bool)
+    fns,←⊂ 'LSE_PipelineSetMultisample' ⍬ (i32 u32 bool bool)
+    fns,←⊂ 'LSE_PipelineSetDepthStencil' ⍬ (i32 ⍬ ⍬ u8 u8 bool bool bool)
+    fns,←⊂ 'LSE_PipelineSetTargetInfo' ⍬ ('<' (i32 (i32 i32 i32 i32 i32 i32 u8 bool bool u8 u8)) '[]' u32 i32 bool)
+    fns,←⊂ 'LSE_PipelineSetProperties' ⍬ u32
 
     ∇ load_lib path
       'lse'path easy_na.safe_load fns
