@@ -8,6 +8,7 @@
     u64 ← 'U8'
     f32 ← 'F4'
     f32_arr ← '<F4[]'
+    u16_arr ← '<U2[]'
     ptr ← 'P-'
     cstr ← '<0C1[]'
 
@@ -16,6 +17,7 @@
     ⍝ Util
     fns,←⊂ 'LSE_PrintError' ⍬ ptr
     fns,←⊂ 'LSE_MemcpyF32' ⍬ (ptr f32_arr u32)
+    fns,←⊂ 'LSE_MemcpyU16' ⍬ (ptr u16_arr u32)
 
     ⍝ Events
 

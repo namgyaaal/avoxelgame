@@ -11,6 +11,10 @@ void LSE_PrintError(const char* err_str) {
     }
 }
 
+void LSE_MemcpyU16(void* dst, void* src, uint32_t size) {
+    SDL_memcpy(dst, src, size);
+}
+
 void LSE_MemcpyF32(void* dst, void* src, uint32_t size) {
     SDL_memcpy(dst, src, size);
 }

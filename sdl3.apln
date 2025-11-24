@@ -67,13 +67,16 @@
     SDL_GPUColorTargetInfo ← (ptr u32 u32 SDL_FColor i32 i32 ptr u32 u32 bool bool u8 u8)
     fns,←⊂ 'SDL_BeginGPURenderPass' ptr (ptr '<' SDL_GPUColorTargetInfo u32 ptr)
     fns,←⊂ 'SDL_EndGPURenderPass' ⍬ ptr
-
     fns,←⊂ 'SDL_BeginGPUCopyPass' ptr ptr
     fns,←⊂ 'SDL_EndGPUCopyPass' ptr ptr
 
-    
+    ⍝ Binding
     fns,←⊂ 'SDL_BindGPUVertexBuffers' ⍬ (ptr u32 '<' (ptr u32) '[]' u32)
+    fns,←⊂ 'SDL_BindGPUIndexBuffer' ⍬ (ptr '<' (ptr u32) '[]' i32)
+
+    ⍝ Drawing
     fns,←⊂ 'SDL_DrawGPUPrimitives' ⍬ (ptr u32 u32 u32 u32)
+    fns,←⊂ 'SDL_DrawGPUIndexedPrimitives' ⍬ (ptr u32 u32 u32 i32 u32)
 
     ∇ load_lib path
       const_loader.load_dir'sdl3' 'sdl3_consts'

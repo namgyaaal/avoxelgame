@@ -17,7 +17,7 @@ SDL_GPUGraphicsPipelineCreateInfo global_params;
    duration of the function.
 
     For VertexInput & ColorTarget Descriptions, copy them into these buffers to
-   use to avoid this.
+   avoid this.
 */
 
 SDL_GPUVertexBufferDescription vb_descriptions[16];
