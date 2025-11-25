@@ -1,6 +1,4 @@
 :Namespace lse
-    ⎕FIX 'file://easy_na.apln'
-
     bool ← 'I1'
     u8 ← 'U1'
     i32 ← 'I4'
@@ -42,6 +40,6 @@
     fns,←⊂ 'LSE_PipelineSetProperties' ⍬ u32
 
     ∇ load_lib path
-      'lse'path easy_na.safe_load fns
+      'lagl'path ##.easy_na.safe_load fns
     ∇
 :EndNamespace

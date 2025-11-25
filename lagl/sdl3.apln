@@ -1,7 +1,4 @@
-﻿:Namespace sdl3
-    ⎕FIX 'file://easy_na.apln'
-    ⎕FIX 'file://const_loader.apln'
-
+:Namespace sdl3
     bool ← 'I1'
     u8 ← 'U1'
     i32 ← 'I4'
@@ -79,7 +76,7 @@
     fns,←⊂ 'SDL_DrawGPUIndexedPrimitives' ⍬ (ptr u32 u32 u32 i32 u32)
 
     ∇ load_lib path
-      const_loader.load_dir'sdl3' 'sdl3_consts'
-      'sdl3'path easy_na.safe_load fns
+      ##.const_loader.load_dir'lagl' 'sdl3_consts'
+      'lagl'path ##.easy_na.safe_load fns
     ∇
 :EndNamespace
