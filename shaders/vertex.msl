@@ -11,10 +11,14 @@ struct VertexOut {
     float4 color;
 };
 
-vertex VertexOut vertex_main(VertexIn in [[stage_in]])
+struct Uniforms {
+    float4x4 model;
+};
+
+vertex VertexOut vertex_main(VertexIn in [[stage_in]], constant Uniforms& uni   [[buffer(0)]])
 {
     VertexOut out;
-    out.position = float4(in.position, 1.0);
+    out.position = uni.model * float4(in.position, 1.0);
     out.color = in.color;
     return out;
 }

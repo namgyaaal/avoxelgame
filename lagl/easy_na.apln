@@ -1,4 +1,4 @@
-﻿:Namespace easy_na
+:Namespace easy_na
 
       clean_def←{
           ⍝ Cases where <>= have a space after the struct/type they're on.
@@ -41,6 +41,7 @@
               def←1↓∊' '∘,¨(clean_def⊃2⌷⍵)formatted(clean_def build_args⊃3⌷⍵)
               res←fn_name load_def def
               _←ns ⎕NS fn_name
+              ⎕EX fn_name
               res
           }¨⍵
       }

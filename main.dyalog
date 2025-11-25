@@ -73,7 +73,7 @@ f_src f_size ← lagl.SDL_LoadFile 'shaders/fragment.msl' 0
     ⎕ ← 'Error loading shaders'
     ⎕SIGNAL 200
 :Endif
-v_info ← v_size v_src 0 lagl.SDL_GPU_SHADERFORMAT_MSL lagl.SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 0 0
+v_info ← v_size v_src 0 lagl.SDL_GPU_SHADERFORMAT_MSL lagl.SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
 f_info ← f_size f_src 0 lagl.SDL_GPU_SHADERFORMAT_MSL lagl.SDL_GPU_SHADERSTAGE_FRAGMENT 0 0 0 0 0
 
 v_shader ← lagl.LSE_CreateGPUShader device v_info 'vertex_main'
@@ -112,22 +112,41 @@ pipeline ← lagl.LSE_PipelineCreate device
     ⎕SIGNAL 200
 :Endif
 
+(x_dir y_dir x_pos y_pos) ← 0 0 0 0
+
+
 running ← 1
 :While running
     :While ⊃lagl.LSE_PollEvent⍬
         :If lagl.LSE_CheckEvent lagl.SDL_EVENT_QUIT
             running ← 0
-        :Elagl.f lse.LSE_CheckEvent lagl.SDL_EVENT_KEY_DOWN
+        :Elseif lagl.LSE_CheckEvent lagl.SDL_EVENT_KEY_DOWN
             key ← ⊃lagl.LSE_GetKeyPressed⍬
             :If key = lagl.SDLK_RETURN
                 ⎕ ← 'Pressed the enter key'
+            :Elseif key = lagl.SDLK_D
+                x_dir ← 1
+            :Elseif key = lagl.SDLK_A
+                x_dir ← ¯1
+            :Elseif key = lagl.SDLK_W
+                y_dir ← 1
+            :Elseif key = lagl.SDLK_S
+                y_dir ← ¯1
             :Endif
-        :Elagl.f lse.LSE_CheckEvent lagl.SDL_EVENT_KEY_UP
+        :Elseif lagl.LSE_CheckEvent lagl.SDL_EVENT_KEY_UP
             key ← ⊃lagl.LSE_GetKeyPressed⍬
             :If key = lagl.SDLK_BACKSPACE
                 ⎕ ← 'Released the backspace key'
-            :EndIf
-        :Elagl.f lse.LSE_CheckEvent lagl.SDL_EVENT_MOUSE_MOTION
+            :Elseif key = lagl.SDLK_D
+                x_dir ← 0
+            :Elseif key = lagl.SDLK_A
+                x_dir ← 0
+            :Elseif key = lagl.SDLK_W
+                y_dir ← 0
+            :Elseif key = lagl.SDLK_S
+                y_dir ← 0
+            :Endif
+        :Elseif lagl.LSE_CheckEvent lagl.SDL_EVENT_MOUSE_MOTION
             ⍝⎕ ← 'Mouse move: ', ⍕lagl.LSE_GetMouseMove 0 0
         :EndIf
     :EndWhile
@@ -142,6 +161,23 @@ running ← 1
     pass ← lagl.SDL_BeginGPURenderPass cmd_buf color_info 1 0
 
     lagl.SDL_BindGPUGraphicsPipeline pass pipeline
+
+
+    dt ← 500÷⍨⊃lagl.SDL_GetTicks⍬
+
+    x_pos ← x_pos + x_dir × (0.004)
+    y_pos ← y_pos + y_dir × (0.004)
+
+    model_mat←4 4 ⍴ 1,4⍴0
+    ⍝ Translation
+    model_mat[;4] ← x_pos y_pos 0 1
+    ⍝ Rotation
+    model_mat[(1 1) (2 1) (1 2) (2 2)] ← (1 ¯1 1 1) × 2 1 1 2○dt dt dt dt
+    ⍝ Row-major → Column major
+    model_mat ← ⍉model_mat
+
+
+    lagl.SDL_PushGPUVertexUniformData cmd_buf 0 (∊model_mat) (4×16)
 
     vbuffer_list ← ⊂(vertex_buffer 0)
     ibuffer_list ← ⊂(index_buffer 0)

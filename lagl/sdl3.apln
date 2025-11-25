@@ -7,6 +7,7 @@
     f32 ← 'F4'
     ptr ← 'P-'
     cstr ← '<0C1[]'
+    f32_arr ← '<F4[]'
 
     fns ← ⍬
     ⍝ Core Stuff
@@ -24,6 +25,8 @@
 
     fns,←⊂ 'SDL_LoadFile' ptr (cstr '>' u64)
     fns,←⊂ 'SDL_free' ⍬ ptr
+
+    fns,←⊂ 'SDL_GetTicks' u32 ⍬ 
 
     ⍝ GPU Stuff
 
@@ -54,6 +57,10 @@
     ⍝ Shaders
     ⍝ Creation covered by LSE_CreateGPUShader
     fns,←⊂ 'SDL_ReleaseGPUShader' ⍬ (ptr ptr)
+
+    ⍝ Uniforms (F32 default)
+    fns,←⊂ 'SDL_PushGPUVertexUniformData' ⍬ (ptr u32 f32_arr u32)
+    fns,←⊂ 'SDL_PushGPUFragmentUniformData' ⍬ (ptr u32 f32_arr u32)
 
     ⍝ Pipeline Handling (Creation managed by LSE)
     fns,←⊂ 'SDL_BindGPUGraphicsPipeline' ⍬ (ptr ptr)
