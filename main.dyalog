@@ -66,8 +66,8 @@ lagl.SDL_SubmitGPUCommandBuffer cmd_buf
 
 
 ⍝ Load shaders
-v_src v_size ← lagl.SDL_LoadFile 'shaders/vertex.msl' 0
-f_src f_size ← lagl.SDL_LoadFile 'shaders/fragment.msl' 0
+v_src v_size ← lagl.SDL_LoadFile 'shaders/msl/basic_vert.msl' 0
+f_src f_size ← lagl.SDL_LoadFile 'shaders/msl/basic_frag.msl' 0
 
 :If (0 = v_src) ∨ (0 = f_src) 
     ⎕ ← 'Error loading shaders'
@@ -76,8 +76,8 @@ f_src f_size ← lagl.SDL_LoadFile 'shaders/fragment.msl' 0
 v_info ← v_size v_src 0 lagl.SDL_GPU_SHADERFORMAT_MSL lagl.SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
 f_info ← f_size f_src 0 lagl.SDL_GPU_SHADERFORMAT_MSL lagl.SDL_GPU_SHADERSTAGE_FRAGMENT 0 0 0 0 0
 
-v_shader ← lagl.LSE_CreateGPUShader device v_info 'vertex_main'
-f_shader ← lagl.LSE_CreateGPUShader device f_info 'fragment_main'
+v_shader ← lagl.LSE_CreateGPUShader device v_info 'main0'
+f_shader ← lagl.LSE_CreateGPUShader device f_info 'main0'
 :If (0 = v_src) ∨ (0 = f_src)
     ⎕ ← 'Error creating shaders'
     ⎕SIGNAL 200
@@ -164,9 +164,6 @@ running ← 1
 
 
     dt ← 500÷⍨⊃lagl.SDL_GetTicks⍬
-
-    x_pos ← x_pos + x_dir × (0.004)
-    y_pos ← y_pos + y_dir × (0.004)
 
     model_mat←4 4 ⍴ 1,4⍴0
     ⍝ Translation

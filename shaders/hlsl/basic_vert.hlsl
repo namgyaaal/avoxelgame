@@ -1,0 +1,42 @@
+cbuffer UniformBlock : register(b0)
+{
+    row_major float4x4 _19_model : packoffset(c0);
+};
+
+uniform float4 gl_HalfPixel;
+
+static float4 gl_Position;
+static float3 position;
+static float4 out_color;
+static float4 color;
+
+struct SPIRV_Cross_Input
+{
+    float3 position : TEXCOORD0;
+    float4 color : TEXCOORD1;
+};
+
+struct SPIRV_Cross_Output
+{
+    float4 out_color : TEXCOORD0;
+    float4 gl_Position : POSITION;
+};
+
+void vert_main()
+{
+    gl_Position = mul(float4(position, 1.0f), _19_model);
+    out_color = color;
+    gl_Position.x = gl_Position.x - gl_HalfPixel.x * gl_Position.w;
+    gl_Position.y = gl_Position.y + gl_HalfPixel.y * gl_Position.w;
+}
+
+SPIRV_Cross_Output main(SPIRV_Cross_Input stage_input)
+{
+    position = stage_input.position;
+    color = stage_input.color;
+    vert_main();
+    SPIRV_Cross_Output stage_output;
+    stage_output.gl_Position = gl_Position;
+    stage_output.out_color = out_color;
+    return stage_output;
+}

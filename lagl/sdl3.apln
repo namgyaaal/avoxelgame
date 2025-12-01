@@ -26,7 +26,7 @@
     fns,←⊂ 'SDL_LoadFile' ptr (cstr '>' u64)
     fns,←⊂ 'SDL_free' ⍬ ptr
 
-    fns,←⊂ 'SDL_GetTicks' u32 ⍬ 
+    fns,←⊂ 'SDL_GetTicks' u32 ⍬
 
     ⍝ GPU Stuff
 
