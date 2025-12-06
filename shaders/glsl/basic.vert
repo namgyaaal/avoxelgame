@@ -5,10 +5,10 @@ layout (location = 1) in vec4 color;
 layout (location = 0) out vec4 out_color;
 
 layout (std140, set = 3, binding = 0) uniform UniformBlock {
-    mat4 model;
+    mat4 mvp;
 };
 
 void main() {
-    gl_Position = model * vec4(position, 1.0f);
+    gl_Position = mvp * vec4(position, 1.0f);
     out_color = color;
 }

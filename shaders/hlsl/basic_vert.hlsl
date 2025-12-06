@@ -1,6 +1,6 @@
 cbuffer UniformBlock : register(b0)
 {
-    row_major float4x4 _19_model : packoffset(c0);
+    row_major float4x4 _19_mvp : packoffset(c0);
 };
 
 uniform float4 gl_HalfPixel;
@@ -24,7 +24,7 @@ struct SPIRV_Cross_Output
 
 void vert_main()
 {
-    gl_Position = mul(float4(position, 1.0f), _19_model);
+    gl_Position = mul(float4(position, 1.0f), _19_mvp);
     out_color = color;
     gl_Position.x = gl_Position.x - gl_HalfPixel.x * gl_Position.w;
     gl_Position.y = gl_Position.y + gl_HalfPixel.y * gl_Position.w;

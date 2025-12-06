@@ -1,42 +1,29 @@
-﻿:Namespace const_loader
-    ⍝ From https://dfns.dyalog.com/c_dec.htm
-      dec←{⎕IO ⎕ML←0 1                                ⍝ Decimal from hexadecimal
-          ⍺←0                                         ⍝ unsigned by default.
-          1<⍴⍴⍵:⍺∘∇⍤1⊢⍵                               ⍝ vector-wise:
-          0=≢⍵:0                                      ⍝ dec'' → 0.
-          1≠≡,⍵:⍺ ∇¨⍵                                 ⍝ simple-array-wise:
-          ws←∊∘(⎕UCS 9 10 13 32 133 160)              ⍝ white-space?
-          ws⊃⍵:⍺ ∇ 1↓⍵                                ⍝ ignoring leading and
-          ws⊃⌽⍵:⍺ ∇ ¯1↓⍵                              ⍝ ... trailing blanks.
-          ∨/ws ⍵:⍺ ∇¨(1+ws ⍵)⊆⍵                       ⍝ white-space-separated:
-          v←16|'0123456789abcdef0123456789ABCDEF'⍳⍵   ⍝ hex digits.
-          11::'Too big'⎕SIGNAL 11                     ⍝ number too big.
-          (16⊥v)-⍺×(8≤⊃v)×16*≢v                       ⍝ (signed) decimal number.
-      }
-
+:Namespace const_loader
+    'dec'⎕CY 'dfns'
+    
     ∇ parse_file(ns file_name);entries;names;values;assign_mask;assign_idx;vmask;val_map
       ⍝ Three groups: Self, another enum, empty
-      entries ← (' '∘≠⊆⊢)¨({0∘≠∘≢¨⍵}⊢⍤/⊢)⊃⎕NGET file_name 1
-      names ← {∊1⌷⍵}¨entries
-      values ← {1=≢⍵: ¯1 ⋄ ∊2⌷⍵}¨entries
+      entries←(' '∘≠⊆⊢)¨({0∘≠∘≢¨⍵}⊢⍤/⊢)⊃⎕NGET file_name 1
+      names←{∊1⌷⍵}¨entries
+      values←{1=≢⍵:¯1 ⋄ ∊2⌷⍵}¨entries
       ⍝ If it's an empty enum skip this process
-      :If 0 < +/(2∘=∘≢)¨entries
+      :If 0<+/(2∘=∘≢)¨entries
         ⍝ Where enum_B = enum_A
         ⍝ Take the names to get indices of where the values are
-        assign_mask ← ∊{⎕A∊⍨1↑⍵}¨values
-        assign_idx ← names⍳assign_mask/values
-        vmask ← {('0x'≡2↑⍵)∨(^/⍵∊⎕D)}¨values
-
-        val_map ← 1+(⍴entries)↑¯1
-        val_map[⍸vmask] ← {'0x'≡2↑⍵: dec ⍵ ⋄ ⍎⍵}¨vmask/values
-        val_map ← ∊+\¨(1∘({⍺=⍳⍴⍵}∨≠)⊂⊢)val_map
-        val_map[⍸assign_mask] ← val_map[assign_idx]
+          assign_mask←∊{⎕A∊⍨1↑⍵}¨values
+          assign_idx←names⍳assign_mask/values
+          vmask←{('0x'≡2↑⍵)∨(∧/⍵∊⎕D)}¨values
+     
+          val_map←1+(⍴entries)↑¯1
+          val_map[⍸vmask]←{'0x'≡2↑⍵:dec ⍵ ⋄ ⍎⍵}¨vmask/values
+          val_map←∊+\¨(1∘({⍺=⍳⍴⍵}∨≠)⊂⊢)val_map
+          val_map[⍸assign_mask]←val_map[assign_idx]
       :Else
-        val_map ← ¯1+⍳⍴names
-      :Endif
+          val_map←¯1+⍳⍴names
+      :EndIf
       {
-        6::⎕←'Namespace "', ns, '" is not loaded'
-        {('#.',ns)⍎∊(⍵[1])' ← '(⍕⍵[2])}¨↓⍉↑names val_map
+          6::⎕←'Namespace "',ns,'" is not loaded'
+          {('#.',ns)⍎∊(⍵[1])' ← '(⍕⍵[2])}¨↓⍉↑names val_map
       }⍬
     ∇
 

@@ -98,16 +98,14 @@ void LSE_PipelineSetDepthStencil(SDL_GPUCompareOp compare_op,
                                  bool enable_depth_test,
                                  bool enable_depth_write,
                                  bool enable_stencil_test) {
-    SDL_GPUDepthStencilState state;
-    state.compare_op = compare_op;
-    state.back_stencil_state = back_stencil_state;
-    state.front_stencil_state = front_stencil_state;
-    state.compare_mask = compare_mask;
-    state.write_mask = write_mask;
-    state.enable_depth_test = enable_depth_test;
-    state.enable_depth_write = enable_depth_write;
-    state.enable_stencil_test = enable_stencil_test;
-    global_params.depth_stencil_state = state;
+    global_params.depth_stencil_state.compare_op = compare_op;
+    global_params.depth_stencil_state.back_stencil_state = back_stencil_state;
+    global_params.depth_stencil_state.front_stencil_state = front_stencil_state;
+    global_params.depth_stencil_state.compare_mask = compare_mask;
+    global_params.depth_stencil_state.write_mask = write_mask;
+    global_params.depth_stencil_state.enable_depth_test = enable_depth_test;
+    global_params.depth_stencil_state.enable_depth_write = enable_depth_write;
+    global_params.depth_stencil_state.enable_stencil_test = enable_stencil_test;
 }
 
 void LSE_PipelineSetTargetInfo(

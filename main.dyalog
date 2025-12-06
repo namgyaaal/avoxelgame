@@ -27,12 +27,30 @@ device ← lagl.SDL_CreateGPUDevice lagl.SDL_GPU_SHADERFORMAT_MSL 1 'metal'
 
 ⍝ Create buffers
 
-positions ← ↑(¯0.5 0.5 0.0) (0.5 0.5 0.0) (¯0.5, ¯0.5 0.0) (0.5 ¯0.5 0.0)
-colors ← ↑(1 0 0 1) (0 1 0 1) (0 0 1 1) (1 0 1 0)
+⍝ Front, Right, Back, Left, Top, Bottom
+positions ← (¯0.5 0.5 0.5) (0.5 0.5 0.5) (0.5, ¯0.5 0.5) (¯0.5 ¯0.5 0.5)
+positions,← (0.5 0.5 0.5) (0.5 0.5 ¯0.5) (0.5 ¯0.5 ¯0.5) (0.5 ¯0.5 0.5)
+positions,← (0.5 0.5 ¯0.5) (¯0.5 0.5 ¯0.5) (¯0.5 ¯0.5 ¯0.5) (0.5 ¯0.5 ¯0.5)
+positions,← (¯0.5 0.5 ¯0.5) (¯0.5 0.5 0.5) (¯0.5 ¯0.5 0.5) (¯0.5 ¯0.5 ¯0.5)
+positions,← (¯0.5 0.5 ¯0.5) (0.5 0.5 ¯0.5) (0.5 0.5 0.5) (¯0.5 0.5 0.5)
+positions,← (0.5 ¯0.5 ¯0.5) (¯0.5 ¯0.5 ¯0.5) (¯0.5 ¯0.5 0.5) (0.5 ¯0.5 0.5)
+
+positions ← ↑positions
+colors ← 1,⍨?(⍴positions)⍴0
+
 vertex_data ← ∊positions,colors
 vertex_size ← 4 × ≢vertex_data ⍝ in bytes for f32
 
-index_data ← ∊(0 1 2) (1 2 3)
+face ← (0 1 2) (0 2 3)
+
+index_data ← face
+index_data,← 4  + face
+index_data,← 8  + face
+index_data,← 12 + face
+index_data,← 16 + face
+index_data,← 20 + face
+index_data ←∊ index_data
+
 index_size ← 2 × ≢index_data ⍝ in bytes for u16
 
 vb_params ←⊂ lagl.SDL_GPU_BUFFERUSAGE_VERTEX vertex_size 0
@@ -92,6 +110,8 @@ vb_desc ←⊂ (0 (4 × 7) 0 0)
 vb_attr ←⊂ (0 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3 0) 
 vb_attr,←⊂ (1 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4 (4 × 3))
 lagl.LSE_PipelineSetVertexInput (⊂vb_desc), 1, (⊂vb_attr), 2
+lagl.LSE_PipelineSetDepthStencil 2 (0 0 0 0) (0 0 0 0) 0 0 1 1 0 0
+lagl.LSE_PipelineSetRasterizer 0 2 1 0.0 0.0 0.0 0 0
 
 ⍝ Color Targets
 default_format ← ⊃lagl.SDL_GetGPUSwapchainTextureFormat device window
@@ -112,9 +132,10 @@ pipeline ← lagl.LSE_PipelineCreate device
     ⎕SIGNAL 200
 :Endif
 
-(x_dir y_dir x_pos y_pos) ← 0 0 0 0
+(x_dir y_dir) ← 0 0
+proj_mat ← lagl.math.proj (75.0 × 180÷⍨○1) (900 ÷ 600) 0.01 100
 
-
+c ← 0
 running ← 1
 :While running
     :While ⊃lagl.LSE_PollEvent⍬
@@ -150,6 +171,13 @@ running ← 1
             ⍝⎕ ← 'Mouse move: ', ⍕lagl.LSE_GetMouseMove 0 0
         :EndIf
     :EndWhile
+    c ← c + 0.01
+
+    x_pos ← 2×2○c
+    y_pos ← 2×1○c
+    z_pos ← 2×1○c
+
+    view_mat ← lagl.math.look_at (x_pos y_pos z_pos) (0.0 0.0 0.0) (0.0 1.0 0.0)
 
     cmd_buf ← lagl.SDL_AcquireGPUCommandBuffer device
     res texture width height ← lagl.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
@@ -165,6 +193,7 @@ running ← 1
 
     dt ← 500÷⍨⊃lagl.SDL_GetTicks⍬
 
+    ⍝ use this later
     model_mat←4 4 ⍴ 1,4⍴0
     ⍝ Translation
     model_mat[;4] ← x_pos y_pos 0 1
@@ -173,15 +202,16 @@ running ← 1
     ⍝ Row-major → Column major
     model_mat ← ⍉model_mat
 
+    mvp ← view_mat +.× proj_mat
 
-    lagl.SDL_PushGPUVertexUniformData cmd_buf 0 (∊model_mat) (4×16)
+    lagl.SDL_PushGPUVertexUniformData cmd_buf 0 (∊mvp) (16×4)
 
     vbuffer_list ← ⊂(vertex_buffer 0)
     ibuffer_list ← ⊂(index_buffer 0)
 
     lagl.SDL_BindGPUVertexBuffers pass 0 vbuffer_list 1
     lagl.SDL_BindGPUIndexBuffer pass ibuffer_list lagl.SDL_GPU_INDEXELEMENTSIZE_16BIT
-    lagl.SDL_DrawGPUIndexedPrimitives pass 6 1 0 0 0
+    lagl.SDL_DrawGPUIndexedPrimitives pass 36 1 0 0 0
     lagl.SDL_EndGPURenderPass pass
     lagl.SDL_SubmitGPUCommandBuffer cmd_buf
 
