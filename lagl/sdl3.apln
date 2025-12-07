@@ -28,6 +28,15 @@
 
     fns,←⊂ 'SDL_GetTicks' u32 ⍬
 
+    ⍝ Surfaces
+    fns,←⊂ 'SDL_CreateSurface' ptr (i32 i32 i32)
+    fns,←⊂ 'SDL_DestroySurface' ⍬ ptr
+    fns,←⊂ 'SDL_LockSurface' bool ptr
+    fns,←⊂ 'SDL_UnlockSurface' ⍬ ptr
+    fns,←⊂ 'SDL_WriteSurfacePixelFloat' bool (ptr i32 i32 f32 f32 f32 f32)
+    fns,←⊂ 'SDL_SaveBMP' bool (ptr cstr)
+    fns,←⊂ 'SDL_LoadBMP' ptr cstr
+
     ⍝ GPU Stuff
 
     ⍝ Device

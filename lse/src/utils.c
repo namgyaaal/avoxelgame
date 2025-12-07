@@ -11,6 +11,10 @@ void LSE_PrintError(const char* err_str) {
     }
 }
 
+void* LSE_GetSurfaceDataAddress(SDL_Surface* surface) {
+    return surface->pixels;
+}
+
 void LSE_MemcpyU16(void* dst, void* src, uint32_t size) {
     SDL_memcpy(dst, src, size);
 }

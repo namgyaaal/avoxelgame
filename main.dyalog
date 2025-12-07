@@ -10,6 +10,21 @@ lagl.lse.load_lib 'libs/libLSE.dylib'
     ⎕SIGNAL 200
 :Endif
 
+
+⍝ Test surfaces real quick 
+
+surface ← lagl.SDL_CreateSurface 128 128 lagl.SDL_PIXELFORMAT_RGBA128_FLOAT
+
+lagl.SDL_LockSurface surface
+data_addr ← lagl.LSE_GetSurfaceDataAddress surface
+data ← ∊(×/ 128 128 4)⍴ (255 0 0 255 0 255 0 255 0 0 255 255)
+data_size ← 4×≢data
+lagl.LSE_MemcpyF32 (data_addr) (data) data_size
+lagl.SDL_SaveBMP surface 'test.bmp'
+lagl.SDL_UnlockSurface surface
+lagl.SDL_DestroySurface surface
+
+
 window ← lagl.SDL_CreateWindow 'Hello World' 900 600 0
 :If 0 = window
     ⎕ ← 'Error creating window for SDL3'
@@ -110,7 +125,7 @@ vb_desc ←⊂ (0 (4 × 7) 0 0)
 vb_attr ←⊂ (0 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3 0) 
 vb_attr,←⊂ (1 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4 (4 × 3))
 lagl.LSE_PipelineSetVertexInput (⊂vb_desc), 1, (⊂vb_attr), 2
-lagl.LSE_PipelineSetDepthStencil 2 (0 0 0 0) (0 0 0 0) 0 0 1 1 0 0
+lagl.LSE_PipelineSetDepthStencil 2 (0 0 0 0) (0 0 0 0) 0 0 1 1 0 0 0 0
 lagl.LSE_PipelineSetRasterizer 0 2 1 0.0 0.0 0.0 0 0
 
 ⍝ Color Targets

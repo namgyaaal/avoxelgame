@@ -1,4 +1,5 @@
 :Namespace lse
+    pad ← 'U1'
     bool ← 'I1'
     u8 ← 'U1'
     i32 ← 'I4'
@@ -14,11 +15,11 @@
 
     ⍝ Util
     fns,←⊂ 'LSE_PrintError' ⍬ ptr
+    fns,←⊂ 'LSE_GetSurfaceDataAddress' ptr ptr
     fns,←⊂ 'LSE_MemcpyF32' ⍬ (ptr f32_arr u32)
     fns,←⊂ 'LSE_MemcpyU16' ⍬ (ptr u16_arr u32)
 
     ⍝ Events
-
     fns,←⊂ 'LSE_PollEvent' bool ⍬
     fns,←⊂ 'LSE_CheckEvent' bool i32
     fns,←⊂ 'LSE_GetKeyPressed' u32 ⍬
@@ -36,7 +37,11 @@
     fns,←⊂ 'LSE_PipelineSetPrimitive' ⍬ i32
     fns,←⊂ 'LSE_PipelineSetRasterizer' ⍬ (i32 i32 i32 f32 f32 f32 bool bool)
     fns,←⊂ 'LSE_PipelineSetMultisample' ⍬ (i32 u32 bool bool)
-    fns,←⊂ 'LSE_PipelineSetDepthStencil' ⍬ (i32 stencilopstate stencilopstate u8 u8 bool bool bool u8)
+
+    ⍝ Sometimes padding is required. I don't think C-FFI requires this. TODO: do more research on this
+    ⍝ If padding isn't added the last bool (enable_stencil_test) won't match what is passed.
+    ⍝ Might be something unique to ⎕NA?
+    fns,←⊂ 'LSE_PipelineSetDepthStencil' ⍬ (i32 stencilopstate stencilopstate u8 u8 bool bool bool pad pad pad)
     fns,←⊂ 'LSE_PipelineSetTargetInfo' ⍬ ('<' (i32 (i32 i32 i32 i32 i32 i32 u8 bool bool u8 u8)) '[]' u32 i32 bool)
     fns,←⊂ 'LSE_PipelineSetProperties' ⍬ u32
 
