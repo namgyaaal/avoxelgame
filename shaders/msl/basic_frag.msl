@@ -10,13 +10,13 @@ struct main0_out
 
 struct main0_in
 {
-    float4 in_color [[user(locn0)]];
+    float2 in_uv [[user(locn1)]];
 };
 
-fragment main0_out main0(main0_in in [[stage_in]])
+fragment main0_out main0(main0_in in [[stage_in]], texture2d<float> sampleTex [[texture(0)]], sampler sampleTexSmplr [[sampler(0)]])
 {
     main0_out out = {};
-    out.out_color = in.in_color;
+    out.out_color = sampleTex.sample(sampleTexSmplr, in.in_uv);
     return out;
 }
 

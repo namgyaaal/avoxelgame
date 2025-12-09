@@ -17,12 +17,10 @@ surface ← lagl.SDL_CreateSurface 128 128 lagl.SDL_PIXELFORMAT_RGBA128_FLOAT
 
 lagl.SDL_LockSurface surface
 data_addr ← lagl.LSE_GetSurfaceDataAddress surface
-data ← ∊(×/ 128 128 4)⍴ (255 0 0 255 0 255 0 255 0 0 255 255)
+data ← ∊(×/ 128 128 4)⍴ (255 0 0 255 255 0 0 255 0 0 255 255 0 0 255 255)
 data_size ← 4×≢data
 lagl.LSE_MemcpyF32 (data_addr) (data) data_size
-lagl.SDL_SaveBMP surface 'test.bmp'
 lagl.SDL_UnlockSurface surface
-lagl.SDL_DestroySurface surface
 
 
 window ← lagl.SDL_CreateWindow 'Hello World' 900 600 0
@@ -50,10 +48,14 @@ positions,← (¯0.5 0.5 ¯0.5) (¯0.5 0.5 0.5) (¯0.5 ¯0.5 0.5) (¯0.5 ¯0.5 �
 positions,← (¯0.5 0.5 ¯0.5) (0.5 0.5 ¯0.5) (0.5 0.5 0.5) (¯0.5 0.5 0.5)
 positions,← (0.5 ¯0.5 ¯0.5) (¯0.5 ¯0.5 ¯0.5) (¯0.5 ¯0.5 0.5) (0.5 ¯0.5 0.5)
 
+uv ← ↑(0.0 0.0) (1.0 0.0) (1.0 1.0) (0.0 1.0)
+
+
 positions ← ↑positions
 colors ← 1,⍨?(⍴positions)⍴0
+uv ← ((1⌷⍴positions)2)⍴uv
 
-vertex_data ← ∊positions,colors
+vertex_data ← ∊positions,colors,uv
 vertex_size ← 4 × ≢vertex_data ⍝ in bytes for f32
 
 face ← (0 1 2) (0 2 3)
@@ -80,20 +82,57 @@ index_buffer ← lagl.SDL_CreateGPUBuffer device ib_params
 
 tb_params ← ⊂lagl.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (vertex_size + index_size) 0
 transfer_buffer ← lagl.SDL_CreateGPUTransferBuffer device tb_params
-:If 0 = transfer_buffer
+
+tex_tb_params ← ⊂lagl.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (4 × 4 × 128 × 128) 0
+tex_tb ← lagl.SDL_CreateGPUTransferBuffer device tex_tb_params
+
+:If (0 = transfer_buffer) ∨ (0 = tex_tb)
     ⎕ ← 'Error creating transfer buffer'
     ⎕SIGNAL 200
 :Endif
 
-⍝ Copy vertex data into transfer buffer and move to vertex buffer
+⍝ Create Sampler
+
+⍝ SDL_GPUSamplerCreateInfo ← (i32 i32 i32 i32 i32 i32 f32 f32 i32 f32 f32 bool bool u8 u8 i32)
+sampler_create_info ←⊂        0   0   0   2   2   2   0.0 0.0 0   0.0 0.0 0    0    0  0  0
+sampler ← lagl.SDL_CreateGPUSampler device sampler_create_info
+
+:If 0 = sampler
+    ⎕ ← 'Error creating texture sampler'
+    ⎕SIGNAL 200
+:Endif
+
+⍝ SDL_GPUTextureCreateInfo ← (i32 i32 i32 u32 u32 u32 u32 i32 i32)
+texture_create_info ←⊂        0   lagl.SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT   1   128 128 1   1   0   0  
+texture ← lagl.SDL_CreateGPUTexture device texture_create_info
+lagl.SDL_SetGPUTextureName device texture 'test'
+
+:If 0 = texture
+    ⎕ ← 'Error creating texture'
+    ⎕SIGNAL 200
+:Endif
+
+
+⍝ Copy vertex data into transfer buffer 
 mem_ptr ← lagl.SDL_MapGPUTransferBuffer device transfer_buffer 0
 lagl.LSE_MemcpyF32 (mem_ptr) (vertex_data) vertex_size
 lagl.LSE_MemcpyU16 (mem_ptr + vertex_size) (index_data) index_size
+lagl.SDL_UnmapGPUTransferBuffer device transfer_buffer
+
+⍝ Copy texture into transfer buffer
+mem_ptr ← lagl.SDL_MapGPUTransferBuffer device tex_tb 0
+lagl.LSE_MemcpyF32 (mem_ptr) (data) data_size
+⍝lagl.LSE_MemcpyF32 (mem_ptr) (data_addr) (128 × 128 × 4 × 4)
+lagl.SDL_UnmapGPUTransferBuffer device tex_tb
 
 cmd_buf ← lagl.SDL_AcquireGPUCommandBuffer device
 pass ← lagl.SDL_BeginGPUCopyPass cmd_buf
+⍝ Vertex/Index data
 lagl.SDL_UploadToGPUBuffer pass (transfer_buffer 0) (vertex_buffer 0 vertex_size) 0
 lagl.SDL_UploadToGPUBuffer pass (transfer_buffer vertex_size) (index_buffer 0 index_size) 0
+⍝ Texture data
+lagl.SDL_UploadToGPUTexture pass (tex_tb 0 0 0) (texture 0 0 0 0 0 128 128 1) 0
+
 lagl.SDL_EndGPUCopyPass pass 
 lagl.SDL_SubmitGPUCommandBuffer cmd_buf
 
@@ -107,7 +146,7 @@ f_src f_size ← lagl.SDL_LoadFile 'shaders/msl/basic_frag.msl' 0
     ⎕SIGNAL 200
 :Endif
 v_info ← v_size v_src 0 lagl.SDL_GPU_SHADERFORMAT_MSL lagl.SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
-f_info ← f_size f_src 0 lagl.SDL_GPU_SHADERFORMAT_MSL lagl.SDL_GPU_SHADERSTAGE_FRAGMENT 0 0 0 0 0
+f_info ← f_size f_src 0 lagl.SDL_GPU_SHADERFORMAT_MSL lagl.SDL_GPU_SHADERSTAGE_FRAGMENT 1 0 0 0 0
 
 v_shader ← lagl.LSE_CreateGPUShader device v_info 'main0'
 f_shader ← lagl.LSE_CreateGPUShader device f_info 'main0'
@@ -121,10 +160,11 @@ f_shader ← lagl.LSE_CreateGPUShader device f_info 'main0'
 lagl.LSE_PipelineClearParams⍬
 lagl.LSE_PipelineSetShaders v_shader f_shader
 ⍝ Vertex Buffer Descriptions and Attributes : Vertex Input
-vb_desc ←⊂ (0 (4 × 7) 0 0)
+vb_desc ←⊂ (0 (4 × 9) 0 0)
 vb_attr ←⊂ (0 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3 0) 
 vb_attr,←⊂ (1 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4 (4 × 3))
-lagl.LSE_PipelineSetVertexInput (⊂vb_desc), 1, (⊂vb_attr), 2
+vb_attr,←⊂ (2 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2 (4 × 7))
+lagl.LSE_PipelineSetVertexInput (⊂vb_desc), 1, (⊂vb_attr), 3
 lagl.LSE_PipelineSetDepthStencil 2 (0 0 0 0) (0 0 0 0) 0 0 1 1 0 0 0 0
 lagl.LSE_PipelineSetRasterizer 0 2 1 0.0 0.0 0.0 0 0
 
@@ -195,12 +235,12 @@ running ← 1
     view_mat ← lagl.math.look_at (x_pos y_pos z_pos) (0.0 0.0 0.0) (0.0 1.0 0.0)
 
     cmd_buf ← lagl.SDL_AcquireGPUCommandBuffer device
-    res texture width height ← lagl.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
+    res swap_texture width height ← lagl.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
     :If 0 = res
         ⎕ ← 'Error acquiring swapchain texture'
         ⎕SIGNAL 200
     :EndIf
-    color_info ← ⊂(texture 0 0 (0.1 0.2 0.3 1) 1 0 0 0 0 0 0 0 0)
+    color_info ← ⊂(swap_texture 0 0 (0.1 0.2 0.3 1) 1 0 0 0 0 0 0 0 0)
     pass ← lagl.SDL_BeginGPURenderPass cmd_buf color_info 1 0
 
     lagl.SDL_BindGPUGraphicsPipeline pass pipeline
@@ -226,21 +266,26 @@ running ← 1
 
     lagl.SDL_BindGPUVertexBuffers pass 0 vbuffer_list 1
     lagl.SDL_BindGPUIndexBuffer pass ibuffer_list lagl.SDL_GPU_INDEXELEMENTSIZE_16BIT
+    lagl.SDL_BindGPUFragmentSamplers pass 0 (⊂texture sampler) 1
     lagl.SDL_DrawGPUIndexedPrimitives pass 36 1 0 0 0
     lagl.SDL_EndGPURenderPass pass
     lagl.SDL_SubmitGPUCommandBuffer cmd_buf
 
 :EndWhile
 
+lagl.SDL_DestroySurface surface
 lagl.SDL_ReleaseGPUShader device v_shader
 lagl.SDL_ReleaseGPUShader device f_shader
 
 lagl.SDL_ReleaseGPUGraphicsPipeline device pipeline
 
 lagl.SDL_ReleaseGPUTransferBuffer device transfer_buffer
+lagl.SDL_ReleaseGPUTransferBuffer device tex_tb
+lagl.SDL_ReleaseGPUTexture device texture
+lagl.SDL_ReleaseGPUSampler device sampler
 lagl.SDL_ReleaseGPUBuffer device index_buffer
 lagl.SDL_ReleaseGPUBuffer device vertex_buffer
 
 lagl.SDL_DestroyGPUDevice device
 lagl.SDL_DestroyWindow window
-lagl.SDL_Quit
+lagl.SDL_Quit⍬

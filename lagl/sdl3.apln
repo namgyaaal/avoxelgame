@@ -75,6 +75,16 @@
     fns,←⊂ 'SDL_BindGPUGraphicsPipeline' ⍬ (ptr ptr)
     fns,←⊂ 'SDL_ReleaseGPUGraphicsPipeline' ⍬ (ptr ptr)
 
+    ⍝ Texturing/Sampling
+    SDL_GPUTextureCreateInfo ← (i32 i32 i32 u32 u32 u32 u32 i32 i32)
+    fns,←⊂ 'SDL_CreateGPUTexture' ptr (ptr '<' SDL_GPUTextureCreateInfo)
+    fns,←⊂ 'SDL_SetGPUTextureName' ⍬ (ptr ptr cstr)
+    fns,←⊂ 'SDL_ReleaseGPUTexture' ⍬ (ptr ptr)
+
+    SDL_GPUSamplerCreateInfo ← (i32 i32 i32 i32 i32 i32 f32 f32 i32 f32 f32 bool bool u8 u8 i32)
+    fns,←⊂ 'SDL_CreateGPUSampler' ptr (ptr '<' SDL_GPUSamplerCreateInfo)
+    fns,←⊂ 'SDL_ReleaseGPUSampler' ⍬ (ptr ptr)
+
     ⍝ Passes
     SDL_FColor ← (f32 f32 f32 f32)
     SDL_GPUColorTargetInfo ← (ptr u32 u32 SDL_FColor i32 i32 ptr u32 u32 bool bool u8 u8)
@@ -86,6 +96,9 @@
     ⍝ Binding
     fns,←⊂ 'SDL_BindGPUVertexBuffers' ⍬ (ptr u32 '<' (ptr u32) '[]' u32)
     fns,←⊂ 'SDL_BindGPUIndexBuffer' ⍬ (ptr '<' (ptr u32) '[]' i32)
+    fns,←⊂ 'SDL_BindGPUFragmentSamplers' ⍬ (ptr u32 '<' (ptr ptr) '[]' u32)
+    fns,←⊂ 'SDL_UploadToGPUTexture' ⍬ (ptr '<' (ptr u32 u32 u32) '<' (ptr u32 u32 u32 u32 u32 u32 u32 u32) bool)
+
 
     ⍝ Drawing
     fns,←⊂ 'SDL_DrawGPUPrimitives' ⍬ (ptr u32 u32 u32 u32)
