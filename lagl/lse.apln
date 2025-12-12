@@ -16,6 +16,8 @@
     ⍝ Util
     fns,←⊂ 'LSE_PrintError' ⍬ ptr
     fns,←⊂ 'LSE_GetSurfaceDataAddress' ptr ptr
+    fns,←⊂ 'LSE_GetSurfaceParams' ⍬ (ptr '>' i32 '>' i32 '>' i32 '>' i32)
+
     fns,←⊂ 'LSE_MemcpyF32' ⍬ (ptr f32_arr u32)
     fns,←⊂ 'LSE_MemcpyU16' ⍬ (ptr u16_arr u32)
 

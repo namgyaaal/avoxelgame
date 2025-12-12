@@ -13,15 +13,23 @@ lagl.lse.load_lib 'libs/libLSE.dylib'
 
 ⍝ Test surfaces real quick 
 
-surface ← lagl.SDL_CreateSurface 128 128 lagl.SDL_PIXELFORMAT_RGBA128_FLOAT
+old_surface ← lagl.IMG_Load ⊂'assets/blocks.jpg'
+surface ← lagl.SDL_ConvertSurface old_surface 376840196
 
-lagl.SDL_LockSurface surface
+width height pitch _ ← lagl.LSE_GetSurfaceParams surface 0 0 0 0
 data_addr ← lagl.LSE_GetSurfaceDataAddress surface
-data ← ∊(×/ 128 128 4)⍴ (255 0 0 255 255 0 0 255 0 0 255 255 0 0 255 255)
-data_size ← 4×≢data
-lagl.LSE_MemcpyF32 (data_addr) (data) data_size
-lagl.SDL_UnlockSurface surface
+data_size ← pitch × height
+lagl.SDL_DestroySurface old_surface
 
+
+⍝surface ← lagl.SDL_CreateSurface 128 128 lagl.SDL_PIXELFORMAT_RGBA128_FLOAT
+⍝lagl.SDL_LockSurface surface
+⍝data_addr ← lagl.LSE_GetSurfaceDataAddress surface
+⍝data ← ∊(×/ 128 128 4)⍴ (255 0 0 255 255 0 0 255 0 0 255 255 0 0 255 255)
+⍝data_size ← 4×≢data
+⍝lagl.LSE_MemcpyF32 (data_addr) (data) data_size
+⍝lagl.SDL_UnlockSurface surface
+⍝lagl.SDL_DestroySurface surface
 
 window ← lagl.SDL_CreateWindow 'Hello World' 900 600 0
 :If 0 = window
@@ -40,35 +48,27 @@ device ← lagl.SDL_CreateGPUDevice lagl.SDL_GPU_SHADERFORMAT_MSL 1 'metal'
 
 ⍝ Create buffers
 
-⍝ Front, Right, Back, Left, Top, Bottom
-positions ← (¯0.5 0.5 0.5) (0.5 0.5 0.5) (0.5, ¯0.5 0.5) (¯0.5 ¯0.5 0.5)
-positions,← (0.5 0.5 0.5) (0.5 0.5 ¯0.5) (0.5 ¯0.5 ¯0.5) (0.5 ¯0.5 0.5)
-positions,← (0.5 0.5 ¯0.5) (¯0.5 0.5 ¯0.5) (¯0.5 ¯0.5 ¯0.5) (0.5 ¯0.5 ¯0.5)
-positions,← (¯0.5 0.5 ¯0.5) (¯0.5 0.5 0.5) (¯0.5 ¯0.5 0.5) (¯0.5 ¯0.5 ¯0.5)
-positions,← (¯0.5 0.5 ¯0.5) (0.5 0.5 ¯0.5) (0.5 0.5 0.5) (¯0.5 0.5 0.5)
-positions,← (0.5 ¯0.5 ¯0.5) (¯0.5 ¯0.5 ¯0.5) (¯0.5 ¯0.5 0.5) (0.5 ¯0.5 0.5)
 
-uv ← ↑(0.0 0.0) (1.0 0.0) (1.0 1.0) (0.0 1.0)
+grass_uv ← (0.0 0.0) (0.2 0.0) (0.2 0.5) (0.0 0.5)
+stone_uv ← (0.0 0.5) (0.2 0.5) (0.2 1.0) (0.0 1.0)
+dirt_uv ← (0.4 0.0) (0.6 0.0) (0.6 0.5) (0.4 0.5)
+wood_uv ← (0.8 0.0) (1.0 0.0) (1.0 0.5) (0.8 0.5)
+uv_vec ← grass_uv stone_uv dirt_uv wood_uv
 
+chunk_p indices ← lagl.mk_chunk 5
+chunk_p ← chunk_p, 0
+r ← ⊃⍴chunk_p 
 
-positions ← ↑positions
-colors ← 1,⍨?(⍴positions)⍴0
-uv ← ((1⌷⍴positions)2)⍴uv
+color_p ← 1,⍨?(⍴chunk_p)⍴0
+uv_p ← r 2⍴∊uv_vec[?(r÷4)⍴≢uv_vec]
 
-vertex_data ← ∊positions,colors,uv
+⍝uv_p ← ((1⌷⍴chunk_p)2)⍴wood_uv
+
+vertex_data ← ∊chunk_p, color_p, uv_p
 vertex_size ← 4 × ≢vertex_data ⍝ in bytes for f32
 
-face ← (0 1 2) (0 2 3)
-
-index_data ← face
-index_data,← 4  + face
-index_data,← 8  + face
-index_data,← 12 + face
-index_data,← 16 + face
-index_data,← 20 + face
-index_data ←∊ index_data
-
-index_size ← 2 × ≢index_data ⍝ in bytes for u16
+index_data ← ∊indices 
+index_size ← 2 × ≢index_data ⍝ bytes for u16
 
 vb_params ←⊂ lagl.SDL_GPU_BUFFERUSAGE_VERTEX vertex_size 0
 ib_params ←⊂ lagl.SDL_GPU_BUFFERUSAGE_INDEX index_size 0 
@@ -83,7 +83,7 @@ index_buffer ← lagl.SDL_CreateGPUBuffer device ib_params
 tb_params ← ⊂lagl.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (vertex_size + index_size) 0
 transfer_buffer ← lagl.SDL_CreateGPUTransferBuffer device tb_params
 
-tex_tb_params ← ⊂lagl.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (4 × 4 × 128 × 128) 0
+tex_tb_params ← ⊂lagl.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (pitch × height) 0
 tex_tb ← lagl.SDL_CreateGPUTransferBuffer device tex_tb_params
 
 :If (0 = transfer_buffer) ∨ (0 = tex_tb)
@@ -103,7 +103,7 @@ sampler ← lagl.SDL_CreateGPUSampler device sampler_create_info
 :Endif
 
 ⍝ SDL_GPUTextureCreateInfo ← (i32 i32 i32 u32 u32 u32 u32 i32 i32)
-texture_create_info ←⊂        0   lagl.SDL_GPU_TEXTUREFORMAT_R32G32B32A32_FLOAT   1   128 128 1   1   0   0  
+texture_create_info ←⊂        0   lagl.SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM   1   width height 1   1   0   0  
 texture ← lagl.SDL_CreateGPUTexture device texture_create_info
 lagl.SDL_SetGPUTextureName device texture 'test'
 
@@ -121,7 +121,7 @@ lagl.SDL_UnmapGPUTransferBuffer device transfer_buffer
 
 ⍝ Copy texture into transfer buffer
 mem_ptr ← lagl.SDL_MapGPUTransferBuffer device tex_tb 0
-lagl.LSE_MemcpyF32 (mem_ptr) (data) data_size
+lagl.SDL_memcpy (mem_ptr) (data_addr) data_size
 ⍝lagl.LSE_MemcpyF32 (mem_ptr) (data_addr) (128 × 128 × 4 × 4)
 lagl.SDL_UnmapGPUTransferBuffer device tex_tb
 
@@ -131,7 +131,7 @@ pass ← lagl.SDL_BeginGPUCopyPass cmd_buf
 lagl.SDL_UploadToGPUBuffer pass (transfer_buffer 0) (vertex_buffer 0 vertex_size) 0
 lagl.SDL_UploadToGPUBuffer pass (transfer_buffer vertex_size) (index_buffer 0 index_size) 0
 ⍝ Texture data
-lagl.SDL_UploadToGPUTexture pass (tex_tb 0 0 0) (texture 0 0 0 0 0 128 128 1) 0
+lagl.SDL_UploadToGPUTexture pass (tex_tb 0 0 0) (texture 0 0 0 0 0 width height 1) 0
 
 lagl.SDL_EndGPUCopyPass pass 
 lagl.SDL_SubmitGPUCommandBuffer cmd_buf
@@ -190,6 +190,8 @@ pipeline ← lagl.LSE_PipelineCreate device
 (x_dir y_dir) ← 0 0
 proj_mat ← lagl.math.proj (75.0 × 180÷⍨○1) (900 ÷ 600) 0.01 100
 
+view_mat ← lagl.math.look_at (2 1 3) (2 1.5 0) (0 1 0)
+
 c ← 0
 running ← 1
 :While running
@@ -230,9 +232,9 @@ running ← 1
 
     x_pos ← 2×2○c
     y_pos ← 2×1○c
-    z_pos ← 2×1○c
+    ⍝z_pos ← 2×1○c
 
-    view_mat ← lagl.math.look_at (x_pos y_pos z_pos) (0.0 0.0 0.0) (0.0 1.0 0.0)
+    ⍝view_mat ← lagl.math.look_at (x_pos y_pos z_pos) (0.0 0.0 0.0) (0.0 1.0 0.0)
 
     cmd_buf ← lagl.SDL_AcquireGPUCommandBuffer device
     res swap_texture width height ← lagl.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
@@ -267,13 +269,13 @@ running ← 1
     lagl.SDL_BindGPUVertexBuffers pass 0 vbuffer_list 1
     lagl.SDL_BindGPUIndexBuffer pass ibuffer_list lagl.SDL_GPU_INDEXELEMENTSIZE_16BIT
     lagl.SDL_BindGPUFragmentSamplers pass 0 (⊂texture sampler) 1
-    lagl.SDL_DrawGPUIndexedPrimitives pass 36 1 0 0 0
+    lagl.SDL_DrawGPUIndexedPrimitives pass (≢index_data) 1 0 0 0
     lagl.SDL_EndGPURenderPass pass
     lagl.SDL_SubmitGPUCommandBuffer cmd_buf
 
 :EndWhile
 
-lagl.SDL_DestroySurface surface
+
 lagl.SDL_ReleaseGPUShader device v_shader
 lagl.SDL_ReleaseGPUShader device f_shader
 

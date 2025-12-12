@@ -10,6 +10,7 @@
     f32_arr ← '<F4[]'
 
     fns ← ⍬
+
     ⍝ Core Stuff
 
     fns,←⊂ 'SDL_Init' bool u32
@@ -28,14 +29,20 @@
 
     fns,←⊂ 'SDL_GetTicks' u32 ⍬
 
+    fns,←⊂ 'SDL_memcpy' ptr (ptr ptr u64)
+
     ⍝ Surfaces
     fns,←⊂ 'SDL_CreateSurface' ptr (i32 i32 i32)
     fns,←⊂ 'SDL_DestroySurface' ⍬ ptr
     fns,←⊂ 'SDL_LockSurface' bool ptr
     fns,←⊂ 'SDL_UnlockSurface' ⍬ ptr
+    fns,←⊂ 'SDL_ConvertSurface' ptr (ptr i32)
     fns,←⊂ 'SDL_WriteSurfacePixelFloat' bool (ptr i32 i32 f32 f32 f32 f32)
     fns,←⊂ 'SDL_SaveBMP' bool (ptr cstr)
     fns,←⊂ 'SDL_LoadBMP' ptr cstr
+
+    ⍝ Putting SDL3_image here since it's in the shared object too
+    fns,←⊂ 'IMG_Load' ptr cstr
 
     ⍝ GPU Stuff
 

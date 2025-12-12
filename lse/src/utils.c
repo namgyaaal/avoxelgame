@@ -15,6 +15,14 @@ void* LSE_GetSurfaceDataAddress(SDL_Surface* surface) {
     return surface->pixels;
 }
 
+void LSE_GetSurfaceParams(SDL_Surface* surface, int* width, int* height,
+                          int* pitch, int* format) {
+    *width = surface->w;
+    *height = surface->h;
+    *pitch = surface->pitch;
+    *format = surface->format;
+}
+
 void LSE_MemcpyU16(void* dst, void* src, uint32_t size) {
     SDL_memcpy(dst, src, size);
 }
