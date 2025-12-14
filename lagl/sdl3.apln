@@ -95,7 +95,8 @@
     ⍝ Passes
     SDL_FColor ← (f32 f32 f32 f32)
     SDL_GPUColorTargetInfo ← (ptr u32 u32 SDL_FColor i32 i32 ptr u32 u32 bool bool u8 u8)
-    fns,←⊂ 'SDL_BeginGPURenderPass' ptr (ptr '<' SDL_GPUColorTargetInfo u32 ptr)
+    SDL_GPUDepthStencilTargetInfo ← (ptr f32 i32 i32 i32 i32 bool u8 u8 u8)
+    fns,←⊂ 'SDL_BeginGPURenderPass' ptr (ptr '<' SDL_GPUColorTargetInfo u32 '<' SDL_GPUDepthStencilTargetInfo)
     fns,←⊂ 'SDL_EndGPURenderPass' ⍬ ptr
     fns,←⊂ 'SDL_BeginGPUCopyPass' ptr ptr
     fns,←⊂ 'SDL_EndGPUCopyPass' ptr ptr
