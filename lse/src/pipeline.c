@@ -78,7 +78,7 @@ void LSE_PipelineSetRasterizer(SDL_GPUFillMode fill_mode,
     state.depth_bias_slope_factor = depth_bias_slope_factor;
     state.enable_depth_bias = enable_depth_bias;
     state.enable_depth_clip = enable_depth_clip;
-    SDL_GPURasterizerState state2 = {.cull_mode = SDL_GPU_CULLMODE_BACK};
+    SDL_GPURasterizerState state2 = {.cull_mode = SDL_GPU_CULLMODE_FRONT};
     global_params.rasterizer_state = state2;
 }
 

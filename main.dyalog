@@ -63,7 +63,7 @@ indices ← lagl.chunk.indices
 r ← ≢chunk_p 
 
 color_p ← 1,⍨?0⍨¨chunk_p
-uv_p ← r 2⍴∊uv_vec[?(r÷4)⍴≢uv_vec]
+uv_p ← r 2⍴∊6/uv_vec[?(r÷24)⍴≢uv_vec]
 
 ⍝⎕ ← chunk_p, color_p, uv_p
 ⍝⎕ ← indices
@@ -180,7 +180,7 @@ vb_attr,←⊂ (1 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4 (4 × 3))
 vb_attr,←⊂ (2 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2 (4 × 7))
 lagl.LSE_PipelineSetVertexInput (⊂vb_desc), 1, (⊂vb_attr), 3
 lagl.LSE_PipelineSetDepthStencil 2 (0 0 0 0) (0 0 0 0) 0 0 1 1 0 0 0 0
-lagl.LSE_PipelineSetRasterizer 0 0 0 0.0 0.0 0.0 0 0
+lagl.LSE_PipelineSetRasterizer 0 0 1 0.0 0.0 0.0 0 0
 
 ⍝ Color Targets
 default_format ← ⊃lagl.SDL_GetGPUSwapchainTextureFormat device window
@@ -204,7 +204,12 @@ pipeline ← lagl.LSE_PipelineCreate device
 (x_dir y_dir) ← 0 0
 proj_mat ← lagl.math.proj (75.0 × 180÷⍨○1) (900 ÷ 600) 0.1 100
 
-view_mat ← lagl.math.look_at (2 6 ¯3) (2 4 0) (0 1 0)
+view_mat ← lagl.math.look_at (4 4 8) (4 4 0) (0 1 0)
+⍝view_mat ← lagl.math.look_at (2 6 ¯3) (2 4 0) (0 1 0)
+
+
+raw ← 4 4⍴0.868817 0.000000 0.000000 0.000000 0.000000 1.303225 0.000000 0.000000 0.000000 0.000000 ¯1.001001 ¯1.000000 ¯3.475267 ¯5.212901 7.907908 8.000000
+⎕ ← raw
 
 c ← 0
 running ← 1
@@ -277,7 +282,9 @@ running ← 1
 
     mvp ← view_mat +.× proj_mat
 
-    lagl.SDL_PushGPUVertexUniformData cmd_buf 0 (∊mvp) (16×4)
+
+    lagl.LSE_PushTestMatrix cmd_buf dt
+    ⍝lagl.SDL_PushGPUVertexUniformData cmd_buf 0 (∊raw) (16×4)
 
     vbuffer_list ← ⊂(vertex_buffer 0)
     ibuffer_list ← ⊂(index_buffer 0)

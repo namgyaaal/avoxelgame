@@ -48,6 +48,7 @@
     fns,←⊂ 'LSE_PipelineSetProperties' ⍬ u32
 
     fns,←⊂ 'LSE_BeginGPURenderPass' ptr (ptr ptr ptr)
+    fns,←⊂ 'LSE_PushTestMatrix' ⍬ (ptr f32)
 
     ∇ load_lib path
       'lagl'path ##.easy_na.safe_load fns
