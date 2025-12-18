@@ -1,0 +1,17 @@
+:Namespace chunk
+
+    l ← 4 8 4
+    faces ← (0 1 1) (1 1 1) (1 0 1) (0 0 1) ⍝ Front
+    faces,← (1 1 1) (1 1 0) (1 0 0) (1 0 1) ⍝ Right
+    faces,← (1 1 0) (0 1 0) (0 0 0) (1 0 0) ⍝ Back
+    faces,← (0 1 0) (0 1 1) (0 0 1) (0 0 0) ⍝ Left
+    faces,← (0 1 0) (1 1 0) (1 1 1) (0 1 1) ⍝ Top
+    faces,← (1 0 0) (0 0 0) (0 0 1) (1 0 1) ⍝ Bottom
+    faces ← ↑faces
+    v_cnt ← ≢faces
+
+    vertices ← ((×/l, v_cnt) 3)⍴ faces (+⍤2) (l,(v_cnt 3)) ⍴(v_cnt∘⌿⍤¯2) ((3,⍨l)⍴∊) ⎕IO-⍨⍳l
+    vertices ← (24/0.5>?(24÷⍨≢vertices)⍴0)⌿vertices
+    indices ← ∊(0 1 2 0 2 3)∘+¨4×⎕IO-⍨⍳4÷⍨≢vertices
+
+:EndNamespace

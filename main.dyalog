@@ -55,17 +55,22 @@ dirt_uv ← (0.4 0.0) (0.6 0.0) (0.6 0.5) (0.4 0.5)
 wood_uv ← (0.8 0.0) (1.0 0.0) (1.0 0.5) (0.8 0.5)
 uv_vec ← grass_uv stone_uv dirt_uv wood_uv
 
-chunk_p indices ← lagl.mk_chunk 5
-chunk_p ← chunk_p, 0
-r ← ⊃⍴chunk_p 
+⍝(chunk_p indices) ← lagl.mk_chunk 5
 
-color_p ← 1,⍨?(⍴chunk_p)⍴0
-uv_p ← r 2⍴∊uv_vec[?(r÷4)⍴≢uv_vec]
+⍝chunk_p ← chunk_p, 0
+chunk_p ← lagl.chunk.vertices
+indices ← lagl.chunk.indices
+r ← ≢chunk_p 
 
-⍝uv_p ← ((1⌷⍴chunk_p)2)⍴wood_uv
+color_p ← 1,⍨?0⍨¨chunk_p
+uv_p ← r 2⍴∊6/uv_vec[?(r÷24)⍴≢uv_vec]
+
+⍝⎕ ← chunk_p, color_p, uv_p
+⍝⎕ ← indices
 
 vertex_data ← ∊chunk_p, color_p, uv_p
 vertex_size ← 4 × ≢vertex_data ⍝ in bytes for f32
+
 
 index_data ← ∊indices 
 index_size ← 2 × ≢index_data ⍝ bytes for u16
@@ -109,6 +114,15 @@ lagl.SDL_SetGPUTextureName device texture 'test'
 
 :If 0 = texture
     ⎕ ← 'Error creating texture'
+    ⎕SIGNAL 200
+:Endif
+
+
+depth_texture_info ←⊂ 0 lagl.SDL_GPU_TEXTUREFORMAT_D16_UNORM 4 900 600 1 1 0 0
+depth_texture ← lagl.SDL_CreateGPUTexture device depth_texture_info
+
+:If 0 = depth_texture
+    ⎕ ← 'Error creating dpeth texture'
     ⎕SIGNAL 200
 :Endif
 
@@ -166,7 +180,7 @@ vb_attr,←⊂ (1 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4 (4 × 3))
 vb_attr,←⊂ (2 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2 (4 × 7))
 lagl.LSE_PipelineSetVertexInput (⊂vb_desc), 1, (⊂vb_attr), 3
 lagl.LSE_PipelineSetDepthStencil 2 (0 0 0 0) (0 0 0 0) 0 0 1 1 0 0 0 0
-lagl.LSE_PipelineSetRasterizer 0 2 1 0.0 0.0 0.0 0 0
+lagl.LSE_PipelineSetRasterizer 0 0 1 0.0 0.0 0.0 0 0
 
 ⍝ Color Targets
 default_format ← ⊃lagl.SDL_GetGPUSwapchainTextureFormat device window
@@ -180,7 +194,7 @@ blend_state,← lagl.SDL_GPU_BLENDOP_ADD
 blend_state ← (5⍴0),⍨6⍴ blend_state
 ct_desc ← ⊂default_format blend_state
 
-lagl.LSE_PipelineSetTargetInfo (⊂ct_desc), 1 0 0
+lagl.LSE_PipelineSetTargetInfo (⊂ct_desc), 1 lagl.SDL_GPU_TEXTUREFORMAT_D16_UNORM 1
 pipeline ← lagl.LSE_PipelineCreate device
 :If 0 = pipeline
     ⎕ ← 'Error creating render pipeline'
@@ -188,9 +202,11 @@ pipeline ← lagl.LSE_PipelineCreate device
 :Endif
 
 (x_dir y_dir) ← 0 0
-proj_mat ← lagl.math.proj (75.0 × 180÷⍨○1) (900 ÷ 600) 0.01 100
 
-view_mat ← lagl.math.look_at (2 1 3) (2 1.5 0) (0 1 0)
+
+proj ← lagl.math.proj (75.0 × 180÷⍨○1) (9÷6) 0.1 100
+view ← lagl.math.look_at (2 8 8) (2 4 2) (0 1 0)
+proj_view ← view +.× proj
 
 c ← 0
 running ← 1
@@ -230,11 +246,10 @@ running ← 1
     :EndWhile
     c ← c + 0.01
 
-    x_pos ← 2×2○c
-    y_pos ← 2×1○c
-    ⍝z_pos ← 2×1○c
+    x_pos ← 2+6×2○c
+    z_pos ← 2+6×1○c
 
-    ⍝view_mat ← lagl.math.look_at (x_pos y_pos z_pos) (0.0 0.0 0.0) (0.0 1.0 0.0)
+    view ← lagl.math.look_at (x_pos 8 z_pos) (2 4 2) (0 1 0)
 
     cmd_buf ← lagl.SDL_AcquireGPUCommandBuffer device
     res swap_texture width height ← lagl.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
@@ -243,25 +258,17 @@ running ← 1
         ⎕SIGNAL 200
     :EndIf
     color_info ← ⊂(swap_texture 0 0 (0.1 0.2 0.3 1) 1 0 0 0 0 0 0 0 0)
-    pass ← lagl.SDL_BeginGPURenderPass cmd_buf color_info 1 0
+    depth_info ← ⊂(depth_texture 1.0 1 1 0 0 0 0 0 0)
 
+    pass ← lagl.SDL_BeginGPURenderPass cmd_buf (color_info) 1 (depth_info)
     lagl.SDL_BindGPUGraphicsPipeline pass pipeline
-
 
     dt ← 500÷⍨⊃lagl.SDL_GetTicks⍬
 
-    ⍝ use this later
-    model_mat←4 4 ⍴ 1,4⍴0
-    ⍝ Translation
-    model_mat[;4] ← x_pos y_pos 0 1
-    ⍝ Rotation
-    model_mat[(1 1) (2 1) (1 2) (2 2)] ← (1 ¯1 1 1) × 2 1 1 2○dt dt dt dt
-    ⍝ Row-major → Column major
-    model_mat ← ⍉model_mat
 
-    mvp ← view_mat +.× proj_mat
+    proj_view ← view +.× proj
 
-    lagl.SDL_PushGPUVertexUniformData cmd_buf 0 (∊mvp) (16×4)
+    lagl.SDL_PushGPUVertexUniformData cmd_buf 0 (∊proj_view) (16×4)
 
     vbuffer_list ← ⊂(vertex_buffer 0)
     ibuffer_list ← ⊂(index_buffer 0)
