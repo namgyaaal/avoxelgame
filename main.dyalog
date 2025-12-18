@@ -203,13 +203,18 @@ pipeline ← lagl.LSE_PipelineCreate device
 
 (x_dir y_dir) ← 0 0
 proj_mat ← lagl.math.proj (75.0 × 180÷⍨○1) (900 ÷ 600) 0.1 100
-
 view_mat ← lagl.math.look_at (4 4 8) (4 4 0) (0 1 0)
-⍝view_mat ← lagl.math.look_at (2 6 ¯3) (2 4 0) (0 1 0)
 
 
-raw ← 4 4⍴0.868817 0.000000 0.000000 0.000000 0.000000 1.303225 0.000000 0.000000 0.000000 0.000000 ¯1.001001 ¯1.000000 ¯3.475267 ¯5.212901 7.907908 8.000000
-⎕ ← raw
+
+p ← lagl.math.proj (75.0 × 180÷⍨○1) (9÷6) 0.1 100
+v ← lagl.math.look_at (2 8 8) (2 4 2) (0 1 0)
+M ← v +.× p
+raw ← 4 4⍴0.868817 0.000000 0.000000 0.000000 0.000000 1.084349 ¯0.555255 ¯0.554700 0.000000 ¯0.722899 ¯0.832883 ¯0.832050 ¯1.737634 ¯2.891598 11.005009 11.094004
+
+⍝ Different in ONE place, gotta figure out way
+M ← 11.05@(⊂(4 3)) ⊢ M
+⎕ ← (raw - M) < 0.001
 
 c ← 0
 running ← 1
@@ -282,9 +287,7 @@ running ← 1
 
     mvp ← view_mat +.× proj_mat
 
-
-    lagl.LSE_PushTestMatrix cmd_buf dt
-    ⍝lagl.SDL_PushGPUVertexUniformData cmd_buf 0 (∊raw) (16×4)
+    lagl.SDL_PushGPUVertexUniformData cmd_buf 0 (∊raw) (16×4)
 
     vbuffer_list ← ⊂(vertex_buffer 0)
     ibuffer_list ← ⊂(index_buffer 0)
