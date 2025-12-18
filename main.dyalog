@@ -202,19 +202,11 @@ pipeline ← lagl.LSE_PipelineCreate device
 :Endif
 
 (x_dir y_dir) ← 0 0
-proj_mat ← lagl.math.proj (75.0 × 180÷⍨○1) (900 ÷ 600) 0.1 100
-view_mat ← lagl.math.look_at (4 4 8) (4 4 0) (0 1 0)
 
 
-
-p ← lagl.math.proj (75.0 × 180÷⍨○1) (9÷6) 0.1 100
-v ← lagl.math.look_at (2 8 8) (2 4 2) (0 1 0)
-M ← v +.× p
-raw ← 4 4⍴0.868817 0.000000 0.000000 0.000000 0.000000 1.084349 ¯0.555255 ¯0.554700 0.000000 ¯0.722899 ¯0.832883 ¯0.832050 ¯1.737634 ¯2.891598 11.005009 11.094004
-
-⍝ Different in ONE place, gotta figure out way
-M ← 11.05@(⊂(4 3)) ⊢ M
-⎕ ← (raw - M) < 0.001
+proj ← lagl.math.proj (75.0 × 180÷⍨○1) (9÷6) 0.1 100
+view ← lagl.math.look_at (2 8 8) (2 4 2) (0 1 0)
+proj_view ← view +.× proj
 
 c ← 0
 running ← 1
@@ -254,11 +246,10 @@ running ← 1
     :EndWhile
     c ← c + 0.01
 
-    x_pos ← 2×2○c
-    y_pos ← 2×1○c
-    ⍝z_pos ← 2×1○c
+    x_pos ← 2+6×2○c
+    z_pos ← 2+6×1○c
 
-    ⍝view_mat ← lagl.math.look_at (x_pos y_pos z_pos) (0.0 0.0 0.0) (0.0 1.0 0.0)
+    view ← lagl.math.look_at (x_pos 8 z_pos) (2 4 2) (0 1 0)
 
     cmd_buf ← lagl.SDL_AcquireGPUCommandBuffer device
     res swap_texture width height ← lagl.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
@@ -267,27 +258,17 @@ running ← 1
         ⎕SIGNAL 200
     :EndIf
     color_info ← ⊂(swap_texture 0 0 (0.1 0.2 0.3 1) 1 0 0 0 0 0 0 0 0)
-    depth_info ← ⊂(depth_texture 0.00, 1 1 0 0 0 0 0 0)
-    ⍝pass ← lagl.SDL_BeginGPURenderPass cmd_buf color_info 1 depth_info
+    depth_info ← ⊂(depth_texture 1.0 1 1 0 0 0 0 0 0)
 
-    pass ← lagl.LSE_BeginGPURenderPass cmd_buf swap_texture depth_texture
+    pass ← lagl.SDL_BeginGPURenderPass cmd_buf (color_info) 1 (depth_info)
     lagl.SDL_BindGPUGraphicsPipeline pass pipeline
-
 
     dt ← 500÷⍨⊃lagl.SDL_GetTicks⍬
 
-    ⍝ use this later
-    model_mat←4 4 ⍴ 1,4⍴0
-    ⍝ Translation
-    model_mat[;4] ← x_pos y_pos 0 1
-    ⍝ Rotation
-    model_mat[(1 1) (2 1) (1 2) (2 2)] ← (1 ¯1 1 1) × 2 1 1 2○dt dt dt dt
-    ⍝ Row-major → Column major
-    model_mat ← ⍉model_mat
 
-    mvp ← view_mat +.× proj_mat
+    proj_view ← view +.× proj
 
-    lagl.SDL_PushGPUVertexUniformData cmd_buf 0 (∊raw) (16×4)
+    lagl.SDL_PushGPUVertexUniformData cmd_buf 0 (∊proj_view) (16×4)
 
     vbuffer_list ← ⊂(vertex_buffer 0)
     ibuffer_list ← ⊂(index_buffer 0)

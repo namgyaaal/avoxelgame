@@ -78,8 +78,7 @@ void LSE_PipelineSetRasterizer(SDL_GPUFillMode fill_mode,
     state.depth_bias_slope_factor = depth_bias_slope_factor;
     state.enable_depth_bias = enable_depth_bias;
     state.enable_depth_clip = enable_depth_clip;
-    SDL_GPURasterizerState state2 = {.cull_mode = SDL_GPU_CULLMODE_FRONT};
-    global_params.rasterizer_state = state2;
+    global_params.rasterizer_state = state;
 }
 
 void LSE_PipelineSetMultisample(SDL_GPUSampleCount sample_count,
@@ -102,6 +101,16 @@ void LSE_PipelineSetDepthStencil(SDL_GPUCompareOp compare_op,
     SDL_GPUDepthStencilState state = {.compare_op = SDL_GPU_COMPAREOP_LESS,
                                       .enable_depth_test = true,
                                       .enable_depth_write = true};
+
+    global_params.depth_stencil_state.compare_op = compare_op;
+    global_params.depth_stencil_state.back_stencil_state = back_stencil_state;
+    global_params.depth_stencil_state.front_stencil_state = front_stencil_state;
+    global_params.depth_stencil_state.compare_mask = compare_mask;
+    global_params.depth_stencil_state.write_mask = write_mask;
+    global_params.depth_stencil_state.enable_depth_test = enable_depth_test;
+    global_params.depth_stencil_state.enable_depth_write = enable_depth_write;
+    global_params.depth_stencil_state.enable_stencil_test = enable_stencil_test;
+
     global_params.depth_stencil_state = state;
 }
 
@@ -117,10 +126,9 @@ void LSE_PipelineSetTargetInfo(
     }
     info.color_target_descriptions = ct_descriptions;
 
-    info.depth_stencil_format = SDL_GPU_TEXTUREFORMAT_D16_UNORM;
-    info.has_depth_stencil_target = 1;
+    info.depth_stencil_format = depth_stencil_format;
+    info.has_depth_stencil_target = has_depth_stencil_target;
 
-    printf("%d %d\n", depth_stencil_format, has_depth_stencil_target);
     global_params.target_info = info;
 }
 

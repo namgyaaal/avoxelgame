@@ -7,9 +7,9 @@ SDL_GPUShader* LSE_CreateGPUShader(SDL_GPUDevice* device,
     return SDL_CreateGPUShader(device, create_info);
 }
 
-SDL_GPURenderPass* LSE_BeginGPURenderPass(SDL_GPUCommandBuffer* cmd,
-                                          SDL_GPUTexture* swap,
-                                          SDL_GPUTexture* depth) {
+SDL_GPURenderPass* LSE_BeginTestRenderPass(SDL_GPUCommandBuffer* cmd,
+                                           SDL_GPUTexture* swap,
+                                           SDL_GPUTexture* depth) {
     SDL_GPUColorTargetInfo color_info = {
         .texture = swap,
         .clear_color = {.r = .1, .g = .2, .b = .3, .a = 1.0},
