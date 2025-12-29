@@ -63,7 +63,9 @@ indices ← lagl.chunk.indices
 r ← ≢chunk_p 
 
 color_p ← 1,⍨?0⍨¨chunk_p
-uv_p ← r 2⍴∊6/uv_vec[?(r÷24)⍴≢uv_vec]
+
+uv_p ← r 2⍴∊wood_uv
+⍝uv_p ← r 2⍴∊6/uv_vec[?(r÷24)⍴≢uv_vec]
 
 ⍝⎕ ← chunk_p, color_p, uv_p
 ⍝⎕ ← indices
@@ -180,7 +182,7 @@ vb_attr,←⊂ (1 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4 (4 × 3))
 vb_attr,←⊂ (2 0 lagl.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2 (4 × 7))
 lagl.LSE_PipelineSetVertexInput (⊂vb_desc), 1, (⊂vb_attr), 3
 lagl.LSE_PipelineSetDepthStencil 2 (0 0 0 0) (0 0 0 0) 0 0 1 1 0 0 0 0
-lagl.LSE_PipelineSetRasterizer 0 0 1 0.0 0.0 0.0 0 0
+lagl.LSE_PipelineSetRasterizer 0 2 1 0.0 0.0 0.0 0 0
 
 ⍝ Color Targets
 default_format ← ⊃lagl.SDL_GetGPUSwapchainTextureFormat device window
@@ -205,7 +207,7 @@ pipeline ← lagl.LSE_PipelineCreate device
 
 
 proj ← lagl.math.proj (75.0 × 180÷⍨○1) (9÷6) 0.1 100
-view ← lagl.math.look_at (2 8 8) (2 4 2) (0 1 0)
+view ← lagl.math.look_at (2 6 8) (2 4 2) (0 1 0)
 proj_view ← view +.× proj
 
 c ← 0
@@ -246,10 +248,10 @@ running ← 1
     :EndWhile
     c ← c + 0.01
 
-    x_pos ← 2+6×2○c
-    z_pos ← 2+6×1○c
+    x_pos ← 8+20×2○c
+    z_pos ← 8+20×1○c
 
-    view ← lagl.math.look_at (x_pos 8 z_pos) (2 4 2) (0 1 0)
+    view ← lagl.math.look_at (x_pos 14 z_pos) (8 6 8) (0 1 0)
 
     cmd_buf ← lagl.SDL_AcquireGPUCommandBuffer device
     res swap_texture width height ← lagl.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
