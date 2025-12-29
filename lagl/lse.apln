@@ -47,7 +47,7 @@
     fns,←⊂ 'LSE_PipelineSetTargetInfo' ⍬ ('<' (i32 (i32 i32 i32 i32 i32 i32 u8 bool bool u8 u8)) '[]' u32 i32 bool)
     fns,←⊂ 'LSE_PipelineSetProperties' ⍬ u32
 
-    ∇ load_lib path
-      'lagl'path ##.easy_na.safe_load fns
+    ∇ Load_lib path
+      'lagl'path ##.easy_na.Safe_load fns
     ∇
 :EndNamespace

@@ -1,7 +1,12 @@
 :Namespace const_loader
     'dec'⎕CY 'dfns'
-    
-    ∇ parse_file(ns file_name);entries;names;values;assign_mask;assign_idx;vmask;val_map
+
+    ∇ Parse_file(ns file_name);entries;names;values;assign_mask;assign_idx;vmask;val_map
+      ⍝ enums or #defines for constants are copied from c headers and regex'd 
+      ⍝     so it's just name value where value can be hex or value 
+      ⍝     there are some edge cases, i.e., empty ones just being next number
+      ⍝     or some enums being other enums, so this handles them
+
       ⍝ Three groups: Self, another enum, empty
       entries←(' '∘≠⊆⊢)¨({0∘≠∘≢¨⍵}⊢⍤/⊢)⊃⎕NGET file_name 1
       names←{∊1⌷⍵}¨entries
@@ -27,8 +32,8 @@
       }⍬
     ∇
 
-    ∇ load_dir(ns dir)
-      {parse_file ns ⍵}¨⊃(⎕NINFO⍠1)dir,'/*.def'
-      {parse_file ns ⍵}¨⊃(⎕NINFO⍠1)dir,'/*.enum'
+    ∇ Load_dir(ns dir)
+      {Parse_file ns ⍵}¨⊃(⎕NINFO⍠1)dir,'/*.def'
+      {Parse_file ns ⍵}¨⊃(⎕NINFO⍠1)dir,'/*.enum'
     ∇
 :EndNamespace

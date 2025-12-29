@@ -1,7 +1,7 @@
 :Namespace chunk
     ⎕IO ← 0
     l ← 16 16 16
-    box ← { ∨/⍤((⍵-1)∘((⊣=⊢)∨(0=⊢)))¨⍳⍵} l
+    box ← { ∨/⍤((⍵-1)∘=∨0=⊢)¨⍳⍵} l
     faces ← [
         0 1 0 ⋄ 0 1 1 ⋄ 0 0 1 ⋄ 0 0 0 ⍝ Left 
         1 1 1 ⋄ 1 1 0 ⋄ 1 0 0 ⋄ 1 0 1 ⍝ Right
@@ -19,16 +19,16 @@
     ⍝ - add faces to each block to transform into actual block positions 
     ⍝ - reshape into (Vertex Count, 3) so can be cated with other vertex data
     vertices ← ((×/l, v_cnt) 3)⍴ faces (+⍤2) (l,(v_cnt 3)) ⍴(v_cnt∘⌿⍤¯2) ((l,3)⍴∊) (⊖⍤2)⍳l
-    mask ← 0.1>?l⍴0
-    edges ← mask∧box
+    solid ← 0.1>?l⍴0
+    edges ← solid∧box
 
     ⍝ Rotations are in this order: (X, Y, Z)
-    x ← ↑mask∘{¯1 1 ⌽[⍵] ¨⊂⍺}¨ 0 1 2
+    x ← ↑solid∘{¯1 1 ⌽[⍵] ¨⊂⍺}¨ 0 1 2
 
     ⍝ ⍲ mask with rotations 
     ⍝ then ∧ with mask to select only blocks and not air
     ⍝ then ∨ with edges to ignore wrap-arounds
-    exposed ← ∊,/,{⍪∊edges∨mask∧mask⍲⍵}¨x
+    exposed ← ∊,/,{⍪∊edges∨solid∧solid⍲⍵}¨x
     vertices ← vertices⌿⍨4/exposed
     indices ← ∊(0 1 2 0 2 3)∘+¨4×⍳4÷⍨≢vertices
 

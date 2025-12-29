@@ -1,28 +1,28 @@
 :Namespace math
 
-    ∇ w←norm v
+    ∇ w←Norm v
       ⍝ https://codegolf.stackexchange.com/a/149160
       w←(⊢÷0.5*⍨+.×⍨)v
     ∇
 
-    ∇ z←v cross w;p
+    ∇ z←v Cross w;p
       ⍝ https://codegolf.stackexchange.com/a/70533
       z←v(2⌽p⍨-p←⊣×2⌽⊢)w
     ∇
 
-    ∇ m←proj(fov ar n f);t
+    ∇ m←Proj(fov ar n f);t
       t←÷3○fov×0.5
       m←16⍴0
       m[1 6 11 12 15]←(t÷ar)t(f÷(n-f))¯1((n×f)÷(n-f))
       m←4 4⍴m
     ∇
 
-    ∇ m←look_at(p t up);dtp;a;b;c
+    ∇ m←Look_at(p t up);dtp;a;b;c
       dtp←p-t
-      a←norm dtp
-      b←norm(up cross a)
-      c←a cross b
+      a←Norm dtp
+      b←Norm(up Cross a)
+      c←a Cross b
       m←b,c,a,3 1⍴0
-      m←m⍪¯1×(b+.×p) (c+.×p) (a+.×p) ¯1
+      m←m⍪¯1×(b+.×p)(c+.×p)(a+.×p)¯1
     ∇
 :EndNamespace

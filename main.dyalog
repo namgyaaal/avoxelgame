@@ -2,8 +2,8 @@
 ⎕SE.(⍎⊃2⎕FIX'/StartupSession.aplf',⍨2⎕NQ # 'GetEnvironment' 'DYALOG')
 ⎕SE.Link.Create 'lagl' './lagl'
 
-lagl.sdl3.load_lib 'libs/libLSE.dylib'
-lagl.lse.load_lib 'libs/libLSE.dylib'
+lagl.sdl3.Load_lib 'libs/libLSE.dylib'
+lagl.lse.Load_lib 'libs/libLSE.dylib'
 
 :If 0 = lagl.SDL_Init lagl.SDL_INIT_VIDEO
     ⎕ ← 'Error initializing SDL3'
@@ -206,8 +206,8 @@ pipeline ← lagl.LSE_PipelineCreate device
 (x_dir y_dir) ← 0 0
 
 
-proj ← lagl.math.proj (75.0 × 180÷⍨○1) (9÷6) 0.1 100
-view ← lagl.math.look_at (2 6 8) (2 4 2) (0 1 0)
+proj ← lagl.math.Proj (75.0 × 180÷⍨○1) (9÷6) 0.1 100
+view ← lagl.math.Look_at (2 6 8) (2 4 2) (0 1 0)
 proj_view ← view +.× proj
 
 c ← 0
@@ -251,7 +251,7 @@ running ← 1
     x_pos ← 8+20×2○c
     z_pos ← 8+20×1○c
 
-    view ← lagl.math.look_at (x_pos 14 z_pos) (8 6 8) (0 1 0)
+    view ← lagl.math.Look_at (x_pos 14 z_pos) (8 6 8) (0 1 0)
 
     cmd_buf ← lagl.SDL_AcquireGPUCommandBuffer device
     res swap_texture width height ← lagl.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
@@ -281,7 +281,6 @@ running ← 1
     lagl.SDL_DrawGPUIndexedPrimitives pass (≢index_data) 1 0 0 0
     lagl.SDL_EndGPURenderPass pass
     lagl.SDL_SubmitGPUCommandBuffer cmd_buf
-
 :EndWhile
 
 
