@@ -16,7 +16,7 @@
           (⍵≡⍳0):⍬
           2=|≡⍵:1↓∊' '∘,¨⍵   ⍝ flat-vector
           1≥⌈/|≡¨⍵:⍵         ⍝ 1-itemed
-
+     
           ⍝ Separate scalars at the level from vectors and recurse down vectors
           ⍝ Concat all at the end
           deep←1<|≡¨⍵
@@ -43,8 +43,8 @@
               formatted←∊lib_name,'|',fn_name
               def←1↓∊' '∘,¨(Clean_def⊃2⌷⍵)formatted(Clean_def Build_args⊃3⌷⍵)
               res←fn_name Load_def def
-              _←ns ⎕NS fn_name
-              ⎕EX fn_name
+              _← '#' ⎕NS fn_name
+              ⍝⎕EX fn_name
               res
           }¨⍵
       }

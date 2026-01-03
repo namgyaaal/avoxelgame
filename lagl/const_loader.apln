@@ -2,11 +2,11 @@
     'dec'⎕CY 'dfns'
 
     ∇ Parse_file(ns file_name);entries;names;values;assign_mask;assign_idx;vmask;val_map
-      ⍝ enums or #defines for constants are copied from c headers and regex'd 
-      ⍝     so it's just name value where value can be hex or value 
+      ⍝ enums or #defines for constants are copied from c headers and regex'd
+      ⍝     so it's just name value where value can be hex or value
       ⍝     there are some edge cases, i.e., empty ones just being next number
       ⍝     or some enums being other enums, so this handles them
-
+     
       ⍝ Three groups: Self, another enum, empty
       entries←(' '∘≠⊆⊢)¨({0∘≠∘≢¨⍵}⊢⍤/⊢)⊃⎕NGET file_name 1
       names←{∊1⌷⍵}¨entries
@@ -28,7 +28,7 @@
       :EndIf
       {
           6::⎕←'Namespace "',ns,'" is not loaded'
-          {('#.',ns)⍎∊(⍵[1])' ← '(⍕⍵[2])}¨↓⍉↑names val_map
+          {'#' ⍎∊(⍵[1])' ← '(⍕⍵[2])}¨↓⍉↑names val_map
       }⍬
     ∇
 

@@ -1,0 +1,249 @@
+#!/usr/local/bin/dyalogscript DYALOG_INITSESSION=1 LOAD=./lagl
+sdl3.Load_lib 'libs/libLSE.dylib'
+lse.Load_lib 'libs/libLSE.dylib'
+
+⎕ ← 'Libraries loaded'
+
+res ← SDL_Init SDL_INIT_VIDEO
+'Error initializing SDL3' Assert res
+
+⍝ Test surfaces real quick 
+
+old_surface ← IMG_Load ⊂'assets/blocks.jpg'
+surface ← SDL_ConvertSurface old_surface 376840196
+
+(width height pitch _) ← LSE_GetSurfaceParams surface 0 0 0 0
+data_addr ← LSE_GetSurfaceDataAddress surface
+data_size ← pitch × height
+SDL_DestroySurface old_surface
+
+window ← SDL_CreateWindow 'Hello World' 900 600 0
+'Error creating a window' Assert window
+
+device ← SDL_CreateGPUDevice SDL_GPU_SHADERFORMAT_MSL 1 'metal'
+'Error creating a GPU device' Assert device
+
+res ← SDL_ClaimWindowForGPUDevice device window
+'Error attaching device to window' Assert res
+
+⍝ Create buffers
+
+
+
+uv_vec ← (
+    (0.0 0.0) (0.2 0.0) (0.2 0.5) (0.0 0.5) ⍝ grass
+    (0.0 0.5) (0.2 0.5) (0.2 1.0) (0.0 1.0) ⍝ stone
+    (0.4 0.0) (0.6 0.0) (0.6 0.5) (0.4 0.5) ⍝ dirt
+    (0.8 0.0) (1.0 0.0) (1.0 0.5) (0.8 0.5) ⍝ wood
+)
+
+chunk_p ← chunk.vertices
+indices ← chunk.indices
+r ← ≢chunk_p 
+
+color_p ← 1,⍨?0⍨¨chunk_p
+
+uv_p ← r 2⍴∊uv_vec[1]
+⍝uv_p ← r 2⍴∊6/uv_vec[?(r÷24)⍴≢uv_vec]
+
+vertex_data ← ∊chunk_p, color_p, uv_p
+vertex_size ← 4 × ≢vertex_data ⍝ in bytes for f32
+
+
+index_data ← ∊indices 
+index_size ← 2 × ≢index_data ⍝ bytes for u16
+
+vb_params ←⊂ SDL_GPU_BUFFERUSAGE_VERTEX vertex_size 0
+ib_params ←⊂ SDL_GPU_BUFFERUSAGE_INDEX index_size 0 
+
+vertex_buffer ← SDL_CreateGPUBuffer device vb_params
+index_buffer ← SDL_CreateGPUBuffer device ib_params
+
+'Error creating vertex and index buffers' Assert vertex_buffer index_buffer 
+
+tb_params ← ⊂SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (vertex_size + index_size) 0
+transfer_buffer ← SDL_CreateGPUTransferBuffer device tb_params
+
+tex_tb_params ← ⊂SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (pitch × height) 0
+tex_tb ← SDL_CreateGPUTransferBuffer device tex_tb_params
+
+'Error creating transfer buffers' Assert transfer_buffer tex_tb
+
+⍝ Create Sampler
+
+⍝ SDL_GPUSamplerCreateInfo ← (i32 i32 i32 i32 i32 i32 f32 f32 i32 f32 f32 bool bool u8 u8 i32)
+sampler_create_info ←⊂        0   0   0   2   2   2   0.0 0.0 0   0.0 0.0 0    0    0  0  0
+sampler ← SDL_CreateGPUSampler device sampler_create_info
+
+'Error creating texture sampler' Assert sampler
+
+⍝ SDL_GPUTextureCreateInfo ← (i32 i32 i32 u32 u32 u32 u32 i32 i32)
+texture_create_info ←⊂        0   SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM   1   width height 1   1   0   0  
+texture ← SDL_CreateGPUTexture device texture_create_info
+SDL_SetGPUTextureName device texture 'test'
+
+depth_texture_info ←⊂ 0 SDL_GPU_TEXTUREFORMAT_D16_UNORM 4 900 600 1 1 0 0
+depth_texture ← SDL_CreateGPUTexture device depth_texture_info
+
+'Error creating textures' Assert texture depth_texture
+
+⍝ Copy vertex data into transfer buffer 
+mem_ptr ← SDL_MapGPUTransferBuffer device transfer_buffer 0
+LSE_MemcpyF32 (mem_ptr) (vertex_data) vertex_size
+LSE_MemcpyU16 (mem_ptr + vertex_size) (index_data) index_size
+SDL_UnmapGPUTransferBuffer device transfer_buffer
+
+⍝ Copy texture into transfer buffer
+mem_ptr ← SDL_MapGPUTransferBuffer device tex_tb 0
+SDL_memcpy (mem_ptr) (data_addr) data_size
+⍝LSE_MemcpyF32 (mem_ptr) (data_addr) (128 × 128 × 4 × 4)
+SDL_UnmapGPUTransferBuffer device tex_tb
+
+cmd_buf ← SDL_AcquireGPUCommandBuffer device
+pass ← SDL_BeginGPUCopyPass cmd_buf
+⍝ Vertex/Index data
+SDL_UploadToGPUBuffer pass (transfer_buffer 0) (vertex_buffer 0 vertex_size) 0
+SDL_UploadToGPUBuffer pass (transfer_buffer vertex_size) (index_buffer 0 index_size) 0
+⍝ Texture data
+SDL_UploadToGPUTexture pass (tex_tb 0 0 0) (texture 0 0 0 0 0 width height 1) 0
+
+SDL_EndGPUCopyPass pass 
+SDL_SubmitGPUCommandBuffer cmd_buf
+
+
+⍝ Load shaders
+(v_src v_size) ← SDL_LoadFile 'shaders/msl/basic_vert.msl' 0
+(f_src f_size) ← SDL_LoadFile 'shaders/msl/basic_frag.msl' 0
+
+'Error loading shaders' Assert v_src f_src
+
+v_info ← v_size v_src 0 SDL_GPU_SHADERFORMAT_MSL SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
+f_info ← f_size f_src 0 SDL_GPU_SHADERFORMAT_MSL SDL_GPU_SHADERSTAGE_FRAGMENT 1 0 0 0 0
+
+v_shader ← LSE_CreateGPUShader device v_info 'main0'
+f_shader ← LSE_CreateGPUShader device f_info 'main0'
+
+'Error creating shaders' Assert v_shader f_shader
+
+⍝ Create a render pipeline
+LSE_PipelineClearParams⍬
+LSE_PipelineSetShaders v_shader f_shader
+⍝ Vertex Buffer Descriptions and Attributes : Vertex Input
+vb_desc ←⊂ (0 (4 × 9) 0 0)
+vb_attr ← (0 0 SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3 0 
+           1 0 SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3 (4 × 3)
+           2 0 SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3 (4 × 7))
+
+LSE_PipelineSetVertexInput vb_desc 1 vb_attr 3
+LSE_PipelineSetDepthStencil 2 (0 0 0 0) (0 0 0 0) 0 0 1 1 0 0 0 0
+LSE_PipelineSetRasterizer 0 2 1 0.0 0.0 0.0 0 0
+
+⍝ Color Targets
+default_format ← ⊃SDL_GetGPUSwapchainTextureFormat device window
+
+blend_state ← (SDL_GPU_BLENDFACTOR_SRC_ALPHA
+               SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
+               SDL_GPU_BLENDOP_ADD)
+⍝ 0's - padding, writemask, etc
+⍝ Duplicate alpha and color blendfactors and blendops
+blend_state ← (6⍴ blend_state), 5⍴0
+ct_desc ← ⊂default_format blend_state
+
+LSE_PipelineSetTargetInfo ct_desc 1 SDL_GPU_TEXTUREFORMAT_D16_UNORM 1
+pipeline ← LSE_PipelineCreate device
+
+'Error creating render pipeline' Assert pipeline
+
+(x_dir y_dir) ← 0 0
+
+
+proj ← math.Proj (○ 75 ÷ 180) (9÷6) 0.1 100
+view ← math.Look_at (2 6 8) (2 4 2) (0 1 0)
+proj_view ← view +.× proj
+
+c ← 0
+running ← 1
+:While running
+    :While ⊃LSE_PollEvent⍬
+        :If LSE_CheckEvent SDL_EVENT_QUIT
+            running ← 0
+        :Elseif LSE_CheckEvent SDL_EVENT_KEY_DOWN
+            :Select ⊃LSE_GetKeyPressed⍬
+            :Case SDLK_RETURN
+                ⎕ ← 'Pressed the enter key'
+            :Case SDLK_D
+                x_dir ← 1
+            :Case SDLK_A
+                x_dir ← ¯1
+            :Case SDLK_W
+                y_dir ← 1
+            :Case SDLK_S
+                y_dir ← ¯1
+            :EndSelect
+        :Elseif LSE_CheckEvent SDL_EVENT_KEY_UP
+            :Select ⊃LSE_GetKeyPressed⍬
+            :Case SDLK_BACKSPACE
+                ⎕ ← 'Released the backspace key'
+            :Case SDLK_D
+                x_dir ← 0
+            :Case SDLK_A
+                x_dir ← 0
+            :Case SDLK_W
+                y_dir ← 0
+            :Case SDLK_S
+                y_dir ← 0
+            :EndSelect
+        :Elseif LSE_CheckEvent SDL_EVENT_MOUSE_MOTION
+            ⍝⎕ ← 'Mouse move: ', ⍕LSE_GetMouseMove 0 0
+        :EndIf
+    :EndWhile
+    c +← 0.01
+
+    (x_pos z_pos) ← 8+20×2 1○c
+
+    view ← math.Look_at (x_pos 14 z_pos) (8 6 8) (0 1 0)
+
+    cmd_buf ← SDL_AcquireGPUCommandBuffer device
+    (res swap_texture _ _) ← SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
+
+    'Error acquiring swapchain texture' Assert res
+
+    color_info ←⊂ swap_texture 0 0 (0.1 0.2 0.3 1) 1 0 0 0 0 0 0 0 0
+    depth_info ←⊂ depth_texture 1.0 1 1 0 0 0 0 0 0
+
+    pass ← SDL_BeginGPURenderPass cmd_buf color_info 1 depth_info
+    SDL_BindGPUGraphicsPipeline pass pipeline
+
+    dt ← 500÷⍨⊃SDL_GetTicks⍬
+
+    proj_view ← view +.× proj
+
+    SDL_PushGPUVertexUniformData cmd_buf 0 (∊proj_view) (16×4)
+
+    vbuffer_list ← ⊂(vertex_buffer 0)
+    ibuffer_list ← ⊂(index_buffer 0)
+
+    SDL_BindGPUVertexBuffers pass 0 vbuffer_list 1
+    SDL_BindGPUIndexBuffer pass ibuffer_list SDL_GPU_INDEXELEMENTSIZE_16BIT
+    SDL_BindGPUFragmentSamplers pass 0 (⊂texture sampler) 1
+    SDL_DrawGPUIndexedPrimitives pass (≢index_data) 1 0 0 0
+    SDL_EndGPURenderPass pass
+    SDL_SubmitGPUCommandBuffer cmd_buf
+:EndWhile
+
+
+SDL_ReleaseGPUShader device v_shader
+SDL_ReleaseGPUShader device f_shader
+
+SDL_ReleaseGPUGraphicsPipeline device pipeline
+
+SDL_ReleaseGPUTransferBuffer device transfer_buffer
+SDL_ReleaseGPUTransferBuffer device tex_tb
+SDL_ReleaseGPUTexture device texture
+SDL_ReleaseGPUSampler device sampler
+SDL_ReleaseGPUBuffer device index_buffer
+SDL_ReleaseGPUBuffer device vertex_buffer
+
+SDL_DestroyGPUDevice device
+SDL_DestroyWindow window
+SDL_Quit⍬
