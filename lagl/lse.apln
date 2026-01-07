@@ -30,7 +30,7 @@
     ⍝ General Graphics
     fns ,←⊂ 'LSE_CreateGPUShader' ptr (ptr '<'(u64 ptr ptr u32 i32 u32 u32 u32 u32 u32) cstr)
 
-    stencilopstate ← (i32 i32 i32 i32)
+    stencilopstate ← i32 i32 i32 i32
     ⍝ Pipeline Handling
     fns,←⊂ 'LSE_PipelineClearParams' ⍬ ⍬
     fns,←⊂ 'LSE_PipelineCreate' ptr ptr
@@ -48,6 +48,6 @@
     fns,←⊂ 'LSE_PipelineSetProperties' ⍬ u32
 
     ∇ Load_lib path
-      'lagl'path ##.easy_na.Safe_load fns
+      path ##.easy_na.Safe_load fns
     ∇
 :EndNamespace

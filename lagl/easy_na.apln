@@ -6,47 +6,45 @@
           ⍝ just use '-' in the definition and collapse it after done with
           ⍝ parsing
           ⍝ Dirty, but it works
-          out←⍵/⍨~((⍵=' ')∧((¯1⌽⍵∊'<>=')∨(1⌽⍵∊'[]')))∨(⍵='-')
-          out
+          ⍵/⍨(⍵='-')⍱(⍵=' ')∧(¯1⌽⍵∊'<>=')∨(1⌽⍵∊'[]')
       }
 
       Build_args←{
           ⍝ Recursively go down a nested vector and unroll it to produce
           ⍝     a definition that fits ⎕NA format.
-          (⍵≡⍳0):⍬
-          2=|≡⍵:1↓∊' '∘,¨⍵   ⍝ flat-vector
-          1≥⌈/|≡¨⍵:⍵         ⍝ 1-itemed
+          (⍬≡⍵):⍬
+          2=|≡⍵:¯1↓∊⍵,¨' '  ⍝ flat-vector
+          2>|≡⍵:⍵           ⍝ 1-itemed
      
           ⍝ Separate scalars at the level from vectors and recurse down vectors
           ⍝ Concat all at the end
           deep←1<|≡¨⍵
           args←⍵
-          args[deep/⍳≢args]←{'}',⍨'{',Build_args ⍵}¨deep/args
-          1↓∊' '∘,¨args
-          args
+          (deep/args)←('{',Build_args,'}'⍨)¨deep/args
+          ¯1↓∊args,¨' '
       }
 
       Load_def←{
-          102::,'Error: File not found for ',⍵
-          6::,'Error: Function not found in library for ',⍵
+          102:: 'Error: File not found for ',⍵
+          6:: 'Error: Function not found in library for ',⍵
           _←⎕NA ⍵
           ''
       }
       Safe_load←{
           ⍝ ⍺ - (namespace, library_path)
           ⍝ ⍵ - symbol vector
-          (ns lib_name)←⍺
-          ns←'#.',ns
-          ⍝ error vec is for error handling, not used yet
-          error_vec←,⊂/{
-              fn_name←1⌷⍵
-              formatted←∊lib_name,'|',fn_name
-              def←1↓∊' '∘,¨(Clean_def⊃2⌷⍵)formatted(Clean_def Build_args⊃3⌷⍵)
+          error_vec ← ⍺∘{
+              (fn_name def args)←⍵
+              formatted←∊⍺,'|',fn_name
+              def←1↓∊' '∘,¨(Clean_def def)formatted(Clean_def Build_args args)
               res←fn_name Load_def def
-              _← '#' ⎕NS fn_name
-              ⍝⎕EX fn_name
+              0≠≢res: res
+              _←'#'⎕NS fn_name
               res
           }¨⍵
+          error_vec ← error_vec/⍨0≠≢¨error_vec
+          0=≢error_vec: ⋄
+          {⎕ ← ⍵}¨error_vec
       }
 
       Example_test←{
@@ -64,6 +62,6 @@
           symbol_vector,←⊂'call_with_side_effects'⍬ ⍬
           symbol_vector,←⊂'get_side_effects'i32 ⍬
           symbol_vector,←⊂'call_with_input'i32 i32
-          'example_namespace'real_dylib Safe_load symbol_vector
+          real_dylib Safe_load symbol_vector
       }
 :EndNamespace

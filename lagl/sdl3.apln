@@ -113,7 +113,7 @@
     fns,←⊂ 'SDL_DrawGPUIndexedPrimitives' ⍬ (ptr u32 u32 u32 i32 u32)
 
     ∇ Load_lib path
-      ##.const_loader.Load_dir'#' 'sdl3_consts'
-      '#'path ##.easy_na.Safe_load fns
+      ##.const_loader.Load_dir'sdl3_consts'
+      path ##.easy_na.Safe_load fns
     ∇
 :EndNamespace

@@ -1,35 +1,33 @@
 :Namespace chunk
     ⎕IO ← 0
     l ← 16 16 16
-    box ← { ∨/⍤((⍵-1)∘=∨0=⊢)¨⍳⍵} l
+    box ← ⊃∘.∨/1@0¨l-⍛↑¨1
     faces ← [
-        0 1 0 ⋄ 0 1 1 ⋄ 0 0 1 ⋄ 0 0 0 ⍝ Left 
-        1 1 1 ⋄ 1 1 0 ⋄ 1 0 0 ⋄ 1 0 1 ⍝ Right
-        0 1 0 ⋄ 1 1 0 ⋄ 1 1 1 ⋄ 0 1 1 ⍝ Top
-        1 0 0 ⋄ 0 0 0 ⋄ 0 0 1 ⋄ 1 0 1 ⍝ Bottom
-        1 1 0 ⋄ 0 1 0 ⋄ 0 0 0 ⋄ 1 0 0 ⍝ Back
-        0 1 1 ⋄ 1 1 1 ⋄ 1 0 1 ⋄ 0 0 1 ⍝ Front
+    0 1 0 ⋄ 0 1 1 ⋄ 0 0 1 ⋄ 0 0 0 ⍝ Left
+    1 1 1 ⋄ 1 1 0 ⋄ 1 0 0 ⋄ 1 0 1 ⍝ Right
+    0 1 0 ⋄ 1 1 0 ⋄ 1 1 1 ⋄ 0 1 1 ⍝ Top
+    1 0 0 ⋄ 0 0 0 ⋄ 0 0 1 ⋄ 1 0 1 ⍝ Bottom
+    1 1 0 ⋄ 0 1 0 ⋄ 0 0 0 ⋄ 1 0 0 ⍝ Back
+    0 1 1 ⋄ 1 1 1 ⋄ 1 0 1 ⋄ 0 0 1 ⍝ Front
     ]
     v_cnt ← ≢faces
 
-    ⍝ From ⍳-coords:
-    ⍝ - flip Y so it goes up
-    ⍝ - collapse vectors into the matrix (WIDTH,HEIGHT,LENGTH,POS)
-    ⍝ - expand Z by vertex count so that each POS is a block of a chunk
-    ⍝ - add faces to each block to transform into actual block positions 
-    ⍝ - reshape into (Vertex Count, 3) so can be cated with other vertex data
-    vertices ← ((×/l, v_cnt) 3)⍴ faces (+⍤2) (l,(v_cnt 3)) ⍴(v_cnt∘⌿⍤¯2) ((l,3)⍴∊) (⊖⍤2)⍳l
+    ⍝ From ⍳-vertex count: 
+    ⍝ - Flip Y so it goes up 
+    ⍝ - Extend into 3d coordinate space
+    ⍝ - Replicate each coordinate to add a cube onto it
+    ⍝ - Reshape so that cube can be added with rank
+    ⍝ - Join in the form (Vertices, 3) so that color/uv/etc can be added
+    vertices ← ,[⍳4] faces (+⍤2) (l,(v_cnt 3)) ⍴v_cnt(⌿⍤2) 3 0 1 2⍉l⊤⊖⍤2⊢l⍴⍳×/l
     solid ← 0.1>?l⍴0
     edges ← solid∧box
-
+    
     ⍝ Rotations are in this order: (X, Y, Z)
-    x ← ↑solid∘{¯1 1 ⌽[⍵] ¨⊂⍺}¨ 0 1 2
+    x ← 0 1 2∘.{⍵⌽[⍺]solid}¯1 1
 
-    ⍝ ⍲ mask with rotations 
-    ⍝ then ∧ with mask to select only blocks and not air
-    ⍝ then ∨ with edges to ignore wrap-arounds
-    exposed ← ∊,/,{⍪∊edges∨solid∧solid⍲⍵}¨x
-    vertices ← vertices⌿⍨4/exposed
-    indices ← ∊(0 1 2 0 2 3)∘+¨4×⍳4÷⍨≢vertices
-
+    ⍝ Where solid doesn't have rotated surface 
+    ⍝ Excluding edges due to wrap-around
+    exposed ← ∊↑[0]{edges∨solid>⍵}¨x
+    vertices ⌿⍨← 4/exposed
+    indices ← ,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 :EndNamespace

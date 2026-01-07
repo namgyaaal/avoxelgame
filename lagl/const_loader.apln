@@ -1,39 +1,39 @@
 :Namespace const_loader
     'dec'⎕CY 'dfns'
-
-    ∇ Parse_file(ns file_name);entries;names;values;assign_mask;assign_idx;vmask;val_map
+    ∇ Parse_file fp;entries;names;values;assign_mask;assign_idx;hmask;vmask;val_map
       ⍝ enums or #defines for constants are copied from c headers and regex'd
       ⍝     so it's just name value where value can be hex or value
       ⍝     there are some edge cases, i.e., empty ones just being next number
       ⍝     or some enums being other enums, so this handles them
      
       ⍝ Three groups: Self, another enum, empty
-      entries←(' '∘≠⊆⊢)¨({0∘≠∘≢¨⍵}⊢⍤/⊢)⊃⎕NGET file_name 1
-      names←{∊1⌷⍵}¨entries
-      values←{1=≢⍵:¯1 ⋄ ∊2⌷⍵}¨entries
+      entries←' '∘≠⍛⊆¨''~∘⊂⍨⊃⎕NGET fp 1
+      names←⊃¨entries
+      values←{1=≢⍵:¯1 ⋄ 2⊃⍵}¨entries
       ⍝ If it's an empty enum skip this process
-      :If 0<+/(2∘=∘≢)¨entries
+      ⍝:If 0<+/(2∘=∘≢)¨entries
+      :If 2∊≢¨entries
         ⍝ Where enum_B = enum_A
         ⍝ Take the names to get indices of where the values are
-          assign_mask←∊{⎕A∊⍨1↑⍵}¨values
+          assign_mask←⎕A∊⍨⊃¨values
           assign_idx←names⍳assign_mask/values
-          vmask←{('0x'≡2↑⍵)∨(∧/⍵∊⎕D)}¨values
+          hmask←(2↑¨values)∊⊂'0x'
+          vmask←hmask∨{∧/⍵∊⎕D}¨values
+          ⍝ scope hmask onto vmask instead of all of values
+          hmask←(2↑¨vmask/values)∊⊂'0x'
      
-          val_map←1+(⍴entries)↑¯1
-          val_map[⍸vmask]←{'0x'≡2↑⍵:dec ⍵ ⋄ ⍎⍵}¨vmask/values
-          val_map←∊+\¨(1∘({⍺=⍳⍴⍵}∨≠)⊂⊢)val_map
-          val_map[⍸assign_mask]←val_map[assign_idx]
+          val_map←0@1⊢1⍨¨entries
+          (vmask/val_map)←dec@{hmask}(∊2⊃¨⎕VFI¨)@{~hmask}vmask/values
+          val_map{+\⍺-⍵\¯2-/0,⍵/+\¯1↓0,⍺}←1@1⊢1≠val_map
+          (assign_mask/val_map)←val_map[assign_idx]
       :Else
           val_map←¯1+⍳⍴names
       :EndIf
-      {
-          6::⎕←'Namespace "',ns,'" is not loaded'
-          {'#' ⍎∊(⍵[1])' ← '(⍕⍵[2])}¨↓⍉↑names val_map
-      }⍬
+      #.⎕VSET(↑names)val_map
     ∇
 
-    ∇ Load_dir(ns dir)
-      {Parse_file ns ⍵}¨⊃(⎕NINFO⍠1)dir,'/*.def'
-      {Parse_file ns ⍵}¨⊃(⎕NINFO⍠1)dir,'/*.enum'
+    ∇ Load_dir dir
+      Parse_file¨⊃(⎕NINFO⍠1)dir,'/*.def'
+      Parse_file¨⊃(⎕NINFO⍠1)dir,'/*.enum'
     ∇
 :EndNamespace
