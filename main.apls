@@ -43,7 +43,8 @@ color_p ← 1,⍨?0⍨¨chunk_p
 uv_p ← r 2⍴∊uv_vec[1]
 ⍝uv_p ← r 2⍴∊6/uv_vec[?(r÷24)⍴≢uv_vec]
 
-vertex_data ← ∊chunk_p, color_p, uv_p
+
+vertex_data ← ∊chunk_p, color_p, chunk.tex
 vertex_size ← 4 × ≢vertex_data ⍝ in bytes for f32
 
 
