@@ -27,9 +27,6 @@ res ← SDL_ClaimWindowForGPUDevice device window
 'Error attaching device to window' Assert res
 
 ⍝ Create buffers
-
-
-
 uv_vec ← (
     (0.0 0.0) (0.2 0.0) (0.2 0.5) (0.0 0.5) ⍝ grass
     (0.0 0.5) (0.2 0.5) (0.2 1.0) (0.0 1.0) ⍝ stone

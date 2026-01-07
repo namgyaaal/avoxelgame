@@ -9,108 +9,88 @@
     cstr ← '<0C1[]'
     f32_arr ← '<F4[]'
 
-    fns ← ⍬
 
-    ⍝ Core Stuff
+    FColor ← (f32 f32 f32 f32)
+    GPUColorTargetInfo ← (ptr u32 u32 FColor i32 i32 ptr u32 u32 bool bool u8 u8)
+    GPUDepthStencilTargetInfo ← (ptr f32 i32 i32 i32 i32 bool u8 u8 u8)
+    GPUTextureCreateInfo ← (i32 i32 i32 u32 u32 u32 u32 i32 i32)
+    GPUSamplerCreateInfo ← (i32 i32 i32 i32 i32 i32 f32 f32 i32 f32 f32 bool bool u8 u8 i32)
 
-    fns,←⊂ 'SDL_Init' bool u32
-    fns,←⊂ 'SDL_Quit' ⍬ ⍬
+    fns ← (
+        ⍝ Core Stuff
+        'SDL_Init' bool u32
+        'SDL_Quit' ⍬ ⍬
+        'SDL_ClearError' bool ⍬
+        'SDL_GetError' ptr ⍬
+        'SDL_CreateWindow' ptr (cstr i32 i32 u64)
+        'SDL_DestroyWindow' ⍬ ptr
+        'SDL_PumpEvents' ⍬ ⍬
+        'SDL_LoadFile' ptr (cstr '>' u64)
+        'SDL_free' ⍬ ptr
+        'SDL_GetTicks' u32 ⍬
+        'SDL_memcpy' ptr (ptr ptr u64)
+        ⍝ Surfaces
+        'SDL_CreateSurface' ptr (i32 i32 i32)
+        'SDL_DestroySurface' ⍬ ptr
+        'SDL_LockSurface' bool ptr
+        'SDL_UnlockSurface' ⍬ ptr
+        'SDL_ConvertSurface' ptr (ptr i32)
+        'SDL_WriteSurfacePixelFloat' bool (ptr i32 i32 f32 f32 f32 f32)
+        'SDL_SaveBMP' bool (ptr cstr)
+        'SDL_LoadBMP' ptr cstr
+        ⍝ Putting SDL3_image here since it's in the shared object too
+         'IMG_Load' ptr cstr
+         
+        ⍝ GPU Stuff
 
-    fns,←⊂ 'SDL_ClearError' bool ⍬
-    fns,←⊂ 'SDL_GetError' ptr ⍬
-
-    fns,←⊂ 'SDL_CreateWindow' ptr (cstr i32 i32 u64)
-    fns,←⊂ 'SDL_DestroyWindow' ⍬ ptr
-
-    fns,←⊂ 'SDL_PumpEvents' ⍬ ⍬
-
-    fns,←⊂ 'SDL_LoadFile' ptr (cstr '>' u64)
-    fns,←⊂ 'SDL_free' ⍬ ptr
-
-    fns,←⊂ 'SDL_GetTicks' u32 ⍬
-
-    fns,←⊂ 'SDL_memcpy' ptr (ptr ptr u64)
-
-    ⍝ Surfaces
-    fns,←⊂ 'SDL_CreateSurface' ptr (i32 i32 i32)
-    fns,←⊂ 'SDL_DestroySurface' ⍬ ptr
-    fns,←⊂ 'SDL_LockSurface' bool ptr
-    fns,←⊂ 'SDL_UnlockSurface' ⍬ ptr
-    fns,←⊂ 'SDL_ConvertSurface' ptr (ptr i32)
-    fns,←⊂ 'SDL_WriteSurfacePixelFloat' bool (ptr i32 i32 f32 f32 f32 f32)
-    fns,←⊂ 'SDL_SaveBMP' bool (ptr cstr)
-    fns,←⊂ 'SDL_LoadBMP' ptr cstr
-
-    ⍝ Putting SDL3_image here since it's in the shared object too
-    fns,←⊂ 'IMG_Load' ptr cstr
-
-    ⍝ GPU Stuff
-
-    ⍝ Device
-    fns,←⊂ 'SDL_CreateGPUDevice' ptr (u32 bool cstr)
-    fns,←⊂ 'SDL_DestroyGPUDevice' ⍬ ptr
-    fns,←⊂ 'SDL_ClaimWindowForGPUDevice' bool (ptr ptr)
-
-    ⍝ Command Buffer
-    fns,←⊂ 'SDL_AcquireGPUCommandBuffer' ptr ptr
-    fns,←⊂ 'SDL_SubmitGPUCommandBuffer' ⍬ ptr
-
-    ⍝ Swapchain
-    fns,←⊂ 'SDL_WaitAndAcquireGPUSwapchainTexture' bool (ptr ptr '>' ptr '>' u32 '>' u32)
-    fns,←⊂ 'SDL_GetGPUSwapchainTextureFormat' i32 (ptr ptr)
-
-    ⍝ Buffers
-    fns,←⊂ 'SDL_CreateGPUBuffer' ptr (ptr '<' (u32 u32 u32))
-    fns,←⊂ 'SDL_ReleaseGPUBuffer' ⍬ (ptr ptr)
-    fns,←⊂ 'SDL_UploadToGPUBuffer' ⍬ (ptr '<' (ptr u32) '<' (ptr u32 u32) bool)
-    fns,←⊂ 'SDL_DownloadFromGPUBuffer' ⍬ (ptr '<' (ptr u32 u32) '<' (ptr u32))
-
-    fns,←⊂ 'SDL_CreateGPUTransferBuffer' ptr (ptr '<' (u32 u32 u32))
-    fns,←⊂ 'SDL_ReleaseGPUTransferBuffer' ⍬ (ptr ptr)
-    fns,←⊂ 'SDL_MapGPUTransferBuffer' ptr (ptr ptr bool)
-    fns,←⊂ 'SDL_UnmapGPUTransferBuffer' ⍬ (ptr ptr)
-
-    ⍝ Shaders
-    ⍝ Creation covered by LSE_CreateGPUShader
-    fns,←⊂ 'SDL_ReleaseGPUShader' ⍬ (ptr ptr)
-
-    ⍝ Uniforms (F32 default)
-    fns,←⊂ 'SDL_PushGPUVertexUniformData' ⍬ (ptr u32 f32_arr u32)
-    fns,←⊂ 'SDL_PushGPUFragmentUniformData' ⍬ (ptr u32 f32_arr u32)
-
-    ⍝ Pipeline Handling (Creation managed by LSE)
-    fns,←⊂ 'SDL_BindGPUGraphicsPipeline' ⍬ (ptr ptr)
-    fns,←⊂ 'SDL_ReleaseGPUGraphicsPipeline' ⍬ (ptr ptr)
-
-    ⍝ Texturing/Sampling
-    SDL_GPUTextureCreateInfo ← (i32 i32 i32 u32 u32 u32 u32 i32 i32)
-    fns,←⊂ 'SDL_CreateGPUTexture' ptr (ptr '<' SDL_GPUTextureCreateInfo)
-    fns,←⊂ 'SDL_SetGPUTextureName' ⍬ (ptr ptr cstr)
-    fns,←⊂ 'SDL_ReleaseGPUTexture' ⍬ (ptr ptr)
-
-    SDL_GPUSamplerCreateInfo ← (i32 i32 i32 i32 i32 i32 f32 f32 i32 f32 f32 bool bool u8 u8 i32)
-    fns,←⊂ 'SDL_CreateGPUSampler' ptr (ptr '<' SDL_GPUSamplerCreateInfo)
-    fns,←⊂ 'SDL_ReleaseGPUSampler' ⍬ (ptr ptr)
-
-    ⍝ Passes
-    SDL_FColor ← (f32 f32 f32 f32)
-    SDL_GPUColorTargetInfo ← (ptr u32 u32 SDL_FColor i32 i32 ptr u32 u32 bool bool u8 u8)
-    SDL_GPUDepthStencilTargetInfo ← (ptr f32 i32 i32 i32 i32 bool u8 u8 u8)
-    fns,←⊂ 'SDL_BeginGPURenderPass' ptr (ptr '<' SDL_GPUColorTargetInfo u32 '<' SDL_GPUDepthStencilTargetInfo)
-    fns,←⊂ 'SDL_EndGPURenderPass' ⍬ ptr
-    fns,←⊂ 'SDL_BeginGPUCopyPass' ptr ptr
-    fns,←⊂ 'SDL_EndGPUCopyPass' ptr ptr
-
-    ⍝ Binding
-    fns,←⊂ 'SDL_BindGPUVertexBuffers' ⍬ (ptr u32 '<' (ptr u32) '[]' u32)
-    fns,←⊂ 'SDL_BindGPUIndexBuffer' ⍬ (ptr '<' (ptr u32) '[]' i32)
-    fns,←⊂ 'SDL_BindGPUFragmentSamplers' ⍬ (ptr u32 '<' (ptr ptr) '[]' u32)
-    fns,←⊂ 'SDL_UploadToGPUTexture' ⍬ (ptr '<' (ptr u32 u32 u32) '<' (ptr u32 u32 u32 u32 u32 u32 u32 u32) bool)
-
-
-    ⍝ Drawing
-    fns,←⊂ 'SDL_DrawGPUPrimitives' ⍬ (ptr u32 u32 u32 u32)
-    fns,←⊂ 'SDL_DrawGPUIndexedPrimitives' ⍬ (ptr u32 u32 u32 i32 u32)
+        ⍝ Device
+        'SDL_CreateGPUDevice' ptr (u32 bool cstr)
+        'SDL_DestroyGPUDevice' ⍬ ptr
+        'SDL_ClaimWindowForGPUDevice' bool (ptr ptr)
+        ⍝ Command Buffer
+        'SDL_AcquireGPUCommandBuffer' ptr ptr
+        'SDL_SubmitGPUCommandBuffer' ⍬ ptr
+        ⍝ Swapchain
+        'SDL_WaitAndAcquireGPUSwapchainTexture' bool (ptr ptr '>' ptr '>' u32 '>' u32)
+        'SDL_GetGPUSwapchainTextureFormat' i32 (ptr ptr)
+        ⍝ Buffers
+        'SDL_CreateGPUBuffer' ptr (ptr '<' (u32 u32 u32))
+        'SDL_ReleaseGPUBuffer' ⍬ (ptr ptr)
+        'SDL_UploadToGPUBuffer' ⍬ (ptr '<' (ptr u32) '<' (ptr u32 u32) bool)
+        'SDL_DownloadFromGPUBuffer' ⍬ (ptr '<' (ptr u32 u32) '<' (ptr u32))
+        'SDL_CreateGPUTransferBuffer' ptr (ptr '<' (u32 u32 u32))
+        'SDL_ReleaseGPUTransferBuffer' ⍬ (ptr ptr)
+        'SDL_MapGPUTransferBuffer' ptr (ptr ptr bool)
+        'SDL_UnmapGPUTransferBuffer' ⍬ (ptr ptr)
+        ⍝ Shaders
+        ⍝ Creation covered by LSE_CreateGPUShader
+        'SDL_ReleaseGPUShader' ⍬ (ptr ptr)
+        ⍝ Uniforms (F32 default)
+        'SDL_PushGPUVertexUniformData' ⍬ (ptr u32 f32_arr u32)
+        'SDL_PushGPUFragmentUniformData' ⍬ (ptr u32 f32_arr u32)
+        ⍝ Pipeline Handling (Creation managed by LSE)
+        'SDL_BindGPUGraphicsPipeline' ⍬ (ptr ptr)
+        'SDL_ReleaseGPUGraphicsPipeline' ⍬ (ptr ptr)
+        ⍝ Texturing/Sampling
+        'SDL_CreateGPUTexture' ptr (ptr '<' GPUTextureCreateInfo)
+        'SDL_SetGPUTextureName' ⍬ (ptr ptr cstr)
+        'SDL_ReleaseGPUTexture' ⍬ (ptr ptr)
+        'SDL_CreateGPUSampler' ptr (ptr '<' GPUSamplerCreateInfo)
+        'SDL_ReleaseGPUSampler' ⍬ (ptr ptr)
+        ⍝ Passes
+        'SDL_BeginGPURenderPass' ptr (ptr '<' GPUColorTargetInfo u32 '<' GPUDepthStencilTargetInfo)
+        'SDL_EndGPURenderPass' ⍬ ptr
+        'SDL_BeginGPUCopyPass' ptr ptr
+        'SDL_EndGPUCopyPass' ptr ptr
+        ⍝ Binding
+        'SDL_BindGPUVertexBuffers' ⍬ (ptr u32 '<' (ptr u32) '[]' u32)
+        'SDL_BindGPUIndexBuffer' ⍬ (ptr '<' (ptr u32) '[]' i32)
+        'SDL_BindGPUFragmentSamplers' ⍬ (ptr u32 '<' (ptr ptr) '[]' u32)
+        'SDL_UploadToGPUTexture' ⍬ (ptr '<' (ptr u32 u32 u32) '<' (ptr u32 u32 u32 u32 u32 u32 u32 u32) bool)
+        ⍝ Drawing
+        'SDL_DrawGPUPrimitives' ⍬ (ptr u32 u32 u32 u32)
+        'SDL_DrawGPUIndexedPrimitives' ⍬ (ptr u32 u32 u32 i32 u32)
+    )
 
     ∇ Load_lib path
       ##.const_loader.Load_dir'sdl3_consts'
