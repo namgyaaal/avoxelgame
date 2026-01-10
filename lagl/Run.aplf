@@ -1,3 +1,4 @@
- Run←{
-     shy←0
- }
+∇ Run
+    sdl3.Load_lib 'libs/libLSE.dylib'
+    lse.Load_lib 'libs/libLSE.dylib'
+∇

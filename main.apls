@@ -1,6 +1,4 @@
 #!/usr/local/bin/dyalogscript DYALOG_INITSESSION=1 LOAD=./lagl
-sdl3.Load_lib 'libs/libLSE.dylib'
-lse.Load_lib 'libs/libLSE.dylib'
 
 ⎕ ← 'Libraries loaded'
 
@@ -26,46 +24,42 @@ device ← SDL_CreateGPUDevice SDL_GPU_SHADERFORMAT_MSL 1 'metal'
 res ← SDL_ClaimWindowForGPUDevice device window
 'Error attaching device to window' Assert res
 
-⍝ Create buffers
-uv_vec ← (
-    (0.0 0.0) (0.2 0.0) (0.2 0.5) (0.0 0.5) ⍝ grass
-    (0.0 0.5) (0.2 0.5) (0.2 1.0) (0.0 1.0) ⍝ stone
-    (0.4 0.0) (0.6 0.0) (0.6 0.5) (0.4 0.5) ⍝ dirt
-    (0.8 0.0) (1.0 0.0) (1.0 0.5) (0.8 0.5) ⍝ wood
-)
+blocks ← chunk.l⍴0
+mario_stencil ← [
+    0 0 0 1 1 1 1 1 0 0 0 0
+    0 0 1 1 1 1 1 1 1 1 1 0
+    0 0 2 2 2 3 3 2 3 0 0 0
+    0 2 3 2 3 3 3 2 3 0 0 0
+    0 2 3 2 2 3 3 3 2 3 3 3
+    0 2 2 3 3 3 3 2 2 2 2 0
+    0 0 0 3 3 3 3 3 3 3 0 0
+        ⍝ Head Stops here
+    0 0 2 2 1 2 2 2 0 0 0 0
+    0 2 2 2 1 2 2 1 2 2 2 0
+    2 2 2 2 1 1 1 1 2 2 2 2
+    3 3 2 1 3 1 1 3 1 2 3 3
+    3 3 3 1 1 1 1 1 1 3 3 3
+    3 3 1 1 1 1 1 1 1 1 3 3
+    0 0 1 1 1 0 0 1 1 1 0 0
+    0 2 2 2 0 0 0 0 2 2 2 0
+    2 2 2 2 0 0 0 0 2 2 2 2
+    0 0 0 0 0 0 0 0 0 0 0 0
+]
 
-chunk_p ← chunk.vertices
-indices ← chunk.indices
-r ← ≢chunk_p 
+blocks[8;;] ← 17 16↑⊖mario_stencil
+blocks[;1;] ← 1
 
-color_p ← 1,⍨?0⍨¨chunk_p
+chunk.Init_chunks device
+chunk.Create_chunk device (16 17 16⍴1 0 1 0 1) (0 0 0)
+chunk.Create_chunk device (⊖⍤2 ⊢ blocks) (16 0 0)
+chunk.Create_chunk device (16 17 16⍴1 0 1 0 1) (¯16 0 0)
+chunk.Create_chunk device (3 2 1⍉ blocks) (0 0 16)
+chunk.Create_chunk device (⌽blocks) (0 0 ¯16)
 
-uv_p ← r 2⍴∊uv_vec[1]
-⍝uv_p ← r 2⍴∊6/uv_vec[?(r÷24)⍴≢uv_vec]
-
-
-vertex_data ← ∊chunk_p, color_p, chunk.tex
-vertex_size ← 4 × ≢vertex_data ⍝ in bytes for f32
-
-
-index_data ← ∊indices 
-index_size ← 2 × ≢index_data ⍝ bytes for u16
-
-vb_params ←⊂ SDL_GPU_BUFFERUSAGE_VERTEX vertex_size 0
-ib_params ←⊂ SDL_GPU_BUFFERUSAGE_INDEX index_size 0 
-
-vertex_buffer ← SDL_CreateGPUBuffer device vb_params
-index_buffer ← SDL_CreateGPUBuffer device ib_params
-
-'Error creating vertex and index buffers' Assert vertex_buffer index_buffer 
-
-tb_params ← ⊂SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (vertex_size + index_size) 0
-transfer_buffer ← SDL_CreateGPUTransferBuffer device tb_params
 
 tex_tb_params ← ⊂SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (pitch × height) 0
 tex_tb ← SDL_CreateGPUTransferBuffer device tex_tb_params
-
-'Error creating transfer buffers' Assert transfer_buffer tex_tb
+'Error creating texture transfer buffer' Assert tex_tb
 
 ⍝ Create Sampler
 
@@ -85,25 +79,17 @@ depth_texture ← SDL_CreateGPUTexture device depth_texture_info
 
 'Error creating textures' Assert texture depth_texture
 
-⍝ Copy vertex data into transfer buffer 
-mem_ptr ← SDL_MapGPUTransferBuffer device transfer_buffer 0
-LSE_MemcpyF32 (mem_ptr) (vertex_data) vertex_size
-LSE_MemcpyU16 (mem_ptr + vertex_size) (index_data) index_size
-SDL_UnmapGPUTransferBuffer device transfer_buffer
-
 ⍝ Copy texture into transfer buffer
 mem_ptr ← SDL_MapGPUTransferBuffer device tex_tb 0
 SDL_memcpy (mem_ptr) (data_addr) data_size
-⍝LSE_MemcpyF32 (mem_ptr) (data_addr) (128 × 128 × 4 × 4)
 SDL_UnmapGPUTransferBuffer device tex_tb
 
 cmd_buf ← SDL_AcquireGPUCommandBuffer device
 pass ← SDL_BeginGPUCopyPass cmd_buf
-⍝ Vertex/Index data
-SDL_UploadToGPUBuffer pass (transfer_buffer 0) (vertex_buffer 0 vertex_size) 0
-SDL_UploadToGPUBuffer pass (transfer_buffer vertex_size) (index_buffer 0 index_size) 0
 ⍝ Texture data
 SDL_UploadToGPUTexture pass (tex_tb 0 0 0) (texture 0 0 0 0 0 width height 1) 0
+
+chunk.Copy_chunks device pass 
 
 SDL_EndGPUCopyPass pass 
 SDL_SubmitGPUCommandBuffer cmd_buf
@@ -127,12 +113,11 @@ f_shader ← LSE_CreateGPUShader device f_info 'main0'
 LSE_PipelineClearParams⍬
 LSE_PipelineSetShaders v_shader f_shader
 ⍝ Vertex Buffer Descriptions and Attributes : Vertex Input
-vb_desc ←⊂ (0 (4 × 9) 0 0)
+vb_desc ←⊂ (0 (4 × 5) 0 0)
 vb_attr ← (0 0 SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3 0 
-           1 0 SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3 (4 × 3)
-           2 0 SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3 (4 × 7))
+           1 0 SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2 (4 × 3))
 
-LSE_PipelineSetVertexInput vb_desc 1 vb_attr 3
+LSE_PipelineSetVertexInput vb_desc 1 vb_attr 2
 LSE_PipelineSetDepthStencil 2 (0 0 0 0) (0 0 0 0) 0 0 1 1 0 0 0 0
 LSE_PipelineSetRasterizer 0 2 1 0.0 0.0 0.0 0 0
 
@@ -197,9 +182,9 @@ running ← 1
     :EndWhile
     c +← 0.01
 
-    (x_pos z_pos) ← 8+20×2 1○c
+    (x_pos z_pos) ← 8+28×2 1○c
 
-    view ← math.Look_at (x_pos 14 z_pos) (8 6 8) (0 1 0)
+    view ← math.Look_at (x_pos 18 z_pos) (8 6 8) (0 1 0)
 
     cmd_buf ← SDL_AcquireGPUCommandBuffer device
     (res swap_texture _ _) ← SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
@@ -218,13 +203,13 @@ running ← 1
 
     SDL_PushGPUVertexUniformData cmd_buf 0 (∊proj_view) (16×4)
 
-    vbuffer_list ← ⊂(vertex_buffer 0)
-    ibuffer_list ← ⊂(index_buffer 0)
+    :For (vb ib ind) :in ↓chunk.chunks
+        SDL_BindGPUVertexBuffers pass 0 (⊂vb 0) 1
+        SDL_BindGPUIndexBuffer pass (⊂ib 0) SDL_GPU_INDEXELEMENTSIZE_32BIT
+        SDL_BindGPUFragmentSamplers pass 0 (⊂texture sampler) 1
+        SDL_DrawGPUIndexedPrimitives pass ind 1 0 0 0
+    :EndFor
 
-    SDL_BindGPUVertexBuffers pass 0 vbuffer_list 1
-    SDL_BindGPUIndexBuffer pass ibuffer_list SDL_GPU_INDEXELEMENTSIZE_16BIT
-    SDL_BindGPUFragmentSamplers pass 0 (⊂texture sampler) 1
-    SDL_DrawGPUIndexedPrimitives pass (≢index_data) 1 0 0 0
     SDL_EndGPURenderPass pass
     SDL_SubmitGPUCommandBuffer cmd_buf
 :EndWhile
@@ -235,12 +220,9 @@ SDL_ReleaseGPUShader device f_shader
 
 SDL_ReleaseGPUGraphicsPipeline device pipeline
 
-SDL_ReleaseGPUTransferBuffer device transfer_buffer
 SDL_ReleaseGPUTransferBuffer device tex_tb
 SDL_ReleaseGPUTexture device texture
 SDL_ReleaseGPUSampler device sampler
-SDL_ReleaseGPUBuffer device index_buffer
-SDL_ReleaseGPUBuffer device vertex_buffer
 
 SDL_DestroyGPUDevice device
 SDL_DestroyWindow window
