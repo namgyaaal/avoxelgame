@@ -49,18 +49,21 @@ mario_stencil ← [
 blocks[8;;] ← 17 16↑⊖mario_stencil
 blocks[;1;] ← 1
 
+
+
+
 world.Init_chunks device
-world.Create_chunk device blocks (0 0)
-world.Create_chunk device (⊖⍤2 ⊢ blocks) (1 0)
-world.Create_chunk device blocks (¯1 0)
-world.Create_chunk device (3 2 1⍉ blocks) (0 1)
-world.Create_chunk device (⌽blocks) (0 ¯1)
+⍝{⎕ ← ⍵ ⋄ world.Queue_chunk device blocks (0 0)}¨↓⍉5-10 10⊤⍳5
 
-world.Create_chunk device (⌽blocks) (1 1)
-world.Create_chunk device (⌽blocks) (¯1 ¯1)
-world.Create_chunk device (⌽blocks) (¯1 1)
-world.Create_chunk device (⌽blocks) (1 ¯1)
 
+:For (x z) :in ↓⍉5-10 10⊤⍳100
+    world.Queue_chunk device blocks (x z)
+:EndFor
+
+⍝world.Queue_chunk device (⊖⍤2 ⊢ blocks) (1 0)
+⍝world.Queue_chunk device blocks (¯1 0)
+⍝world.Queue_chunk device (3 2 1⍉ blocks) (0 1)
+⍝world.Queue_chunk device (⌽blocks) (0 ¯1)
 
 tex_tb_params ← ⊂SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (pitch × height) 0
 tex_tb ← SDL_CreateGPUTransferBuffer device tex_tb_params
@@ -93,11 +96,10 @@ cmd_buf ← SDL_AcquireGPUCommandBuffer device
 pass ← SDL_BeginGPUCopyPass cmd_buf
 ⍝ Texture data
 SDL_UploadToGPUTexture pass (tex_tb 0 0 0) (texture 0 0 0 0 0 width height 1) 0
-
-world.Copy_chunks device pass 
-
 SDL_EndGPUCopyPass pass 
 SDL_SubmitGPUCommandBuffer cmd_buf
+
+
 
 
 ⍝ Load shaders
@@ -155,43 +157,24 @@ running ← 1
     :While ⊃LSE_PollEvent⍬
         :If LSE_CheckEvent SDL_EVENT_QUIT
             running ← 0
-        :Elseif LSE_CheckEvent SDL_EVENT_KEY_DOWN
-            :Select ⊃LSE_GetKeyPressed⍬
-            :Case SDLK_RETURN
-                ⎕ ← 'Pressed the enter key'
-            :Case SDLK_D
-                x_dir ← 1
-            :Case SDLK_A
-                x_dir ← ¯1
-            :Case SDLK_W
-                y_dir ← 1
-            :Case SDLK_S
-                y_dir ← ¯1
-            :EndSelect
-        :Elseif LSE_CheckEvent SDL_EVENT_KEY_UP
-            :Select ⊃LSE_GetKeyPressed⍬
-            :Case SDLK_BACKSPACE
-                ⎕ ← 'Released the backspace key'
-            :Case SDLK_D
-                x_dir ← 0
-            :Case SDLK_A
-                x_dir ← 0
-            :Case SDLK_W
-                y_dir ← 0
-            :Case SDLK_S
-                y_dir ← 0
-            :EndSelect
-        :Elseif LSE_CheckEvent SDL_EVENT_MOUSE_MOTION
-            ⍝⎕ ← 'Mouse move: ', ⍕LSE_GetMouseMove 0 0
         :EndIf
     :EndWhile
+
+
     c +← 0.01
+
 
     (x_pos z_pos) ← 8+28×2 1○c
 
     view ← math.Look_at (x_pos 18 z_pos) (8 6 8) (0 1 0)
 
     cmd_buf ← SDL_AcquireGPUCommandBuffer device
+
+    :If 0≠≢world.tb_queue
+        pass ← SDL_BeginGPUCopyPass cmd_buf
+        world.Copy_chunks device pass 
+        SDL_EndGPUCopyPass pass 
+    :EndIf
     (res swap_texture _ _) ← SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
 
     'Error acquiring swapchain texture' Assert res
@@ -207,15 +190,9 @@ running ← 1
     proj_view ← view +.× proj
 
     SDL_PushGPUVertexUniformData cmd_buf 0 (∊proj_view) (16×4)
-
     SDL_BindGPUFragmentSamplers pass 0 (⊂texture sampler) 1
+
     world.Draw_chunks device pass
-    ⍝SDL_BindGPUIndexBuffer pass (⊂world.ib 0) SDL_GPU_INDEXELEMENTSIZE_32BIT
-    ⍝:For (vb ib ind ready x z) :in {1=(world.cnames⍳⊂'ready')⌷⍵}¨⍛/↓world.chunk_info
-    ⍝    SDL_BindGPUVertexBuffers pass 0 (⊂vb 0) 1
-    ⍝    
-    ⍝    SDL_DrawGPUIndexedPrimitives pass ind 1 0 0 0
-    ⍝:EndFor
 
     SDL_EndGPURenderPass pass
     SDL_SubmitGPUCommandBuffer cmd_buf
