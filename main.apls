@@ -49,21 +49,19 @@ mario_stencil ← [
 blocks[8;;] ← 17 16↑⊖mario_stencil
 blocks[;1;] ← 1
 
-
-
-
 world.Init_chunks device
-⍝{⎕ ← ⍵ ⋄ world.Queue_chunk device blocks (0 0)}¨↓⍉5-10 10⊤⍳5
-
-
 :For (x z) :in ↓⍉5-10 10⊤⍳100
-    world.Queue_chunk device blocks (x z)
+    :Select ?4
+        :Case 1
+            world.Queue_chunk device blocks (x z)
+        :Case 2
+            world.Queue_chunk device (⌽blocks) (x z)
+        :Case 3
+            world.Queue_chunk device (⍉blocks) (x z)
+        :Case 4
+            world.Queue_chunk device (⊖⍤2 ⊢ blocks) (x z)
+    :EndSelect 
 :EndFor
-
-⍝world.Queue_chunk device (⊖⍤2 ⊢ blocks) (1 0)
-⍝world.Queue_chunk device blocks (¯1 0)
-⍝world.Queue_chunk device (3 2 1⍉ blocks) (0 1)
-⍝world.Queue_chunk device (⌽blocks) (0 ¯1)
 
 tex_tb_params ← ⊂SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (pitch × height) 0
 tex_tb ← SDL_CreateGPUTransferBuffer device tex_tb_params
@@ -166,7 +164,7 @@ running ← 1
 
     (x_pos z_pos) ← 8+28×2 1○c
 
-    view ← math.Look_at (x_pos 18 z_pos) (8 6 8) (0 1 0)
+    view ← math.Look_at (x_pos 30 z_pos) (8 6 8) (0 1 0)
 
     cmd_buf ← SDL_AcquireGPUCommandBuffer device
 

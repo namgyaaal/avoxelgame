@@ -34,3 +34,15 @@ void LSE_MemcpyU32(void* dst, void* src, uint32_t size) {
 void LSE_MemcpyF32(void* dst, void* src, uint32_t size) {
     SDL_memcpy(dst, src, size);
 }
+
+void LSE_DrawList(SDL_GPURenderPass* pass, SDL_GPUBuffer** buffers,
+                  uint32_t* indices, uint32_t buffer_count) {
+    for (int i = 0; i < buffer_count; i++) {
+        SDL_GPUBufferBinding binding;
+        binding.buffer = buffers[i];
+        binding.offset = 0;
+
+        SDL_BindGPUVertexBuffers(pass, 0, &binding, 1);
+        SDL_DrawGPUIndexedPrimitives(pass, indices[0], 1, 0, 0, 0);
+    }
+}

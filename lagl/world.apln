@@ -190,14 +190,17 @@
       :EndFor
     ∇
 
-    ∇ Draw_chunks(device pass);vb;ind;ready;x;z;start;list;i
+    ∇ Draw_chunks(device pass);vb;ind;ready;x;z;start;list;vbs;inds
       #.SDL_BindGPUIndexBuffer pass(⊂ib 0)#.SDL_GPU_INDEXELEMENTSIZE_32BIT
-      
       list ← {1=(cnames⍳⊂'ready')⌷⍵}¨⍛/↓chunk_info
-      :For (vb ind ready x z) :In list
-          #.SDL_BindGPUVertexBuffers pass 0(⊂vb 0)1
-          #.SDL_DrawGPUIndexedPrimitives pass ind 1 0 0 0
+      vbs ← ⍬
+      inds ← ⍬
+      :For (vb ind ready x z) :In list 
+        vbs,← vb
+        inds,← ind         
       :EndFor
+      ⍝ A lot of ⎕NA's at once slows down
+      #.LSE_DrawList pass vbs inds (≢vbs)
 
     ∇
 

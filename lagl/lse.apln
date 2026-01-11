@@ -47,6 +47,7 @@
     'LSE_PipelineSetDepthStencil' ⍬ (i32 StencilOpState StencilOpState u8 u8 bool bool bool pad pad pad)
     'LSE_PipelineSetTargetInfo' ⍬ ('<' (i32 (i32 i32 i32 i32 i32 i32 u8 bool bool u8 u8)) '[]' u32 i32 bool)
     'LSE_PipelineSetProperties' ⍬ u32
+    'LSE_DrawList' ⍬ (ptr '<P[]' u32_arr u32)
     )
 
     ∇ Load_lib path
