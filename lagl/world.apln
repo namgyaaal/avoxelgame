@@ -1,9 +1,7 @@
-:Namespace chunk
+:Namespace world
     ⎕IO ← 0
     l ← 16 17 16
     box ← ⊃∘.∨/1@0¨l-⍛↑¨1
-    tb ← 0
-
 
     ⍝ The maximum possible surface can be visualized as a
     ⍝   3d checkerboard. We need to also account for the edges
@@ -11,7 +9,6 @@
     ⍝ This is:
     ⍝  6×⌈2÷⍨×/¯2+l    - Inner
     ⍝  6×(×/-×/⍤-∘2)l  - Outer
-
     max_faces ← 6×⌈2÷⍨×/¯2+l
     max_faces +← 6×(×/-×/⍤-∘2) l
 
@@ -19,11 +16,17 @@
     ⍝ Furthermore, we need the amount of info per vertex
     ⍝ and size of vertex and index values (f32, u32)
     (vsize isize) ← (4×5×4×max_faces ⋄ 4×6×max_faces)
-    tb_size ← 10×(vsize + isize)
+
+    ib ← 0
+
+    tb ← 0
+    tb_pos ← 0
+    tb_size ← 10×vsize
     tb_queue ← ⍬
 
-    cnames ← 'vb' 'ib' 'idx_cnt'
-    chunks ← 0 3⍴0
+    chunks ← 0⍴⍨0,l
+    cnames ← 'vb' 'idx_cnt' 'ready' 'x' 'z'
+    chunk_info ← 0⍴⍨0, ≢cnames
 
     faces ← [
     0 1 0 ⋄ 0 1 1 ⋄ 0 0 1 ⋄ 0 0 0 ⍝ Left
@@ -72,51 +75,84 @@
     ⍝ - Add cube vertices to extend each position
     ⍝ - Join in the form (Vertices, 3) so that color/uv/etc can be cated
     vertices ← ,[⍳4] faces(+⍤2) v_cnt(⌿⍤2),[2.5] 3 0 1 2⍉l⊤⊢l⍴⍳×/l
+    indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
-    ∇ Init_chunks device;tb_params
+    ∇ Init_chunks device;tb_params;p;cmd;pass
       tb_params←⊂#.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(tb_size)0
       tb←#.SDL_CreateGPUTransferBuffer device tb_params
       'Error creating chunk transfer buffer'#.Assert tb
+
+      ib←#.SDL_CreateGPUBuffer device(#.SDL_GPU_BUFFERUSAGE_INDEX isize 0)
+
+      ⍝ Do copy pass just to copy index buffer over
+      ⍝ Only need isize worth of indices by reasoning
+      p ← #.SDL_MapGPUTransferBuffer device tb 0
+      #.LSE_MemcpyU32 p (indices) isize
+      #.SDL_UnmapGPUTransferBuffer device tb
+      cmd ← #.SDL_AcquireGPUCommandBuffer device
+      pass ← #.SDL_BeginGPUCopyPass cmd
+      #.SDL_UploadToGPUBuffer pass (tb 0)(ib 0 isize)0
+      #.SDL_EndGPUCopyPass pass 
+      #.SDL_SubmitGPUCommandBuffer cmd
+
     ∇
 
-    ∇ Create_chunk(device blocks trans);flat;solid;edges;rot;exposed;vert;ind;tex;buf;p;vb;ib;skip
+    ∇ Queue_chunk(device block trans);x;z;vb
+      (x z)←trans×(⊂0 2)⌷l
+      vb←#.SDL_CreateGPUBuffer device(#.SDL_GPU_BUFFERUSAFE_VERTEX vsize 0)
+      ib←#.SDL_CreateGPUBuffer device(#.SDL_GPU_BUFFERUSAGE_INDEX isize 0)
+      'Error creating chunk vertex and index buffers'#.Assert vb
+    
+      chunk_info⍪←vb 0 0 x z
+      chunks⍪←blocks
+      tb_queue,←⊂x z
+      
+    ∇
+
+    ∇ Create_chunk(device blocks trans);x;z;flat;solid;edges;rot;exposed;vert;ind;tex;buf;p;vb;vs
+      (x z)←trans×(⊂0 2)⌷l
       flat←∊blocks
       solid←blocks≠0
       edges←solid∧box
       rot←0 1 2∘.{⍵⌽[⍺]solid}¯1 1
       exposed←↑[0]{edges∨solid>⍵}¨rot
      
-      vert←trans(+⍤1)vertices⌿⍨4/∊exposed
+      vert←(x 0 z)(+⍤1)vertices⌿⍨4/∊exposed
       ⍝vert ← (4/∊exposed)⌿vertices
       ind←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vert
       tex←(⍳×/l)(×⍤¯1),[1+⍳2],[⍳3]exposed
       tex←(⍳6)(+⍤1)6×flat[tex]
       tex←,[⍳2]↑(∊exposed)/,textures[tex]
-     
       buf←∊vert,tex
+     
+      (vs is)←(4×≢buf ⋄ 4×≢ind)
       p←#.SDL_MapGPUTransferBuffer device tb 1
       'Error mapping transfer buffer'#.Assert p
-      skip←(vsize+isize)×≢tb_queue
-      #.LSE_MemcpyF32(p+skip)buf(4×≢buf)
-      #.LSE_MemcpyU32(p+skip+vsize)ind(4×≢ind)
+      #.LSE_MemcpyF32(p+tb_pos)buf vs
       #.SDL_UnmapGPUTransferBuffer device tb
      
       vb←#.SDL_CreateGPUBuffer device(#.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0)
-      ib←#.SDL_CreateGPUBuffer device(#.SDL_GPU_BUFFERUSAGE_INDEX isize 0)
-      'Error creating chunk vertex and index buffers'#.Assert vb ib
+      'Error creating chunk vertex buffer'#.Assert vb
      
-      tb_queue,←⊂vb ib tb skip
-      chunks⍪←vb ib(≢ind)
+      tb_queue,←⊂(≢chunk_info)tb vb vs tb_pos
+      tb_pos+←vs+is
+      chunk_info⍪←vb (≢ind)0 x z
+      chunks⍪←blocks
     ∇
 
-    ∇ Copy_chunks(device pass);vb;ib;tb;skip
-      :For (vb ib tb skip) :In tb_queue
-          #.SDL_UploadToGPUBuffer pass(tb skip)(vb 0 vsize)1
-          #.SDL_UploadToGPUBuffer pass(tb(skip+vsize))(ib 0 isize)1
+    ∇ Copy_chunks(device pass);idx;tb;vb;ib;vs;pos
+      :For (idx tb vb vs pos) :In tb_queue
+          #.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)1
+          (idx(cnames⍳⊂'ready')⌷chunk_info)←1
       :EndFor
-     
     ∇
 
-
+    ∇ Draw_chunks(device pass);vb;ind;ready;x;z
+      #.SDL_BindGPUIndexBuffer pass (⊂ib 0) #.SDL_GPU_INDEXELEMENTSIZE_32BIT
+      :For (vb ind ready x z) :in {1=(cnames⍳⊂'ready')⌷⍵}¨⍛/↓chunk_info
+        #.SDL_BindGPUVertexBuffers pass 0 (⊂vb 0) 1
+        #.SDL_DrawGPUIndexedPrimitives pass ind 1 0 0 0
+      :EndFor
+    ∇
 
 :EndNamespace

@@ -1,6 +1,2 @@
-# Source files
-# ============
-*.apl?          linguist-language=APL
-*.dyalog        linguist-language=APL
-*.dyapp         linguist-language=APL
-*.mipage        linguist-language=APL
+* text=auto eol=lf
+*.apl? linguist-language=APL

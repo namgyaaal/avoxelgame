@@ -24,7 +24,7 @@ device ← SDL_CreateGPUDevice SDL_GPU_SHADERFORMAT_MSL 1 'metal'
 res ← SDL_ClaimWindowForGPUDevice device window
 'Error attaching device to window' Assert res
 
-blocks ← chunk.l⍴0
+blocks ← world.l⍴0
 mario_stencil ← [
     0 0 0 1 1 1 1 1 0 0 0 0
     0 0 1 1 1 1 1 1 1 1 1 0
@@ -49,12 +49,17 @@ mario_stencil ← [
 blocks[8;;] ← 17 16↑⊖mario_stencil
 blocks[;1;] ← 1
 
-chunk.Init_chunks device
-chunk.Create_chunk device (16 17 16⍴1 0 1 0 1) (0 0 0)
-chunk.Create_chunk device (⊖⍤2 ⊢ blocks) (16 0 0)
-chunk.Create_chunk device (16 17 16⍴1 0 1 0 1) (¯16 0 0)
-chunk.Create_chunk device (3 2 1⍉ blocks) (0 0 16)
-chunk.Create_chunk device (⌽blocks) (0 0 ¯16)
+world.Init_chunks device
+world.Create_chunk device blocks (0 0)
+world.Create_chunk device (⊖⍤2 ⊢ blocks) (1 0)
+world.Create_chunk device blocks (¯1 0)
+world.Create_chunk device (3 2 1⍉ blocks) (0 1)
+world.Create_chunk device (⌽blocks) (0 ¯1)
+
+world.Create_chunk device (⌽blocks) (1 1)
+world.Create_chunk device (⌽blocks) (¯1 ¯1)
+world.Create_chunk device (⌽blocks) (¯1 1)
+world.Create_chunk device (⌽blocks) (1 ¯1)
 
 
 tex_tb_params ← ⊂SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (pitch × height) 0
@@ -89,7 +94,7 @@ pass ← SDL_BeginGPUCopyPass cmd_buf
 ⍝ Texture data
 SDL_UploadToGPUTexture pass (tex_tb 0 0 0) (texture 0 0 0 0 0 width height 1) 0
 
-chunk.Copy_chunks device pass 
+world.Copy_chunks device pass 
 
 SDL_EndGPUCopyPass pass 
 SDL_SubmitGPUCommandBuffer cmd_buf
@@ -203,12 +208,14 @@ running ← 1
 
     SDL_PushGPUVertexUniformData cmd_buf 0 (∊proj_view) (16×4)
 
-    :For (vb ib ind) :in ↓chunk.chunks
-        SDL_BindGPUVertexBuffers pass 0 (⊂vb 0) 1
-        SDL_BindGPUIndexBuffer pass (⊂ib 0) SDL_GPU_INDEXELEMENTSIZE_32BIT
-        SDL_BindGPUFragmentSamplers pass 0 (⊂texture sampler) 1
-        SDL_DrawGPUIndexedPrimitives pass ind 1 0 0 0
-    :EndFor
+    SDL_BindGPUFragmentSamplers pass 0 (⊂texture sampler) 1
+    world.Draw_chunks device pass
+    ⍝SDL_BindGPUIndexBuffer pass (⊂world.ib 0) SDL_GPU_INDEXELEMENTSIZE_32BIT
+    ⍝:For (vb ib ind ready x z) :in {1=(world.cnames⍳⊂'ready')⌷⍵}¨⍛/↓world.chunk_info
+    ⍝    SDL_BindGPUVertexBuffers pass 0 (⊂vb 0) 1
+    ⍝    
+    ⍝    SDL_DrawGPUIndexedPrimitives pass ind 1 0 0 0
+    ⍝:EndFor
 
     SDL_EndGPURenderPass pass
     SDL_SubmitGPUCommandBuffer cmd_buf
