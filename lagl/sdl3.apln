@@ -52,6 +52,7 @@
     'SDL_AcquireGPUCommandBuffer' ptr ptr
     'SDL_SubmitGPUCommandBuffer' ⍬ ptr
         ⍝ Swapchain
+    'SDL_GPUTextureSupportsFormat' bool (ptr i32 i32 u32)
     'SDL_WaitAndAcquireGPUSwapchainTexture' bool (ptr ptr '>' ptr '>' u32 '>' u32)
     'SDL_GetGPUSwapchainTextureFormat' i32 (ptr ptr)
         ⍝ Buffers
@@ -78,6 +79,7 @@
     'SDL_ReleaseGPUTexture' ⍬ (ptr ptr)
     'SDL_CreateGPUSampler' ptr (ptr '<' GPUSamplerCreateInfo)
     'SDL_ReleaseGPUSampler' ⍬ (ptr ptr)
+    'SDL_GenerateMipmapsForGPUTexture' ⍬ (ptr ptr)
         ⍝ Passes
     'SDL_BeginGPURenderPass' ptr (ptr '<' GPUColorTargetInfo u32 '<' GPUDepthStencilTargetInfo)
     'SDL_EndGPURenderPass' ⍬ ptr
