@@ -25,8 +25,20 @@
     tb_queue ← ⍬
 
     chunks ← 0⍴⍨0,l
-    cnames ← 'vb' 'idx_cnt' 'ready' 'x' 'z'
+    cnames ← 'xz' 'vb' 'idx_cnt' 'ready'
     chunk_info ← 0⍴⍨0, ≢cnames
+
+    ⍝vb←(i 1)⌷chunk_info
+
+    ⍝ Chunk column index (Only used with one entry)
+    Ci ← cnames∘⍳∘⊂
+    ⍝ Chunk get
+    Cg ← {chunk_info⌷[1]⍨Ci⍵}
+    ⍝ Chunk get cell (Where ⍺ = row #, ⍵ = column name)
+    Cgc ← {chunk_info⌷⍨⍺,Ci⍵}
+    ⍝ Chunk column lookup (Where ⍺ = entries, ⍵ = column name)
+    Cl ← {⍺ (≡⍤0) chunk_info⌷[1]⍨Ci⍵}
+
 
     faces ← [
     0 1 0 ⋄ 0 1 1 ⋄ 0 0 1 ⋄ 0 0 0 ⍝ Left
@@ -102,56 +114,20 @@
       vb←#.SDL_CreateGPUBuffer device(#.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0)
       'Error creating chunk vertex and index buffers'#.Assert vb
      
-      chunk_info⍪←vb 0 0 x z
+      chunk_info⍪←(x z)vb 0 0
       chunks⍪←blocks
       tb_queue,←⊂x z
-     
-    ∇
-
-    ⍝ Deprecated
-    ∇ OLD_Create_chunk(device blocks trans);x;z;flat;solid;edges;rot;exposed;vert;ind;tex;buf;p;vb;vs
-      (x z)←trans×(⊂0 2)⌷l
-      flat←∊blocks
-      solid←blocks≠0
-      edges←solid∧box
-      rot←0 1 2∘.{⍵⌽[⍺]solid}¯1 1
-      exposed←↑[0]{edges∨solid>⍵}¨rot
-     
-      vert←(x 0 z)(+⍤1)vertices⌿⍨4/∊exposed
-      ⍝vert ← (4/∊exposed)⌿vertices
-      ind←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vert
-      tex←(⍳×/l)(×⍤¯1),[1+⍳2],[⍳3]exposed
-      tex←(⍳6)(+⍤1)6×flat[tex]
-      tex←,[⍳2]↑(∊exposed)/,textures[tex]
-      buf←∊vert,tex
-     
-      (vs is)←(4×≢buf ⋄ 4×≢ind)
-      p←#.SDL_MapGPUTransferBuffer device tb 1
-      'Error mapping transfer buffer'#.Assert p
-      #.LSE_MemcpyF32(p+tb_pos)buf vs
-      #.SDL_UnmapGPUTransferBuffer device tb
-     
-      vb←#.SDL_CreateGPUBuffer device(#.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0)
-      'Error creating chunk vertex buffer'#.Assert vb
-     
-      tb_queue,←⊂(≢chunk_info)tb vb vs tb_pos
-      tb_pos+←vs+is
-      chunk_info⍪←vb(≢ind)0 x z
-      chunks⍪←blocks
     ∇
 
     ∇ Copy_chunks(device pass);q;x;z;tx;tz;m;blks;flat;solid;edges;rot;exposed;vert;ind;tex;buf;vs;ic;p;pos;i;vb
       tb_pos←0
-     
-     
       q←⍬
       p←#.SDL_MapGPUTransferBuffer device tb 1
       :While (tb_size>tb_pos+vsize)∧(0≠≢tb_queue)
           (x z)←⊃1↑tb_queue
           (tx tz)←(x z)×(⊂0 2)⌷l
-     
-          m←∧/(x z)(=⍤1)(⊂cnames⍳'x' 'z')⌷[1]chunk_info
-          blks←,[⍳2]m⌿chunks ⍝squeeze (1, ...
+          m←(⊂x z) Cl 'xz'
+          blks←,[⍳2]m⌿chunks
           flat←∊blks
           solid←blks≠0
           edges←solid∧box
@@ -174,34 +150,20 @@
       #.SDL_UnmapGPUTransferBuffer device tb
      
       :For (pos vs ic i) :In q
-          vb←(i 0)⌷chunk_info
+          vb ← i Cgc 'vb'  
           #.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)1
-          ((i 1)⌷chunk_info)←ic
-          ((i 2)⌷chunk_info)←1
+          ((i, Ci 'idx_cnt')⌷chunk_info)←ic
+          ((i, Ci 'ready')⌷chunk_info)←1
       :EndFor
     ∇
 
-    ⍝ Deprecated
-    ∇ OLD_Copy_chunks(device pass);idx;tb;vb;ib;vs;pos
-      :For (idx tb vb vs pos) :In tb_queue
-          #.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)1
-          (idx(cnames⍳⊂'ready')⌷chunk_info)←1
-          ⎕←pos vs
-      :EndFor
-    ∇
-
-    ∇ Draw_chunks(device pass);vb;ind;ready;x;z;start;list;vbs;inds
+    ∇ Draw_chunks(device pass);ready;vbs;inds
       #.SDL_BindGPUIndexBuffer pass(⊂ib 0)#.SDL_GPU_INDEXELEMENTSIZE_32BIT
-      list←{1=(cnames⍳⊂'ready')⌷⍵}¨⍛/↓chunk_info
-      vbs←⍬
-      inds←⍬
-      :For (vb ind ready x z) :In list
-          vbs,←vb
-          inds,←ind
-      :EndFor
-      ⍝ A lot of ⎕NA's at once slows down
+      ready ← chunk_info⌿⍨Cg 'ready'
+      vbs ← ready⌷[1]⍨Ci 'vb'
+      inds ← ready⌷[1]⍨Ci 'idx_cnt'
+
       #.LSE_DrawList pass vbs inds(≢vbs)
-     
     ∇
 
 :EndNamespace

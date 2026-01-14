@@ -1,4 +1,4 @@
-#!/usr/local/bin/dyalogscript DYALOG_INITSESSION=1 LOAD=./lagl
+#!/usr/local/bin/dyalogscript DYALOG_INITSESSION=1 LOAD=./avg
 
 ⎕ ← 'Libraries loaded'
 
