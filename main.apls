@@ -18,6 +18,8 @@ SDL_DestroySurface old_surface
 window ← SDL_CreateWindow 'Hello World' 1280 720 0
 'Error creating a window' Assert window
 
+SDL_SetWindowMouseGrab window 1
+
 device ← SDL_CreateGPUDevice SDL_GPU_SHADERFORMAT_MSL 1 'metal'
 'Error creating a GPU device' Assert device
 
@@ -26,6 +28,10 @@ res ← SDL_ClaimWindowForGPUDevice device window
 
 blocks ← world.l⍴0
 blocks[;1;] ← 1
+
+blocks[;2;13] ← 2
+
+blocks[;;14] ← 1
 
 world.Init_chunks device
 world.Queue_chunk device blocks (0 0)
@@ -39,15 +45,15 @@ tex_tb ← SDL_CreateGPUTransferBuffer device tex_tb_params
 
 ⍝ Create Sampler
 
-⍝ SDL_GPUSamplerCreateInfo ← (i32 i32 i32 i32 i32 i32 f32 f32  i32 f32 f32 bool bool u8 u8 i32)
-sampler_create_info ←⊂        1   1   1   2   2   2   0.0 8.0 0   0.0 100.0 1    0    0  0  0
+⍝ SDL_GPUSamplerCreateInfo ← (i32 i32 i32 i32 i32 i32 f32 f32 i32 f32 f32 bool bool u8 u8 i32)
+sampler_create_info ←⊂        0   0   0   2   2   2   0.0 0.0 0   0.0 0.0 0    0    0  0  0
 sampler ← SDL_CreateGPUSampler device sampler_create_info
 
 'Error creating texture sampler' Assert sampler
 
 
 ⍝ SDL_GPUTextureCreateInfo ← (i32 i32 i32 u32 u32 u32 u32 i32 i32)
-texture_create_info ←⊂        0   SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM   3   width height 1 5  0   0  
+texture_create_info ←⊂        0   SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM   3   width height 1 1  0   0  
 texture ← SDL_CreateGPUTexture device texture_create_info
 SDL_SetGPUTextureName device texture 'test'
 
@@ -72,7 +78,7 @@ pass ← SDL_BeginGPUCopyPass cmd_buf
 ⍝ Texture data
 SDL_UploadToGPUTexture pass (tex_tb 0 0 0) (texture 0 0 0 0 0 width height 1) 0
 SDL_EndGPUCopyPass pass 
-SDL_GenerateMipmapsForGPUTexture cmd_buf texture
+⍝SDL_GenerateMipmapsForGPUTexture cmd_buf texture
 SDL_SubmitGPUCommandBuffer cmd_buf
 
 
@@ -121,12 +127,8 @@ pipeline ← LSE_PipelineCreate device
 'Error creating render pipeline' Assert pipeline
 
 
-(x y z) ← 6 10 6
-(xl yl zl) ← 0 0 1
-(xv yv zv) ← 0 ¯6.8 0
-
 proj ← math.Proj (○ 75 ÷ 180) (1280 ÷ 720) 0.1 500
-view ← math.Look_at (x y z) ((x y z) + (xl yl zl)) (0 1 0)
+view ← player.Get_view⍬
 proj_view ← view +.× proj
 
 time ← ⊃SDL_GetTicks⍬
@@ -135,28 +137,21 @@ running ← 1
     :While ⊃LSE_PollEvent⍬
         :If LSE_CheckEvent SDL_EVENT_QUIT
             running ← 0
+        :Elseif LSE_CheckEvent SDL_EVENT_KEY_DOWN
+            key ← ⊃LSE_GetKeyPressed⍬
+            :If key = SDLK_Q
+                running ← 0
+            :EndIf
         :EndIf
+        player.Input (1280 720)
     :EndWhile
 
     new_time ← ⊃SDL_GetTicks⍬
     dt ← 1000÷⍨time-⍨⊃SDL_GetTicks⍬
     time ← ⊃SDL_GetTicks⍬
+    player.Update dt
 
-    v ← (xv yv zv) × dt
-  
-    col ← 0
-    blocks ← ^/⍤(0∘(≤⍤1))⍛⌿(x y z) Ray_hit (v)
-    :If 0≠≢blocks
-        col ← ∨/{⎕IO←0⋄⍵⌷⍨0, 0⌷blocks}world.chunks
-    :EndIf
-
-    :If col≠0
-         ⍝ TODO
-    :Else
-        (x y z) +← v
-    :EndIf
-
-    view ← math.Look_at (x y z) ((x y z) + (xl yl zl)) (0 1 0)
+    view ← player.Get_view⍬
     proj_view ← view +.× proj
 
     cmd_buf ← SDL_AcquireGPUCommandBuffer device

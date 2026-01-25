@@ -24,6 +24,7 @@
     'SDL_GetError' ptr ⍬
     'SDL_CreateWindow' ptr (cstr i32 i32 u64)
     'SDL_DestroyWindow' ⍬ ptr
+    'SDL_SetWindowMouseGrab' bool (ptr bool)
     'SDL_PumpEvents' ⍬ ⍬
     'SDL_LoadFile' ptr (cstr '>' u64)
     'SDL_free' ⍬ ptr

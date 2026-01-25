@@ -30,6 +30,7 @@
 
     ⍝vb←(i 1)⌷chunk_info
 
+    I←⌷⍨∘⊃⍨⍤0 99
     ⍝ Chunk column index (Only used with one entry)
     Ci ← cnames∘⍳∘⊂
     ⍝ Chunk get
@@ -126,7 +127,7 @@
       :While (tb_size>tb_pos+vsize)∧(0≠≢tb_queue)
           (x z)←⊃1↑tb_queue
           (tx tz)←(x z)×(⊂0 2)⌷l
-          m←(⊂x z) Cl 'xz'
+          m←(⊂x z)Cl'xz'
           blks←,[⍳2]m⌿chunks
           flat←∊blks
           solid←blks≠0
@@ -148,21 +149,21 @@
           tb_pos+←vs
       :EndWhile
       #.SDL_UnmapGPUTransferBuffer device tb
-     
+
       :For (pos vs ic i) :In q
-          vb ← i Cgc 'vb'  
+          vb←i Cgc'vb'
           #.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)1
-          ((i, Ci 'idx_cnt')⌷chunk_info)←ic
-          ((i, Ci 'ready')⌷chunk_info)←1
+          ((i,Ci'idx_cnt')⌷chunk_info)←ic
+          ((i,Ci'ready')⌷chunk_info)←1
       :EndFor
     ∇
 
     ∇ Draw_chunks(device pass);ready;vbs;inds
       #.SDL_BindGPUIndexBuffer pass(⊂ib 0)#.SDL_GPU_INDEXELEMENTSIZE_32BIT
-      ready ← chunk_info⌿⍨Cg 'ready'
-      vbs ← ready⌷[1]⍨Ci 'vb'
-      inds ← ready⌷[1]⍨Ci 'idx_cnt'
-
+      ready←chunk_info⌿⍨Cg'ready'
+      vbs←ready⌷[1]⍨Ci'vb'
+      inds←ready⌷[1]⍨Ci'idx_cnt'
+     
       #.LSE_DrawList pass vbs inds(≢vbs)
     ∇
 
