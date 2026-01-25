@@ -1,6 +1,6 @@
 :Namespace world
     ⎕IO ← 0
-    l ← 16 17 16
+    l ← 16 32 16
     box ← ⊃∘.∨/1@0¨l-⍛↑¨1
 
     ⍝ The maximum possible surface can be visualized as a
@@ -17,8 +17,8 @@
     ⍝ and size of vertex and index values (f32, u32)
     (vsize isize) ← (4×5×4×max_faces ⋄ 4×6×max_faces)
 
+    vb_pool ← ⍬
     ib ← 0
-
     tb ← 0
     tb_pos ← 0
     tb_size ← 10×vsize
@@ -90,11 +90,15 @@
     vertices ← ,[⍳4] faces(+⍤2) v_cnt(⌿⍤2),[2.5] 3 0 1 2⍉l⊤⊢l⍴⍳×/l
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
-    ∇ Init_chunks device;tb_params;p;cmd;pass
+    ∇ Init_chunks device;vb_params;tb_params;p;cmd;pass
+
+      vb_params ← #.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0
+      vb_pool ← ({⍵, #.SDL_CreateGPUBuffer device vb_params}⍣100) ⍬
+      'Error creating vertex buffer pool'#.Assert vb_pool
+      
       tb_params←⊂#.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(tb_size)0
       tb←#.SDL_CreateGPUTransferBuffer device tb_params
       'Error creating chunk transfer buffer'#.Assert tb
-     
       ib←#.SDL_CreateGPUBuffer device(#.SDL_GPU_BUFFERUSAGE_INDEX isize 0)
      
       ⍝ Do copy pass just to copy index buffer over
@@ -108,13 +112,20 @@
       #.SDL_UploadToGPUBuffer pass(tb 0)(ib 0 isize)0
       #.SDL_EndGPUCopyPass pass
       #.SDL_SubmitGPUCommandBuffer cmd
+
+
     ∇
 
     ∇ Queue_chunk(device blocks trans);x;z;vb
       (x z)←trans
-      vb←#.SDL_CreateGPUBuffer device(#.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0)
-      'Error creating chunk vertex and index buffers'#.Assert vb
-     
+
+      :If 0<≢vb_pool
+        vb←1↑vb_pool
+        vb_pool←1↓vb_pool
+      :Else
+        vb ← #.SDL_CreateGPUBuffer device (#.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0)
+        'Error creating vertex buffer'#.Assert vb
+      :EndIf
       chunk_info⍪←(x z)vb 0 0
       chunks⍪←blocks
       tb_queue,←⊂x z
@@ -149,13 +160,28 @@
           tb_pos+←vs
       :EndWhile
       #.SDL_UnmapGPUTransferBuffer device tb
-
+     
       :For (pos vs ic i) :In q
           vb←i Cgc'vb'
           #.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)1
           ((i,Ci'idx_cnt')⌷chunk_info)←ic
           ((i,Ci'ready')⌷chunk_info)←1
       :EndFor
+    ∇
+
+    ∇ Update_range(device x z);range;new;old;m;pair
+        range←(⊂x z)+,∘.,⍨(¯4+⍳9)
+        new←range~Cg'xz'
+        old←range~⍨Cg'xz'
+
+        chunks ← chunks⌿⍨m←~old∊⍨Cg'xz'
+        vb_pool,←(~m)/Cg'vb'
+        chunk_info ← m⌿chunk_info
+        :For pair :In new
+            blocks ← l⍴0
+            blocks[;0;] ← 1+?3
+            Queue_chunk device blocks pair
+        :EndFor
     ∇
 
     ∇ Draw_chunks(device pass);ready;vbs;inds
