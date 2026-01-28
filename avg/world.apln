@@ -80,6 +80,20 @@
     [0.8 0.0 ⋄ 1.0 0.0 ⋄ 1.0 0.2 ⋄ 0.8 0.2]
     [0.8 0.0 ⋄ 1.0 0.0 ⋄ 1.0 0.2 ⋄ 0.8 0.2]
     [0.8 0.0 ⋄ 1.0 0.0 ⋄ 1.0 0.2 ⋄ 0.8 0.2]
+        ⍝ Log
+    [0.8 0.2 ⋄ 1.0 0.2 ⋄ 1.0 0.4 ⋄ 0.8 0.4]
+    [0.8 0.2 ⋄ 1.0 0.2 ⋄ 1.0 0.4 ⋄ 0.8 0.4]
+    [0.8 0.2 ⋄ 1.0 0.2 ⋄ 1.0 0.4 ⋄ 0.8 0.4]
+    [0.8 0.2 ⋄ 1.0 0.2 ⋄ 1.0 0.4 ⋄ 0.8 0.4]
+    [0.8 0.2 ⋄ 1.0 0.2 ⋄ 1.0 0.4 ⋄ 0.8 0.4]
+    [0.8 0.2 ⋄ 1.0 0.2 ⋄ 1.0 0.4 ⋄ 0.8 0.4]
+        ⍝ Leaf
+    [0.0 0.4 ⋄ 0.2 0.4 ⋄ 0.2 0.6 ⋄ 0.0 0.6]
+    [0.0 0.4 ⋄ 0.2 0.4 ⋄ 0.2 0.6 ⋄ 0.0 0.6]
+    [0.0 0.4 ⋄ 0.2 0.4 ⋄ 0.2 0.6 ⋄ 0.0 0.6]
+    [0.0 0.4 ⋄ 0.2 0.4 ⋄ 0.2 0.6 ⋄ 0.0 0.6]
+    [0.0 0.4 ⋄ 0.2 0.4 ⋄ 0.2 0.6 ⋄ 0.0 0.6]
+    [0.0 0.4 ⋄ 0.2 0.4 ⋄ 0.2 0.6 ⋄ 0.0 0.6]
     )
     ⍝ From ⍳-vertex count in shape of l:
     ⍝ - Extend into 3d coordinate space with ⊤
@@ -90,12 +104,18 @@
     vertices ← ,[⍳4] faces(+⍤2) v_cnt(⌿⍤2),[2.5] 3 0 1 2⍉l⊤⊢l⍴⍳×/l
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
-    ∇ Init_chunks device;vb_params;tb_params;p;cmd;pass
+      Transform_points←{
+          coords←⌊l[0]÷⍨(⊂0 2)∘⌷¨⍵
+          cindices←coords⍳⍨Cg'xz'
+          cindices,¨16|⍵
+      }
 
-      vb_params ← #.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0
-      vb_pool ← ({⍵, #.SDL_CreateGPUBuffer device vb_params}⍣100) ⍬
+    ∇ Init_chunks device;vb_params;tb_params;p;cmd;pass
+     
+      vb_params←#.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0
+      vb_pool←({⍵,#.SDL_CreateGPUBuffer device vb_params}⍣100)⍬
       'Error creating vertex buffer pool'#.Assert vb_pool
-      
+     
       tb_params←⊂#.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(tb_size)0
       tb←#.SDL_CreateGPUTransferBuffer device tb_params
       'Error creating chunk transfer buffer'#.Assert tb
@@ -111,20 +131,18 @@
       pass←#.SDL_BeginGPUCopyPass cmd
       #.SDL_UploadToGPUBuffer pass(tb 0)(ib 0 isize)0
       #.SDL_EndGPUCopyPass pass
-      #.SDL_SubmitGPUCommandBuffer cmd
-
-
+      #.SDL_SubmitGPUCommandBuffer cmd     
     ∇
 
     ∇ Queue_chunk(device blocks trans);x;z;vb
       (x z)←trans
-
+     
       :If 0<≢vb_pool
-        vb←1↑vb_pool
-        vb_pool←1↓vb_pool
+          vb←1↑vb_pool
+          vb_pool←1↓vb_pool
       :Else
-        vb ← #.SDL_CreateGPUBuffer device (#.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0)
-        'Error creating vertex buffer'#.Assert vb
+          vb←#.SDL_CreateGPUBuffer device(#.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0)
+          'Error creating vertex buffer'#.Assert vb
       :EndIf
       chunk_info⍪←(x z)vb 0 0
       chunks⍪←blocks
@@ -169,27 +187,32 @@
       :EndFor
     ∇
 
-    ∇ Update_range(device x z);range;new;old;m;pair
-        range←(⊂x z)+,∘.,⍨(¯4+⍳9)
-        new←range~Cg'xz'
-        old←range~⍨Cg'xz'
-
-        chunks ← chunks⌿⍨m←~old∊⍨Cg'xz'
-        vb_pool,←(~m)/Cg'vb'
-        chunk_info ← m⌿chunk_info
-        :For pair :In new
-            blocks ← l⍴0
-            blocks[;0;] ← 1+?3
-            Queue_chunk device blocks pair
-        :EndFor
+    ∇ Update_range(device x z);range;new;old;m;pair;tx;tz;ty
+      range←(⊂x z)+,∘.,⍨(¯4+⍳9)
+      new←range~Cg'xz'
+      old←range~⍨Cg'xz'
+     
+      chunks←chunks⌿⍨m←~old∊⍨Cg'xz'
+      vb_pool,←(~m)/Cg'vb'
+      chunk_info←m⌿chunk_info
+      :For pair :In new
+          blocks←l⍴0
+          blocks[;0;]←1
+          ⍝ Tree :)
+          tx tz ← 4+?10 10
+          ty ← 3+?3
+          blocks[tx;1+⍳ty;tz]←4
+          blocks[tx+¯2+⍳5;1 2+ty;tz+¯2+⍳5]←5
+          blocks[tx+¯1+⍳3;3 4+ty;tz+¯1+⍳3]←5
+          Queue_chunk device blocks pair
+      :EndFor
     ∇
 
-    ∇ Draw_chunks(device pass);ready;vbs;inds
+    ∇ Draw_chunks(device pass);m;vbs;inds
       #.SDL_BindGPUIndexBuffer pass(⊂ib 0)#.SDL_GPU_INDEXELEMENTSIZE_32BIT
-      ready←chunk_info⌿⍨Cg'ready'
-      vbs←ready⌷[1]⍨Ci'vb'
-      inds←ready⌷[1]⍨Ci'idx_cnt'
-     
+      m←Cg'ready'
+      vbs←m/Cg'vb'
+      inds←m/Cg'idx_cnt'
       #.LSE_DrawList pass vbs inds(≢vbs)
     ∇
 

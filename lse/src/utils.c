@@ -43,6 +43,6 @@ void LSE_DrawList(SDL_GPURenderPass* pass, SDL_GPUBuffer** buffers,
         binding.offset = 0;
 
         SDL_BindGPUVertexBuffers(pass, 0, &binding, 1);
-        SDL_DrawGPUIndexedPrimitives(pass, indices[0], 1, 0, 0, 0);
+        SDL_DrawGPUIndexedPrimitives(pass, indices[i], 1, 0, 0, 0);
     }
 }

@@ -5,8 +5,8 @@
     half ← 0.3
     (x y z) ← 6 10 6
     (yaw pitch) ← 0 0
-    ⍝(xl yl zl) ← 0 0 1
-    (xv yv zv) ← 0 0 2
+    gravity←¯6.8
+    (xv yv zv) ← 0 gravity 0
 
     (e_w e_a e_s e_d) ← 0 0 0 0
     (e_mx e_my) ← 0 0
@@ -20,9 +20,8 @@
           new←v(+⍤1)cur
      
           m←1⍴⍨≢cur
-          (m/m)←{0≠#.world.chunks⌷⍨0,⍵}¨⌊↓m⌿new
+          (m/m)←{0≠⍵⌷#.world.chunks}¨#.world.Transform_points⌊↓m⌿new
           0=∨/m:(x y z)+←v
-     
           clip←(⌊0.5+⊢)(vm/0⌷m⌿new)
           (vm/(x y z))←clip-vm/0⌷m⌿box
       }
@@ -46,6 +45,8 @@
               e_s←1
           :Case #.SDLK_D
               e_d←1
+          :Case #.SDLK_SPACE
+              yv ← 6
           :EndSelect
       :ElseIf #.LSE_CheckEvent #.SDL_EVENT_KEY_UP
           :Select ⊃#.LSE_GetKeyPressed ⍬
@@ -64,19 +65,20 @@
     ∇
 
     ∇ Update dt;v;front;forward;sideways
+      yv ← gravity⌈yv-dt×10
       front←1 1 2○yaw pitch yaw
-
+     
       (forward sideways)←(e_w-e_s ⋄ e_d-e_a)
       v←dt×20×forward×front
       v+←dt×20×sideways×front #.math.Cross 0 1 0
-      (x y z)+←v
+      (0 1 0/v) ← 0 
+      v+←dt×(xv yv zv) 
+      Bound_check v
+    
      
       yaw-←e_mx×dt
       pitch-←e_my×dt
       pitch←(○0.49)((-○0.49)⌈⌊)pitch
-    
-      ⍝v←dt×xv yv zv
-      ⍝Bound_check v
     ∇
 
       Get_view←{
