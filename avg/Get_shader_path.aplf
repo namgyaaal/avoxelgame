@@ -1,0 +1,17 @@
+ Get_shader_path ← {
+     ⍝ ⍵ ←→ File name
+     ⍝ e.g., 'basic_vert' → 'shaders/msl/basic_vert.msl' on macOS
+    os←('Mac' ⋄ 'Linux' ⋄ 'Unsupported')
+    paths←(
+        'shaders/msl/'
+        'shaders/spv/'
+        'invalid/'
+    )
+    ext←(
+        '.msl'
+        '.spv'
+        ''
+    )
+    idx←os⍳⊂'-64'~⍨⊃# ⎕WG'APLVersion'
+    ∊paths[idx], ⍵, ext[idx]
+ }

@@ -1,4 +1,3 @@
-∇ Run
-    sdl3.Load_lib 'libs/libLSE.dylib'
-    lse.Load_lib 'libs/libLSE.dylib'
-∇
+ Run
+ sdl3.Load_lib Get_lse_path⍬
+ lse.Load_lib Get_lse_path⍬

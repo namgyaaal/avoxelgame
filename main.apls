@@ -5,22 +5,15 @@
 res ← SDL_Init SDL_INIT_VIDEO
 'Error initializing SDL3' Assert res
 
-⍝ Test surfaces real quick 
-
-old_surface ← IMG_Load ⊂'assets/blocks.bmp'
-surface ← SDL_ConvertSurface old_surface 376840196
-
-(width height pitch _) ← LSE_GetSurfaceParams surface 0 0 0 0
-data_addr ← LSE_GetSurfaceDataAddress surface
-data_size ← pitch × height
-SDL_DestroySurface old_surface
-
-window ← SDL_CreateWindow 'Hello World' 1280 720 0
+window ← SDL_CreateWindow 'A Voxel Game' 1280 720 0
 'Error creating a window' Assert window
-
 SDL_SetWindowMouseGrab window 1
+SDL_SetWindowRelativeMouseMode window 1
 
-device ← SDL_CreateGPUDevice SDL_GPU_SHADERFORMAT_MSL 1 'metal'
+backend ← Get_device_backend⍬
+shader_format ← Get_shader_format⍬
+
+device ← SDL_CreateGPUDevice shader_format 1 backend
 'Error creating a GPU device' Assert device
 
 res ← SDL_ClaimWindowForGPUDevice device window
@@ -34,62 +27,23 @@ world.Init_chunks device
     world.Queue_chunk device blocks (x z)
 :EndFor
 
-tex_tb_params ← ⊂SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD (pitch × height) 0
-tex_tb ← SDL_CreateGPUTransferBuffer device tex_tb_params
-'Error creating texture transfer buffer' Assert tex_tb
-
-⍝ Create Sampler
-
-⍝ SDL_GPUSamplerCreateInfo ← (i32 i32 i32 i32 i32 i32 f32 f32 i32 f32 f32 bool bool u8 u8 i32)
-sampler_create_info ←⊂        0   0   0   2   2   2   0.0 16.0 0  0.0 0.0 0    0    0  0  0
-sampler ← SDL_CreateGPUSampler device sampler_create_info
-
-'Error creating texture sampler' Assert sampler
-
-
-⍝ SDL_GPUTextureCreateInfo ← (i32 i32 i32 u32 u32 u32 u32 i32 i32)
-texture_create_info ←⊂        0   SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM   3   width height 1 2  0   0  
-texture ← SDL_CreateGPUTexture device texture_create_info
-SDL_SetGPUTextureName device texture 'test'
-
-
-depth_texture_info ←⊂ 0 SDL_GPU_TEXTUREFORMAT_D16_UNORM 4 1280 720 1 1 0 0
-:If 1=⊃SDL_GPUTextureSupportsFormat device SDL_GPU_TEXTUREFORMAT_D32_FLOAT 0 4
-    depth_texture_info ←⊂ 0 SDL_GPU_TEXTUREFORMAT_D32_FLOAT 4 1280 720 1 1 0 0
-:Elseif 1=⊃SDL_GPUTextureSupportsFormat device SDL_GPU_TEXTUREFORMAT_D24_UNORM 0 4
-    depth_texture_info ←⊂ 0 SDL_GPU_TEXTUREFORMAT_D24_UNORM 4 1280 720 1 1 0 0
-:EndIf
-depth_texture ← SDL_CreateGPUTexture device depth_texture_info
-
-'Error creating textures' Assert texture depth_texture
-
-⍝ Copy texture into transfer buffer
-mem_ptr ← SDL_MapGPUTransferBuffer device tex_tb 0
-SDL_memcpy (mem_ptr) (data_addr) data_size
-SDL_UnmapGPUTransferBuffer device tex_tb
-
-cmd_buf ← SDL_AcquireGPUCommandBuffer device
-pass ← SDL_BeginGPUCopyPass cmd_buf
-⍝ Texture data
-SDL_UploadToGPUTexture pass (tex_tb 0 0 0) (texture 0 0 0 0 0 width height 1) 0
-SDL_EndGPUCopyPass pass 
-SDL_GenerateMipmapsForGPUTexture cmd_buf texture
-SDL_SubmitGPUCommandBuffer cmd_buf
-
-
+depth_texture ← device Create_depth_texture 1280 720
+'Error creating depth texture' Assert depth_texture
 
 
 ⍝ Load shaders
-(v_src v_size) ← SDL_LoadFile 'shaders/msl/basic_vert.msl' 0
-(f_src f_size) ← SDL_LoadFile 'shaders/msl/basic_frag.msl' 0
+(v_src v_size) ← SDL_LoadFile (Get_shader_path 'basic_vert') 0
+(f_src f_size) ← SDL_LoadFile (Get_shader_path 'basic_frag') 0
 
 'Error loading shaders' Assert v_src f_src
 
-v_info ← v_size v_src 0 SDL_GPU_SHADERFORMAT_MSL SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
-f_info ← f_size f_src 0 SDL_GPU_SHADERFORMAT_MSL SDL_GPU_SHADERSTAGE_FRAGMENT 1 0 0 0 0
+v_info ← v_size v_src 0 shader_format SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
+f_info ← f_size f_src 0 shader_format SDL_GPU_SHADERSTAGE_FRAGMENT 1 0 0 0 0
 
-v_shader ← LSE_CreateGPUShader device v_info 'main0'
-f_shader ← LSE_CreateGPUShader device f_info 'main0'
+entry_point ← Get_entry_point⍬
+
+v_shader ← LSE_CreateGPUShader device v_info entry_point
+f_shader ← LSE_CreateGPUShader device f_info entry_point
 
 'Error creating shaders' Assert v_shader f_shader
 
@@ -152,7 +106,6 @@ running ← 1
 
     px pz ← (⌊16÷⍨player.x player.z)
 
-    ⍝⎕ ← world.Transform_positions (15 0 0) (16 0 0) (17 0 0)
     world.Update_range device px pz
     cmd_buf ← SDL_AcquireGPUCommandBuffer device
 
@@ -172,23 +125,19 @@ running ← 1
     SDL_BindGPUGraphicsPipeline pass pipeline
 
     SDL_PushGPUVertexUniformData cmd_buf 0 (∊proj_view) (16×4)
-    SDL_BindGPUFragmentSamplers pass 0 (⊂texture sampler) 1
-
+    SDL_PushGPUVertexUniformData cmd_buf 1 (∊view) (16×4)
     world.Draw_chunks device pass
 
     SDL_EndGPURenderPass pass
     SDL_SubmitGPUCommandBuffer cmd_buf
 :EndWhile
 
+world.Delete device
 
 SDL_ReleaseGPUShader device v_shader
 SDL_ReleaseGPUShader device f_shader
 
 SDL_ReleaseGPUGraphicsPipeline device pipeline
-
-SDL_ReleaseGPUTransferBuffer device tex_tb
-SDL_ReleaseGPUTexture device texture
-SDL_ReleaseGPUSampler device sampler
 
 SDL_DestroyGPUDevice device
 SDL_DestroyWindow window

@@ -3,14 +3,20 @@
 
 using namespace metal;
 
-struct UniformBlock
+struct MVPBlock
 {
     float4x4 mvp;
+};
+
+struct ViewBlock
+{
+    float4x4 model;
 };
 
 struct main0_out
 {
     float2 out_uv [[user(locn0)]];
+    float z_depth [[user(locn1)]];
     float4 gl_Position [[position]];
 };
 
@@ -20,11 +26,13 @@ struct main0_in
     float2 uv [[attribute(1)]];
 };
 
-vertex main0_out main0(main0_in in [[stage_in]], constant UniformBlock& _19 [[buffer(0)]])
+vertex main0_out main0(main0_in in [[stage_in]], constant MVPBlock& _19 [[buffer(0)]], constant ViewBlock& _45 [[buffer(1)]])
 {
     main0_out out = {};
     out.gl_Position = _19.mvp * float4(in.position, 1.0);
     out.out_uv = in.uv;
+    float4 pos = _45.model * float4(in.position, 1.0);
+    out.z_depth = out.gl_Position.z;
     return out;
 }
 
