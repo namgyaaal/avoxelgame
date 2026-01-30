@@ -223,8 +223,8 @@
 
     ∇ Update_range(device x z);range;dist;new;old;m;pair;tx;tz;ty
       range←(⊂x z)+,∘.,⍨((-view_distance)+⍳1+2×view_distance)
-      range←,∘.,⍨((-view_distance)+⍳1+2×view_distance)
-      range←(⊂x z)+range/⍨∊view_distance≥0.5*⍨+/¨range*2
+      ⍝range←,∘.,⍨((-view_distance)+⍳1+2×view_distance)
+      ⍝range←(⊂x z)+range/⍨∊view_distance≥0.5*⍨+/¨range*2
 
       new←range~Cg'xz'
       old←range~⍨Cg'xz'

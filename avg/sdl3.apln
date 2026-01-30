@@ -40,9 +40,6 @@
     'SDL_WriteSurfacePixelFloat' bool (ptr i32 i32 f32 f32 f32 f32)
     'SDL_SaveBMP' bool (ptr cstr)
     'SDL_LoadBMP' ptr cstr
-        ⍝ Putting SDL3_image here since it's in the shared object too
-    'IMG_Load' ptr cstr
-
         ⍝ GPU Stuff
 
         ⍝ Device

@@ -1,0 +1,12 @@
+:Namespace sdl3_image
+    ptr ← 'P-'
+    cstr ← '<0C1[]'
+
+    fns ← (
+    'IMG_Load' ptr cstr
+    )
+
+    ∇ Load_lib path
+      path ##.easy_na.Safe_load fns
+    ∇
+:EndNamespace

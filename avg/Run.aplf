@@ -1,3 +1,4 @@
  Run
- sdl3.Load_lib Get_lse_path⍬
- lse.Load_lib Get_lse_path⍬
+ sdl3.Load_lib Get_lse_path ⍬
+ sdl3_image.Load_lib Get_lse_path ⍬
+ lse.Load_lib Get_lse_path ⍬
