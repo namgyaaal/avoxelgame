@@ -20,7 +20,7 @@
           new←v(+⍤1)cur
      
           m←1⍴⍨≢cur
-          (m/m)←{0≠⍵⌷#.world.chunks}¨#.world.Transform_points⌊↓m⌿new
+          (m/m)←{0≠⍵⌷##.world.chunks}¨##.world.Transform_points⌊↓m⌿new
           0=∨/m:(x y z)+←v
           clip←(⌊0.5+⊢)(vm/0⌷m⌿new)
           (vm/(x y z))←clip-vm/0⌷m⌿box
@@ -34,32 +34,32 @@
 
 
     ∇ Input(w h)
-      :If #.LSE_CheckEvent #.SDL_EVENT_KEY_DOWN
-          :Select ⊃#.LSE_GetKeyPressed ⍬
-          :Case #.SDLK_W
+      :If ##.LSE_CheckEvent ##.SDL_EVENT_KEY_DOWN
+          :Select ⊃##.LSE_GetKeyPressed ⍬
+          :Case ##.SDLK_W
               e_w←1
-          :Case #.SDLK_A
+          :Case ##.SDLK_A
               e_a←1
-          :Case #.SDLK_S
+          :Case ##.SDLK_S
               e_s←1
-          :Case #.SDLK_D
+          :Case ##.SDLK_D
               e_d←1
-          :Case #.SDLK_SPACE
+          :Case ##.SDLK_SPACE
               yv←6
           :EndSelect
-      :ElseIf #.LSE_CheckEvent #.SDL_EVENT_KEY_UP
-          :Select ⊃#.LSE_GetKeyPressed ⍬
-          :Case #.SDLK_W
+      :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_KEY_UP
+          :Select ⊃##.LSE_GetKeyPressed ⍬
+          :Case ##.SDLK_W
               e_w←0
-          :Case #.SDLK_A
+          :Case ##.SDLK_A
               e_a←0
-          :Case #.SDLK_S
+          :Case ##.SDLK_S
               e_s←0
-          :Case #.SDLK_D
+          :Case ##.SDLK_D
               e_d←0
           :EndSelect
-      :ElseIf #.LSE_CheckEvent #.SDL_EVENT_MOUSE_MOTION
-          (e_mx e_my)←#.LSE_GetMouseMoveRel 0 0
+      :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_MOUSE_MOTION
+          (e_mx e_my)←##.LSE_GetMouseMoveRel 0 0
       :EndIf
     ∇
 
@@ -69,23 +69,25 @@
      
       (forward sideways)←(e_w-e_s ⋄ e_d-e_a)
       v←dt×20×forward×front
-      v+←dt×20×sideways×front #.math.Cross 0 1 0
+      v+←dt×20×sideways×front ##.math.Cross 0 1 0
       (0 1 0/v)←0
       v+←dt×(xv yv zv)
       Bound_check v
      
-     
       yaw-←e_mx×dt
       pitch-←e_my×dt
       pitch←(○0.49)((-○0.49)⌈⌊)pitch
-
-      (e_mx e_my) ← 0 0
+     
+      (e_mx e_my)←0 0
     ∇
+
+      Get_look_vec←{
+          1 1 2○yaw pitch yaw
+      }
 
       Get_view←{
           at←(x y z)+(0 cam_offset 0)
-     
-          l←1 1 2○yaw pitch yaw
-          #.math.Look_at at(at+l)(0 1 0)
+          l←Get_look_vec ⍬
+          ##.math.Look_at at(at+l)(0 1 0)
       }
 :EndNamespace

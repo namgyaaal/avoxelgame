@@ -1,0 +1,139 @@
+ Play
+ res←SDL_Init SDL_INIT_VIDEO
+ 'Error initializing SDL3'Assert res
+
+ window←SDL_CreateWindow'A Voxel Game' 1280 720 0
+ 'Error creating a window'Assert window
+ SDL_SetWindowMouseGrab window 1
+ SDL_SetWindowRelativeMouseMode window 1
+
+ backend←Get_device_backend ⍬
+ shader_format←Get_shader_format ⍬
+
+ device←SDL_CreateGPUDevice shader_format 1 backend
+ 'Error creating a GPU device'Assert device
+
+ res←SDL_ClaimWindowForGPUDevice device window
+ 'Error attaching device to window'Assert res
+
+ world.Init_chunks device
+
+ blocks←world.l⍴0
+ blocks[;1;]←1
+ world.Queue_chunk device blocks (0 0)
+ world.Update_range device 0 0
+
+ depth_texture←device Create_depth_texture 1280 720
+ 'Error creating depth texture'Assert depth_texture
+
+
+⍝ Load shaders
+ (v_src v_size)←SDL_LoadFile(Get_shader_path'basic_vert')0
+ (f_src f_size)←SDL_LoadFile(Get_shader_path'basic_frag')0
+
+ 'Error loading shaders'Assert v_src f_src
+
+ v_info←v_size v_src 0 shader_format SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
+ f_info←f_size f_src 0 shader_format SDL_GPU_SHADERSTAGE_FRAGMENT 1 0 0 0 0
+
+ entry_point←Get_entry_point ⍬
+
+ v_shader←LSE_CreateGPUShader device v_info entry_point
+ f_shader←LSE_CreateGPUShader device f_info entry_point
+
+ 'Error creating shaders'Assert v_shader f_shader
+
+⍝ Create a render pipeline
+ LSE_PipelineClearParams ⍬
+ LSE_PipelineSetShaders v_shader f_shader
+⍝ Vertex Buffer Descriptions and Attributes : Vertex Input
+ vb_desc←⊂(0(4×5)0 0)
+ vb_attr←(0 0 SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3 0
+     1 0 SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2(4×3))
+
+ LSE_PipelineSetVertexInput vb_desc 1 vb_attr 2
+ LSE_PipelineSetDepthStencil 2(0 0 0 0)(0 0 0 0)0 0 1 1 0 0 0 0
+ LSE_PipelineSetRasterizer 0 2 1 0 0 0 0 0
+
+⍝ Color Targets
+ default_format←⊃SDL_GetGPUSwapchainTextureFormat device window
+
+ blend_state←(SDL_GPU_BLENDFACTOR_SRC_ALPHA
+     SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
+     SDL_GPU_BLENDOP_ADD)
+⍝ 0's - padding, writemask, etc
+⍝ Duplicate alpha and color blendfactors and blendops
+ blend_state←(6⍴blend_state),5⍴0
+ ct_desc←⊂default_format blend_state
+
+ LSE_PipelineSetTargetInfo ct_desc 1 SDL_GPU_TEXTUREFORMAT_D16_UNORM 1
+ pipeline←LSE_PipelineCreate device
+
+ 'Error creating render pipeline'Assert pipeline
+
+
+ proj←math.Proj(○75÷180)(1280÷720)0.1 500
+ view←player.Get_view ⍬
+ proj_view←view+.×proj
+
+ time←⊃SDL_GetTicks ⍬
+ running←1
+ :While running
+     :While ⊃LSE_PollEvent ⍬
+         :If LSE_CheckEvent SDL_EVENT_QUIT
+             running←0
+         :ElseIf LSE_CheckEvent SDL_EVENT_KEY_DOWN
+             key←⊃LSE_GetKeyPressed ⍬
+             :If key=SDLK_Q
+                 running←0
+             :EndIf
+         :EndIf
+         player.Input(1280 720)
+     :EndWhile
+
+     (px pz)←(⌊16÷⍨player.x player.z)
+     (lx _ lz) ← player.Get_look_vec⍬
+     world.Update_range device px pz
+
+     new_time←⊃SDL_GetTicks ⍬
+     dt←1000÷⍨time-⍨⊃SDL_GetTicks ⍬
+     time←⊃SDL_GetTicks ⍬
+     player.Update dt
+
+     view←player.Get_view ⍬
+     proj_view←view+.×proj
+
+     cmd_buf←SDL_AcquireGPUCommandBuffer device
+
+     :If 0≠≢world.tb_queue
+         pass←SDL_BeginGPUCopyPass cmd_buf
+         world.Copy_chunks device pass
+         SDL_EndGPUCopyPass pass
+     :EndIf
+     (res swap_texture _ _)←SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
+     'Error acquiring swapchain texture'Assert res
+
+     color_info←⊂swap_texture 0 0(0.1 0.2 0.3 1)1 0 0 0 0 0 0 0 0
+     depth_info←⊂depth_texture 1 1 1 0 0 0 0 0 0
+
+     pass←SDL_BeginGPURenderPass cmd_buf color_info 1 depth_info
+     SDL_BindGPUGraphicsPipeline pass pipeline
+
+     SDL_PushGPUVertexUniformData cmd_buf 0(∊proj_view)(16×4)
+     SDL_PushGPUVertexUniformData cmd_buf 1(∊view)(16×4)
+     world.Draw_chunks device pass px pz lx lz
+
+     SDL_EndGPURenderPass pass
+     SDL_SubmitGPUCommandBuffer cmd_buf
+ :EndWhile
+ world.Delete device
+
+ SDL_ReleaseGPUShader device v_shader
+ SDL_ReleaseGPUShader device f_shader
+
+ SDL_ReleaseGPUGraphicsPipeline device pipeline
+
+ SDL_DestroyGPUDevice device
+ SDL_DestroyWindow window
+
+ SDL_Quit

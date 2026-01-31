@@ -25,26 +25,25 @@
       }
 
       Load_def←{
-          102:: 'Error: File not found for ',⍵
-          6:: 'Error: Function not found in library for ',⍵
-          _←⎕NA ⍵
+          102::'Error: File not found for ',⍵
+          6::'Error: Function not found in library for ',⍵
+          _←##.⎕NA ⍵
           ''
       }
       Safe_load←{
           ⍝ ⍺ - (namespace, library_path)
           ⍝ ⍵ - symbol vector
-          error_vec ← ⍺∘{
+          error_vec←⍺∘{
               (fn_name def args)←⍵
               formatted←∊⍺,'|',fn_name
               def←1↓∊' '∘,¨(Clean_def def)formatted(Clean_def Build_args args)
               res←fn_name Load_def def
-              0≠≢res: res
-              _←'#'⎕NS fn_name
+              0≠≢res:res
               res
           }¨⍵
-          error_vec ← error_vec/⍨0≠≢¨error_vec
+          error_vec←error_vec/⍨0≠≢¨error_vec
           0=≢error_vec: ⋄
-          {⎕ ← ⍵}¨error_vec
+          {⎕←⍵}¨error_vec
       }
 
       Example_test←{
@@ -64,6 +63,6 @@
               'call_with_input'i32 i32
           )
           real_dylib Safe_load symbol_vector
-          
+     
       }
 :EndNamespace

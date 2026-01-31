@@ -2,6 +2,7 @@
     ⍝ ⍺ ←→ GPU Device
     ⍝ ⍵ ←→ (Width, Height)
     (w h) ← ⍵
+    device ← ⍺
     formats ← (
         SDL_GPU_TEXTUREFORMAT_D32_FLOAT
         SDL_GPU_TEXTUREFORMAT_D24_UNORM

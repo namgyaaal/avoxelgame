@@ -29,7 +29,7 @@
       :Else
           val_map←¯1+⍳⍴names
       :EndIf
-      #.⎕VSET(↑names)val_map
+      ##.⎕VSET(↑names)val_map
     ∇
 
     ∇ Load_dir dir

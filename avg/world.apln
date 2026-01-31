@@ -113,59 +113,58 @@
       }
 
     ∇ Init_chunks device;vb_params;tb_params;p;cmd;pass;tex_params;sam_params;img;surface;w;h;pitch;addr;size
+      vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0
+      vb_pool←({⍵,##.SDL_CreateGPUBuffer device vb_params}⍣100)⍬
+      'Error creating vertex buffer pool'##.Assert vb_pool
      
-      vb_params←#.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0
-      vb_pool←({⍵,#.SDL_CreateGPUBuffer device vb_params}⍣100)⍬
-      'Error creating vertex buffer pool'#.Assert vb_pool
+      tb_params←⊂##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(tb_size)0
+      tb←##.SDL_CreateGPUTransferBuffer device tb_params
+      'Error creating chunk transfer buffer'##.Assert tb
+      ib←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_INDEX isize 0)
      
-      tb_params←⊂#.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(tb_size)0
-      tb←#.SDL_CreateGPUTransferBuffer device tb_params
-      'Error creating chunk transfer buffer'#.Assert tb
-      ib←#.SDL_CreateGPUBuffer device(#.SDL_GPU_BUFFERUSAGE_INDEX isize 0)
-     
-      img←#.IMG_Load⊂'assets/blocks.bmp'
+      img←##.IMG_Load⊂'assets/blocks.bmp'
       ⍝ Magic number for 8 8 8 8 A B G R texture
-      surface←#.SDL_ConvertSurface img 376840196
-      'Error loading chunk image'#.Assert img surface
-      #.SDL_DestroySurface img
+      surface←##.SDL_ConvertSurface img 376840196
+      'Error loading chunk image'##.Assert img surface
+      ##.SDL_DestroySurface img
      
-      (w h pitch _)←#.LSE_GetSurfaceParams surface 0 0 0 0
-      addr←#.LSE_GetSurfaceDataAddress surface
+      (w h pitch _)←##.LSE_GetSurfaceParams surface 0 0 0 0
+      addr←##.LSE_GetSurfaceDataAddress surface
       size←pitch×h
      
       sam_params←⊂0 0 0 2 2 2 0 0 0 0 100 0 0 0 0 0
-      tex_params←⊂0 #.SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM 3 w h 1 4 0 0
+      tex_params←⊂0 ##.SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM 3 w h 1 4 0 0
      
-      sampler←#.SDL_CreateGPUSampler device sam_params
-      texture←#.SDL_CreateGPUTexture device tex_params
-      #.SDL_SetGPUTextureName device texture'Chunk texture'
-      'Error creating chunk texture and sampler'#.Assert sampler texture
+      sampler←##.SDL_CreateGPUSampler device sam_params
+      texture←##.SDL_CreateGPUTexture device tex_params
+      ##.SDL_SetGPUTextureName device texture'Chunk texture'
+      'Error creating chunk texture and sampler'##.Assert sampler texture
      
-      tex_params←⊂#.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD
+      tex_params←⊂##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD
      
       ⍝ Do copy pass just to copy index buffer over
       ⍝ Only need isize worth of indices by reasoning
       ⍝ Overhead should be minimal if this is done once
-      p←#.SDL_MapGPUTransferBuffer device tb 0
-      #.LSE_MemcpyU32 p(indices)isize
+      p←##.SDL_MapGPUTransferBuffer device tb 0
+      ##.LSE_MemcpyU32 p(indices)isize
       ⍝ Have enough in it to also pack in textures?
-      #.SDL_memcpy(p+isize)(addr)size
-      #.SDL_UnmapGPUTransferBuffer device tb
-      cmd←#.SDL_AcquireGPUCommandBuffer device
-      pass←#.SDL_BeginGPUCopyPass cmd
+      ##.SDL_memcpy(p+isize)(addr)size
+      ##.SDL_UnmapGPUTransferBuffer device tb
+      cmd←##.SDL_AcquireGPUCommandBuffer device
+      pass←##.SDL_BeginGPUCopyPass cmd
      
      
-      #.SDL_UploadToGPUBuffer pass(tb 0)(ib 0 isize)0
-      #.SDL_UploadToGPUTexture pass(tb isize 0 0)(texture 0 0 0 0 0 w h 1)0
-      #.SDL_EndGPUCopyPass pass
-      #.SDL_GenerateMipmapsForGPUTexture cmd texture
-      #.SDL_SubmitGPUCommandBuffer cmd
-      #.SDL_DestroySurface surface
+      ##.SDL_UploadToGPUBuffer pass(tb 0)(ib 0 isize)0
+      ##.SDL_UploadToGPUTexture pass(tb isize 0 0)(texture 0 0 0 0 0 w h 1)0
+      ##.SDL_EndGPUCopyPass pass
+      ##.SDL_GenerateMipmapsForGPUTexture cmd texture
+      ##.SDL_SubmitGPUCommandBuffer cmd
+      ##.SDL_DestroySurface surface
     ∇
 
     ∇ Delete device
-      #.SDL_ReleaseGPUTexture device texture
-      #.SDL_ReleaseGPUSampler device sampler
+      ##.SDL_ReleaseGPUTexture device texture
+      ##.SDL_ReleaseGPUSampler device sampler
     ∇
 
     ∇ Queue_chunk(device blocks trans);x;z;vb
@@ -175,63 +174,68 @@
           vb←1↑vb_pool
           vb_pool←1↓vb_pool
       :Else
-          vb←#.SDL_CreateGPUBuffer device(#.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0)
-          'Error creating vertex buffer'#.Assert vb
+          vb←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0)
+          'Error creating vertex buffer'##.Assert vb
       :EndIf
       chunk_info⍪←(x z)vb 0 0
       chunks⍪←blocks
       tb_queue,←⊂x z
     ∇
 
-    ∇ Copy_chunks(device pass);q;x;z;tx;tz;m;blks;flat;solid;edges;rot;exposed;vert;ind;tex;buf;vs;ic;p;pos;i;vb
+    ∇ info←Copy_chunk(chunk tx tz ptr offset);tx;tz;flat;solid;edges;exposed;vert;tex;buf;vs;ic
+      ⍝ Collapse chunk @ x z and write it to ptr
+      ⍝ Return vertex size in bytes and number of indices
+      ⍝ IMPORTANT: Assumes that where data is being written to has enough space
+      flat←∊chunk
+      solid←chunk≠0
+      edges←solid∧box
+      exposed←↑[0]{edges∨solid>⍵}¨0 1 2∘.{⍵⌽[⍺]solid}¯1 1
+      vert←(tx 0 tz)(+⍤1)vertices⌿⍨4/∊exposed
+      tex←(⍳×/l)(×⍤¯1),[1+⍳2],[⍳3]exposed
+      tex←(⍳6)(+⍤1)6×flat[tex]
+      tex←,[⍳2]↑(∊exposed)/,textures[tex]
+      buf←∊vert,tex
+      vs←4×≢buf
+      ic←6×4÷⍨≢vert
+      ##.LSE_MemcpyF32(ptr+offset)buf vs      
+      info←vs ic
+    ∇
+
+    ∇ Copy_chunks(device pass);idx;q;x;z;tx;tz;m;is;tex;buf;vs;ic;p;pos;i;vb
       tb_pos←0
       q←⍬
-      p←#.SDL_MapGPUTransferBuffer device tb 1
+      p←##.SDL_MapGPUTransferBuffer device tb 1
       :While (tb_size>tb_pos+vsize)∧(0≠≢tb_queue)
           (x z)←⊃1↑tb_queue
+          idx←⊃⍸(⊂x z)Cl'xz'
           (tx tz)←(x z)×(⊂0 2)⌷l
-          m←(⊂x z)Cl'xz'
-          blks←,[⍳2]m⌿chunks
-          flat←∊blks
-          solid←blks≠0
-          edges←solid∧box
-          rot←0 1 2∘.{⍵⌽[⍺]solid}¯1 1
-          exposed←↑[0]{edges∨solid>⍵}¨rot
+          (vs ic)←Copy_chunk (idx⌷chunks) tx tz p tb_pos
      
-          vert←(tx 0 tz)(+⍤1)vertices⌿⍨4/∊exposed
-          ind←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vert
-          tex←(⍳×/l)(×⍤¯1),[1+⍳2],[⍳3]exposed
-          tex←(⍳6)(+⍤1)6×flat[tex]
-          tex←,[⍳2]↑(∊exposed)/,textures[tex]
-          buf←∊vert,tex
-          vs←4×≢buf
-          #.LSE_MemcpyF32(p+tb_pos)buf vs
-     
-          q,←⊂tb_pos vs(≢ind)(⍸m)
+          q,←⊂tb_pos vs ic idx
           tb_queue←1↓tb_queue
           tb_pos+←vs
       :EndWhile
-      #.SDL_UnmapGPUTransferBuffer device tb
+      ##.SDL_UnmapGPUTransferBuffer device tb
      
       :For (pos vs ic i) :In q
           vb←i Cgc'vb'
-          #.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)1
+          ##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)1
           ((i,Ci'idx_cnt')⌷chunk_info)←ic
           ((i,Ci'ready')⌷chunk_info)←1
       :EndFor
     ∇
 
     ∇ Update_range(device x z);range;dist;new;old;m;pair;tx;tz;ty
-      range←(⊂x z)+,∘.,⍨((-view_distance)+⍳1+2×view_distance)
-      ⍝range←,∘.,⍨((-view_distance)+⍳1+2×view_distance)
-      ⍝range←(⊂x z)+range/⍨∊view_distance≥0.5*⍨+/¨range*2
-
+      range←,∘.,⍨((-view_distance)+⍳1+2×view_distance)
+      range←(⊂x z)+range/⍨∊view_distance≥0.5*⍨+/¨range*2
+     
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
      
       chunks←chunks⌿⍨m←~old∊⍨Cg'xz'
       vb_pool,←(~m)/Cg'vb'
       chunk_info←m⌿chunk_info
+
       :For pair :In new
           blocks←l⍴0
           blocks[;0;]←1
@@ -245,13 +249,21 @@
       :EndFor
     ∇
 
-    ∇ Draw_chunks(device pass);m;vbs;inds
-      #.SDL_BindGPUFragmentSamplers pass 0(⊂texture sampler)1
-      #.SDL_BindGPUIndexBuffer pass(⊂ib 0)#.SDL_GPU_INDEXELEMENTSIZE_32BIT
-      m←Cg'ready'
+    ∇ Draw_chunks(device pass px pz lx lz);vec;dist;num;den;m;vbs;inds
+      vec←(⊂px pz)-⍨Cg'xz'
+      dist←0.5*⍨+/¨vec*2
+      num ← (lx lz) (+.×⍤1) ↑vec
+      den ← dist × 0.5*⍨+/(lx lz)*2 
+      ⍝ Filter out zero-dist chunk and re-add
+      m←(0≠den)∧Cg'ready'
+      (m/m)←(○0.8)>¯2○(m⌿num)÷(m⌿den)
+      m←(Cg'ready')∧(m∨0=den)
       vbs←m/Cg'vb'
       inds←m/Cg'idx_cnt'
-      #.LSE_DrawList pass vbs inds(≢vbs)
+
+      ##.SDL_BindGPUFragmentSamplers pass 0(⊂texture sampler)1
+      ##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
+      ##.LSE_DrawList pass vbs inds(≢vbs)
     ∇
 
 :EndNamespace
