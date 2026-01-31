@@ -1,3 +1,5 @@
+![Cover](./images/cover.png)
+
 # A Voxel Game
 
 This started off of as a bet with myself that APL notation would make an easier way to make a voxel game.
