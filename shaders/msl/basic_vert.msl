@@ -8,30 +8,24 @@ struct MVPBlock
     float4x4 mvp;
 };
 
-struct ViewBlock
-{
-    float4x4 model;
-};
-
 struct main0_out
 {
-    float2 out_uv [[user(locn0)]];
+    float3 out_uv [[user(locn0)]];
     float z_depth [[user(locn1)]];
     float4 gl_Position [[position]];
 };
 
 struct main0_in
 {
-    float3 position [[attribute(0)]];
-    float2 uv [[attribute(1)]];
+    uint4 position [[attribute(0)]];
 };
 
-vertex main0_out main0(main0_in in [[stage_in]], constant MVPBlock& _19 [[buffer(0)]], constant ViewBlock& _45 [[buffer(1)]])
+vertex main0_out main0(main0_in in [[stage_in]], constant MVPBlock& _41 [[buffer(0)]])
 {
     main0_out out = {};
-    out.gl_Position = _19.mvp * float4(in.position, 1.0);
-    out.out_uv = in.uv;
-    float4 pos = _45.model * float4(in.position, 1.0);
+    float4 pos = float4(float(in.position.x & 31u), float(in.position.y), float(in.position.z & 31u), 1.0);
+    out.gl_Position = _41.mvp * pos;
+    out.out_uv = float3(float(in.position.z >> uint(7)), float(in.position.x >> uint(7)), float(in.position.w));
     out.z_depth = out.gl_Position.z;
     return out;
 }

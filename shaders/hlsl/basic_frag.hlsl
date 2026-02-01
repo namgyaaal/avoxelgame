@@ -1,12 +1,12 @@
-uniform sampler2D sampleTex;
+uniform sampler2DArray sampleTex;
 
 static float in_z_depth;
 static float4 out_color;
-static float2 in_uv;
+static float3 in_uv;
 
 struct SPIRV_Cross_Input
 {
-    float2 in_uv : TEXCOORD0;
+    float3 in_uv : TEXCOORD0;
     float in_z_depth : TEXCOORD1;
 };
 

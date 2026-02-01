@@ -7,6 +7,7 @@
     u64 ← 'U8'
     f32 ← 'F4'
     f32_arr ← '<F4[]'
+    u8_arr ← '<U1[]'
     u16_arr ← '<U2[]'
     u32_arr ← '<U4[]'
     ptr ← 'P-'
@@ -23,6 +24,7 @@
     'LSE_GetSurfaceDataAddress' ptr ptr
     'LSE_GetSurfaceParams' ⍬ (ptr '>' i32 '>' i32 '>' i32 '>' i32)
     'LSE_MemcpyF32' ⍬ (ptr f32_arr u32)
+    'LSE_MemcpyU8'  ⍬ (ptr u8_arr u32)
     'LSE_MemcpyU16' ⍬ (ptr u16_arr u32)
     'LSE_MemcpyU32' ⍬ (ptr u32_arr u32)
         ⍝ Events
@@ -49,6 +51,7 @@
     'LSE_PipelineSetTargetInfo' ⍬ ('<' (i32 (i32 i32 i32 i32 i32 i32 u8 bool bool u8 u8)) '[]' u32 i32 bool)
     'LSE_PipelineSetProperties' ⍬ u32
     'LSE_DrawList' ⍬ (ptr '<P[]' u32_arr u32)
+    'LSE_DrawListWithPushConstants' ⍬ (ptr ptr '<P[]' u32_arr u32 f32_arr u32 u32)
     )
 
     ∇ Load_lib path

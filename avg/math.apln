@@ -1,23 +1,22 @@
 :Namespace math
-
     ⍝ https://codegolf.stackexchange.com/a/149160
     Norm ← ⊢÷0.5*⍨+.×⍨
-    
+
     ⍝ https://codegolf.stackexchange.com/a/70533
     Cross ← { ⍺(2⌽p⍨-p←⊣×2⌽⊢)⍵ }
-    
-    Proj ← {
-        (fov ar n f) ← ⍵
-        t ← ÷3○fov×0.5
-        4 4⍴(t÷ar ⋄ t ⋄ f÷n-f ⋄ ¯1 ⋄ n(×÷-)f)@1 6 11 12 15⊢16⍴0
-    }
-    
-    Look_at ← {
-        (p t up) ← ⍵
-        a ← Norm p-t
-        b ← Norm up Cross a 
-        c ← a Cross b 
-        m←b,c,a,3 1⍴0
-        m⍪¯1×(b+.×p)(c+.×p)(a+.×p)¯1
-    }
+
+      Proj←{
+          (fov ar n f)←⍵
+          t←÷3○fov×0.5
+          4 4⍴(t÷ar ⋄ t ⋄ f÷n-f ⋄ ¯1 ⋄ n(×÷-)f)@1 6 11 12 15⊢16⍴0
+      }
+
+      Look_at←{
+          (p t up)←⍵
+          a←Norm p-t
+          b←Norm up Cross a
+          c←a Cross b
+          m←b,c,a,3 1⍴0
+          m⍪¯1×(b+.×p)(c+.×p)(a+.×p)¯1
+      }
 :EndNamespace

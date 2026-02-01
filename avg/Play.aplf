@@ -20,7 +20,7 @@
 
  blocks←world.l⍴0
  blocks[;1;]←1
- world.Queue_chunk device blocks (0 0)
+ world.Queue_chunk device blocks(0 0)
  world.Update_range device 0 0
 
  depth_texture←device Create_depth_texture 1280 720
@@ -33,7 +33,7 @@
 
  'Error loading shaders'Assert v_src f_src
 
- v_info←v_size v_src 0 shader_format SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
+ v_info←v_size v_src 0 shader_format SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 2 0
  f_info←f_size f_src 0 shader_format SDL_GPU_SHADERSTAGE_FRAGMENT 1 0 0 0 0
 
  entry_point←Get_entry_point ⍬
@@ -47,11 +47,11 @@
  LSE_PipelineClearParams ⍬
  LSE_PipelineSetShaders v_shader f_shader
 ⍝ Vertex Buffer Descriptions and Attributes : Vertex Input
- vb_desc←⊂(0(4×5)0 0)
- vb_attr←(0 0 SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3 0
-     1 0 SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2(4×3))
 
- LSE_PipelineSetVertexInput vb_desc 1 vb_attr 2
+ vb_desc←⊂(0 4 0 0)
+ vb_attr←⊂(0 0 SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4 0)
+
+ LSE_PipelineSetVertexInput vb_desc 1 vb_attr 1
  LSE_PipelineSetDepthStencil 2(0 0 0 0)(0 0 0 0)0 0 1 1 0 0 0 0
  LSE_PipelineSetRasterizer 0 2 1 0 0 0 0 0
 
@@ -66,7 +66,7 @@
  blend_state←(6⍴blend_state),5⍴0
  ct_desc←⊂default_format blend_state
 
- LSE_PipelineSetTargetInfo ct_desc 1 SDL_GPU_TEXTUREFORMAT_D16_UNORM 1
+ LSE_PipelineSetTargetInfo ct_desc 1 SDL_GPU_TEXTUREFORMAT_D32_FLOAT 1
  pipeline←LSE_PipelineCreate device
 
  'Error creating render pipeline'Assert pipeline
@@ -92,7 +92,7 @@
      :EndWhile
 
      (px pz)←(⌊16÷⍨player.x player.z)
-     (lx _ lz) ← player.Get_look_vec⍬
+     (lx _ lz)←player.Get_look_vec ⍬
      world.Update_range device px pz
 
      new_time←⊃SDL_GetTicks ⍬
@@ -118,10 +118,7 @@
 
      pass←SDL_BeginGPURenderPass cmd_buf color_info 1 depth_info
      SDL_BindGPUGraphicsPipeline pass pipeline
-
-     SDL_PushGPUVertexUniformData cmd_buf 0(∊proj_view)(16×4)
-     SDL_PushGPUVertexUniformData cmd_buf 1(∊view)(16×4)
-     world.Draw_chunks device pass px pz lx lz
+     world.Draw_chunks cmd_buf pass px pz lx lz proj_view
 
      SDL_EndGPURenderPass pass
      SDL_SubmitGPUCommandBuffer cmd_buf

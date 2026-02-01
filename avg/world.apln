@@ -13,15 +13,14 @@
     max_faces +← 6×(×/-×/⍤-∘2) l
 
     ⍝ For each face we need 4 vertices and 6 indices
-    ⍝ Furthermore, we need the amount of info per vertex
-    ⍝ and size of vertex and index values (f32, u32)
-    (vsize isize) ← (4×5×4×max_faces ⋄ 4×6×max_faces)
+    ⍝ Furthermore, we need the amount of info per vertex and size of indices
+    (vsize isize) ← (4×4×max_faces ⋄ 4×6×max_faces)
 
     vb_pool ← ⍬
     ib ← 0
     tb ← 0
     tb_pos ← 0
-    tb_size ← 10×vsize
+    tb_size ← 5×vsize
     tb_queue ← ⍬
     (texture sampler) ← ⍬ ⍬
 
@@ -30,7 +29,8 @@
     cnames ← 'xz' 'vb' 'idx_cnt' 'ready'
     chunk_info ← 0⍴⍨0, ≢cnames
 
-    view_distance ← 5
+    view_distance ← 8
+    max_chunks ← ≢view_distance>0.5*⍨+/¨2*⍨,∘.,⍨((-view_distance)+⍳1+2×view_distance)
 
     I←⌷⍨∘⊃⍨⍤0 99
     ⍝ Chunk column index (Only used with one entry)
@@ -42,7 +42,6 @@
     ⍝ Chunk column lookup (Where ⍺ = entries, ⍵ = column name)
     Cl ← {⍺ (≡⍤0) chunk_info⌷[1]⍨Ci⍵}
 
-
     faces ← [
     0 1 0 ⋄ 0 1 1 ⋄ 0 0 1 ⋄ 0 0 0 ⍝ Left
     1 1 1 ⋄ 1 1 0 ⋄ 1 0 0 ⋄ 1 0 1 ⍝ Right
@@ -53,49 +52,19 @@
     ]
     v_cnt ← ≢faces
 
-    textures ← (
+    textures ← ∊(
         ⍝ Air (Here for easy indexing, filtered out)
-    [0 0 ⋄ 0 0 ⋄ 0 0 ⋄ 0 0]
-    [0 0 ⋄ 0 0 ⋄ 0 0 ⋄ 0 0]
-    [0 0 ⋄ 0 0 ⋄ 0 0 ⋄ 0 0]
-    [0 0 ⋄ 0 0 ⋄ 0 0 ⋄ 0 0]
-    [0 0 ⋄ 0 0 ⋄ 0 0 ⋄ 0 0]
-    [0 0 ⋄ 0 0 ⋄ 0 0 ⋄ 0 0]
+    0 0 0 0 0 0
         ⍝ Grass
-    [0.6 0.0 ⋄ 0.8 0.0 ⋄ 0.8 0.2 ⋄ 0.6 0.2]
-    [0.6 0.0 ⋄ 0.8 0.0 ⋄ 0.8 0.2 ⋄ 0.6 0.2]
-    [0.4 0.0 ⋄ 0.6 0.0 ⋄ 0.6 0.2 ⋄ 0.4 0.2]
-    [0.0 0.0 ⋄ 0.2 0.0 ⋄ 0.2 0.2 ⋄ 0.0 0.2]
-    [0.6 0.0 ⋄ 0.8 0.0 ⋄ 0.8 0.2 ⋄ 0.6 0.2]
-    [0.6 0.0 ⋄ 0.8 0.0 ⋄ 0.8 0.2 ⋄ 0.6 0.2]
+    3 3 2 0 3 3
         ⍝ Stone
-    [0.2 0.0 ⋄ 0.4 0.0 ⋄ 0.4 0.2 ⋄ 0.2 0.2]
-    [0.2 0.0 ⋄ 0.4 0.0 ⋄ 0.4 0.2 ⋄ 0.2 0.2]
-    [0.2 0.0 ⋄ 0.4 0.0 ⋄ 0.4 0.2 ⋄ 0.2 0.2]
-    [0.2 0.0 ⋄ 0.4 0.0 ⋄ 0.4 0.2 ⋄ 0.2 0.2]
-    [0.2 0.0 ⋄ 0.4 0.0 ⋄ 0.4 0.2 ⋄ 0.2 0.2]
-    [0.2 0.0 ⋄ 0.4 0.0 ⋄ 0.4 0.2 ⋄ 0.2 0.2]
+    1 1 1 1 1 1
         ⍝ Wood
-    [0.8 0.0 ⋄ 1.0 0.0 ⋄ 1.0 0.2 ⋄ 0.8 0.2]
-    [0.8 0.0 ⋄ 1.0 0.0 ⋄ 1.0 0.2 ⋄ 0.8 0.2]
-    [0.8 0.0 ⋄ 1.0 0.0 ⋄ 1.0 0.2 ⋄ 0.8 0.2]
-    [0.8 0.0 ⋄ 1.0 0.0 ⋄ 1.0 0.2 ⋄ 0.8 0.2]
-    [0.8 0.0 ⋄ 1.0 0.0 ⋄ 1.0 0.2 ⋄ 0.8 0.2]
-    [0.8 0.0 ⋄ 1.0 0.0 ⋄ 1.0 0.2 ⋄ 0.8 0.2]
+    5 5 5 5 5 5
         ⍝ Log
-    [0.8 0.2 ⋄ 1.0 0.2 ⋄ 1.0 0.4 ⋄ 0.8 0.4]
-    [0.8 0.2 ⋄ 1.0 0.2 ⋄ 1.0 0.4 ⋄ 0.8 0.4]
-    [0.8 0.2 ⋄ 1.0 0.2 ⋄ 1.0 0.4 ⋄ 0.8 0.4]
-    [0.8 0.2 ⋄ 1.0 0.2 ⋄ 1.0 0.4 ⋄ 0.8 0.4]
-    [0.8 0.2 ⋄ 1.0 0.2 ⋄ 1.0 0.4 ⋄ 0.8 0.4]
-    [0.8 0.2 ⋄ 1.0 0.2 ⋄ 1.0 0.4 ⋄ 0.8 0.4]
+    9 9 9 9 9 9
         ⍝ Leaf
-    [0.0 0.4 ⋄ 0.2 0.4 ⋄ 0.2 0.6 ⋄ 0.0 0.6]
-    [0.0 0.4 ⋄ 0.2 0.4 ⋄ 0.2 0.6 ⋄ 0.0 0.6]
-    [0.0 0.4 ⋄ 0.2 0.4 ⋄ 0.2 0.6 ⋄ 0.0 0.6]
-    [0.0 0.4 ⋄ 0.2 0.4 ⋄ 0.2 0.6 ⋄ 0.0 0.6]
-    [0.0 0.4 ⋄ 0.2 0.4 ⋄ 0.2 0.6 ⋄ 0.0 0.6]
-    [0.0 0.4 ⋄ 0.2 0.4 ⋄ 0.2 0.6 ⋄ 0.0 0.6]
+    10 10 10 10 10 10
     )
     ⍝ From ⍳-vertex count in shape of l:
     ⍝ - Extend into 3d coordinate space with ⊤
@@ -112,9 +81,40 @@
           cindices,¨16|⍵
       }
 
+    ∇ Create_block_texture(device ptr);surface_type;img;surface;full_w;full_h;w;h;tex_params;section
+      ⍝ Magic number for 8 8 8 8 A B G R texture
+      surface_type←376840196
+      img←##.IMG_Load⊂'assets/blocks.bmp'
+     
+      surface←##.SDL_ConvertSurface img surface_type
+      'Error loading chunk image'##.Assert img surface
+      ##.SDL_DestroySurface img
+      (full_w full_h _ _)←##.LSE_GetSurfaceParams surface 0 0 0 0
+      (w h)←5÷⍨(full_w full_h)
+     
+      tex_params←⊂1 ##.SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM 3 16 16 25 4 0 0
+      texture←##.SDL_CreateGPUTexture device tex_params
+      'Error creating chunk texture'##.Assert sampler texture
+      {
+          (x y)←(w h)×⍵
+          section←##.SDL_CreateSurface 16 16 surface_type
+          r1←##.SDL_UnlockSurface section
+          r2←##.SDL_BlitSurface surface(⊂x y 16 16)section(⊂0 0 16 16)
+          _←##.SDL_LockSurface section
+          (w h pitch _)←##.LSE_GetSurfaceParams section 0 0 0 0
+          size←h×pitch
+          addr←##.LSE_GetSurfaceDataAddress section
+          offset←size×(0⊃⍵)+5×(1⊃⍵)
+          _←##.SDL_memcpy(ptr+offset)(addr)size
+          _←##.SDL_DestroySurface section
+          'Error loading textures onto GPU'##.Assert r1 r2
+      }¨∘.,⍨⍳5
+     
+    ∇
+
     ∇ Init_chunks device;vb_params;tb_params;p;cmd;pass;tex_params;sam_params;img;surface;w;h;pitch;addr;size
       vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0
-      vb_pool←({⍵,##.SDL_CreateGPUBuffer device vb_params}⍣100)⍬
+      vb_pool←({⍵,##.SDL_CreateGPUBuffer device vb_params}⍣(⌊1.2×max_chunks))⍬
       'Error creating vertex buffer pool'##.Assert vb_pool
      
       tb_params←⊂##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(tb_size)0
@@ -132,30 +132,30 @@
       addr←##.LSE_GetSurfaceDataAddress surface
       size←pitch×h
      
-      sam_params←⊂0 0 0 2 2 2 0 0 0 0 100 0 0 0 0 0
-      tex_params←⊂0 ##.SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM 3 w h 1 4 0 0
+      sam_params←⊂0 0 0 2 2 2 0 0 0 0.0 100.0 0 0 0 0 0
+      tex_params←⊂1 ##.SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM 1 w h 25 1 0 0
      
       sampler←##.SDL_CreateGPUSampler device sam_params
-      texture←##.SDL_CreateGPUTexture device tex_params
-      ##.SDL_SetGPUTextureName device texture'Chunk texture'
-      'Error creating chunk texture and sampler'##.Assert sampler texture
-     
-      tex_params←⊂##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD
-     
       ⍝ Do copy pass just to copy index buffer over
       ⍝ Only need isize worth of indices by reasoning
       ⍝ Overhead should be minimal if this is done once
       p←##.SDL_MapGPUTransferBuffer device tb 0
       ##.LSE_MemcpyU32 p(indices)isize
-      ⍝ Have enough in it to also pack in textures?
-      ##.SDL_memcpy(p+isize)(addr)size
+      Create_block_texture device(p+isize)
+     
       ##.SDL_UnmapGPUTransferBuffer device tb
       cmd←##.SDL_AcquireGPUCommandBuffer device
       pass←##.SDL_BeginGPUCopyPass cmd
      
      
       ##.SDL_UploadToGPUBuffer pass(tb 0)(ib 0 isize)0
-      ##.SDL_UploadToGPUTexture pass(tb isize 0 0)(texture 0 0 0 0 0 w h 1)0
+      {
+          (x y)←⍵
+          offset←1024×x+y×5
+          _←##.SDL_UploadToGPUTexture pass(tb(isize+offset)0 0)(texture 0(x+5×y)0 0 0 16 16 1)0
+     
+      }¨∘.,⍨⍳5
+     
       ##.SDL_EndGPUCopyPass pass
       ##.SDL_GenerateMipmapsForGPUTexture cmd texture
       ##.SDL_SubmitGPUCommandBuffer cmd
@@ -176,13 +176,15 @@
       :Else
           vb←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX vsize 0)
           'Error creating vertex buffer'##.Assert vb
+     
+          ⎕←'Creating vb for',trans
       :EndIf
       chunk_info⍪←(x z)vb 0 0
       chunks⍪←blocks
       tb_queue,←⊂x z
     ∇
 
-    ∇ info←Copy_chunk(chunk tx tz ptr offset);tx;tz;flat;solid;edges;exposed;vert;tex;buf;vs;ic
+    ∇ info←Copy_chunk(chunk tx tz ptr offset);tx;tz;flat;solid;edges;exposed;m;vert;tex;buf;vs;ic
       ⍝ Collapse chunk @ x z and write it to ptr
       ⍝ Return vertex size in bytes and number of indices
       ⍝ IMPORTANT: Assumes that where data is being written to has enough space
@@ -190,14 +192,17 @@
       solid←chunk≠0
       edges←solid∧box
       exposed←↑[0]{edges∨solid>⍵}¨0 1 2∘.{⍵⌽[⍺]solid}¯1 1
-      vert←(tx 0 tz)(+⍤1)vertices⌿⍨4/∊exposed
+     
+      vert←vertices⌿⍨4/m←∊exposed
       tex←(⍳×/l)(×⍤¯1),[1+⍳2],[⍳3]exposed
-      tex←(⍳6)(+⍤1)6×flat[tex]
-      tex←,[⍳2]↑(∊exposed)/,textures[tex]
+      tex←∊(⍳6)(+⍤1)6×flat[tex]
+      tex←4/m/,textures[tex]
+      vert+←(3,⍨≢vert)⍴128×[0 0 0 ⋄ 0 0 1 ⋄ 1 0 1 ⋄ 1 0 0]
       buf←∊vert,tex
-      vs←4×≢buf
+      vs←≢buf
       ic←6×4÷⍨≢vert
-      ##.LSE_MemcpyF32(ptr+offset)buf vs      
+     
+      ##.LSE_MemcpyU8(ptr+offset)buf vs
       info←vs ic
     ∇
 
@@ -209,7 +214,7 @@
           (x z)←⊃1↑tb_queue
           idx←⊃⍸(⊂x z)Cl'xz'
           (tx tz)←(x z)×(⊂0 2)⌷l
-          (vs ic)←Copy_chunk (idx⌷chunks) tx tz p tb_pos
+          (vs ic)←Copy_chunk(idx⌷chunks)tx tz p tb_pos
      
           q,←⊂tb_pos vs ic idx
           tb_queue←1↓tb_queue
@@ -219,7 +224,7 @@
      
       :For (pos vs ic i) :In q
           vb←i Cgc'vb'
-          ##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)1
+          ##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0
           ((i,Ci'idx_cnt')⌷chunk_info)←ic
           ((i,Ci'ready')⌷chunk_info)←1
       :EndFor
@@ -235,7 +240,7 @@
       chunks←chunks⌿⍨m←~old∊⍨Cg'xz'
       vb_pool,←(~m)/Cg'vb'
       chunk_info←m⌿chunk_info
-
+     
       :For pair :In new
           blocks←l⍴0
           blocks[;0;]←1
@@ -245,25 +250,27 @@
           blocks[tx;1+⍳ty;tz]←4
           blocks[tx+¯2+⍳5;1 2+ty;tz+¯2+⍳5]←5
           blocks[tx+¯1+⍳3;3 4+ty;tz+¯1+⍳3]←5
+          blocks[?14;1;?14] ← 2
           Queue_chunk device blocks pair
       :EndFor
     ∇
 
-    ∇ Draw_chunks(device pass px pz lx lz);vec;dist;num;den;m;vbs;inds
+    ∇ Draw_chunks(cmd_buf pass px pz lx lz proj_view);vec;dist;num;den;m;vbs;inds;xz;ud
       vec←(⊂px pz)-⍨Cg'xz'
       dist←0.5*⍨+/¨vec*2
-      num ← (lx lz) (+.×⍤1) ↑vec
-      den ← dist × 0.5*⍨+/(lx lz)*2 
+      num←(lx lz)(+.×⍤1)↑vec
+      den←dist×0.5*⍨+/(lx lz)*2
       ⍝ Filter out zero-dist chunk and re-add
       m←(0≠den)∧Cg'ready'
       (m/m)←(○0.8)>¯2○(m⌿num)÷(m⌿den)
       m←(Cg'ready')∧(m∨0=den)
       vbs←m/Cg'vb'
       inds←m/Cg'idx_cnt'
-
+      ud←∊{(x z)←⍵ ⋄ proj_view+.×⍨(x 0 z 1)@3⊢∘.=⍨⍳4}¨16×m/Cg'xz'
       ##.SDL_BindGPUFragmentSamplers pass 0(⊂texture sampler)1
       ##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
-      ##.LSE_DrawList pass vbs inds(≢vbs)
+      ##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
+     
     ∇
 
 :EndNamespace
