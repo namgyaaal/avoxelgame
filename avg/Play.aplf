@@ -23,7 +23,8 @@
  world.Queue_chunk device blocks(0 0)
  world.Update_range device 0 0
 
- depth_texture←device Create_depth_texture 1280 720
+ depth_format←Get_depth_format device
+ depth_texture←(1280 720) Create_depth_texture device
  'Error creating depth texture'Assert depth_texture
 
 
@@ -33,7 +34,7 @@
 
  'Error loading shaders'Assert v_src f_src
 
- v_info←v_size v_src 0 shader_format SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 2 0
+ v_info←v_size v_src 0 shader_format SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
  f_info←f_size f_src 0 shader_format SDL_GPU_SHADERSTAGE_FRAGMENT 1 0 0 0 0
 
  entry_point←Get_entry_point ⍬
@@ -66,13 +67,12 @@
  blend_state←(6⍴blend_state),5⍴0
  ct_desc←⊂default_format blend_state
 
- LSE_PipelineSetTargetInfo ct_desc 1 SDL_GPU_TEXTUREFORMAT_D32_FLOAT 1
+ LSE_PipelineSetTargetInfo ct_desc 1 depth_format 1
  pipeline←LSE_PipelineCreate device
 
  'Error creating render pipeline'Assert pipeline
 
-
- proj←math.Proj(○75÷180)(1280÷720)0.1 500
+ proj←math.Proj (○75÷180⋄1280÷720⋄0.1⋄500)
  view←player.Get_view ⍬
  proj_view←view+.×proj
 
@@ -88,7 +88,7 @@
                  running←0
              :EndIf
          :EndIf
-         player.Input(1280 720)
+         player.Input 1280 720
      :EndWhile
 
      (px pz)←(⌊16÷⍨player.x player.z)

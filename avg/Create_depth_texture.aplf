@@ -1,14 +1,14 @@
- Create_depth_texture ← {
-    ⍝ ⍺ ←→ GPU Device
-    ⍝ ⍵ ←→ (Width, Height)
-    (w h) ← ⍵
-    device ← ⍺
-    formats ← (
-        SDL_GPU_TEXTUREFORMAT_D32_FLOAT
-        SDL_GPU_TEXTUREFORMAT_D24_UNORM
-        SDL_GPU_TEXTUREFORMAT_D16_UNORM
-    )
-    format ← ⊃formats/⍨∊{SDL_GPUTextureSupportsFormat device ⍵ 0 4}¨formats
-    params ←⊂ 0 format 4 w h 1 1 0 0
-    SDL_CreateGPUTexture device params
+ Create_depth_texture←{
+    ⍝ ⍺ ←→ (Width, Height)
+    ⍝ ⍵ ←→ GPU Device
+     (w h)←⍺
+     device←⍵
+     formats←(
+         SDL_GPU_TEXTUREFORMAT_D32_FLOAT
+         SDL_GPU_TEXTUREFORMAT_D24_UNORM
+         SDL_GPU_TEXTUREFORMAT_D16_UNORM
+     )
+     format←Get_depth_format device
+     params←⊂0 format 4 w h 1 1 0 0
+     SDL_CreateGPUTexture device params
  }

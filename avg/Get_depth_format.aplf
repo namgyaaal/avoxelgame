@@ -1,0 +1,10 @@
+ Get_depth_format ← {
+     ⍝ ⍺ ←→ GPU Device
+    device←⍵
+    formats←(
+        SDL_GPU_TEXTUREFORMAT_D32_FLOAT
+        SDL_GPU_TEXTUREFORMAT_D24_UNORM
+        SDL_GPU_TEXTUREFORMAT_D16_UNORM
+    )
+    ⊃formats/⍨∊{SDL_GPUTextureSupportsFormat device ⍵ 0 4}¨formats
+ }
