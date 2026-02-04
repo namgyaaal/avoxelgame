@@ -23,7 +23,7 @@
 
     vb_sizes ← ⌈0 0.4 0.7 1.0 × vsize
     vb_pools ← ⍬ ⍬ ⍬
-    vb_start_lens ← ⌊1.0 0.4 0.4×max_chunks
+    vb_start_lens ← ⌊1.0 0.6 0.2×max_chunks
 
     ib ← 0
     tb ← 0
@@ -66,11 +66,13 @@
         ⍝ Stone
     1 1 1 1 1 1
         ⍝ Wood
-    5 5 5 5 5 5
+    4 4 4 4 4 4
         ⍝ Log
     9 9 9 9 9 9
         ⍝ Leaf
     10 10 10 10 10 10
+        ⍝ Brick
+    5 5 5 5 5 5
     )
     ⍝ From ⍳-vertex count in shape of l:
     ⍝ - Extend into 3d coordinate space with ⊤
@@ -82,9 +84,22 @@
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
       Transform_points←{
+          ⍝ ⍵ ←→ list of integers 3d space
+          ⍝ returns them in terms of indices into chunk matrix
           coords←⌊l[0]÷⍨(⊂0 2)∘⌷¨⍵
           cindices←coords⍳⍨Cg'xz'
           cindices,¨16|⍵
+      }
+
+      Fetch_buffer←{
+          ⍝ ⍺ ←→ GPU Device
+          ⍝ ⍵ ←→ Pool Index
+          ⍝ Note: either return it back to the vector or destroy it
+          ⍝ Memory leak otherwise
+          0<≢⍵⊃vb_pools:{o←⊃⍵⊃vb_pools ⋄ (⍵⊃vb_pools)↓⍨←1⋄o}⍵
+          vb←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓vb_sizes)0)
+          0=vb: 'Error creating vertex buffer'##.Assert vb
+          vb
       }
 
     ∇ info←Create_block_texture(device ptr);size;surface_type;img;surface;full_w;full_h;w;h;tex_params;section
@@ -123,10 +138,10 @@
 
     ∇ Init_chunks device;vb_params;tb_params;p;cmd;pass;sam_params;w;h;pitch;addr;size
       vb_pools←{
-          (cnt size) ← ⍵
+          (cnt size)←⍵
           vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX size 0
           ({⍵,##.SDL_CreateGPUBuffer device vb_params}⍣cnt)⍬
-      }¨↓⍉[vb_start_lens⋄1↓vb_sizes]
+      }¨↓⍉[vb_start_lens ⋄ 1↓vb_sizes]
      
       tb_params←⊂##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(tb_size)0
       tb←##.SDL_CreateGPUTransferBuffer device tb_params
@@ -183,7 +198,6 @@
       flat←∊chunk
       solid←chunk≠0
       edges←solid∧box
-     
       ⍝ Returns format (16 32 16 3 2) where (3 2) are rotations
       exposed←↑[0]{edges∨solid>⍵}¨0 1 2∘.{⍵⌽[⍺]solid}¯1 1
      
@@ -205,33 +219,23 @@
       info←vs ic
     ∇
 
-    foobar←0
-
-    ∇ Copy_chunks(device pass);idx;q;x;z;tx;tz;m;is;tex;buf;vs;ic;p;pos;i;vb;vb;vi
+    ∇ Copy_chunks(device pass);idx;q;x;z;tx;tz;m;is;tex;buf;vs;ic;p;pos;i;vb;vi
       tb_pos←0
-
+     
       q←⍬
       p←##.SDL_MapGPUTransferBuffer device tb 1
       :While (tb_size>tb_pos+vsize)∧(0≠≢tb_queue)
           (x z)←⊃1↑tb_queue
           idx←⊃⍸(⊂x z)Cl'xz'
-          (tx tz)←(x z)×(⊂0 2)⌷l
-          (vs ic)←Copy_chunk(idx⌷chunks)tx tz p tb_pos
-
+          (vs ic)←Copy_chunk(idx⌷chunks) (x×⊃l) (z×⊃l) p tb_pos
+     
           vi←vb_sizes⍸vs
-          :If 0<≢vi⊃vb_pools
-            ((idx,Ci'vb')⌷chunk_info)←⊃vi⊃vb_pools
-            ((idx,Ci'vb_kind')⌷chunk_info)←vi
-            (vi⊃vb_pools)←1↓(vi⊃vb_pools)
-          :Else
-            vb←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX (vi⊃1↓vb_sizes) 0)
-            'Error creating vertex buffer'##.Assert vb
-            ((idx,Ci'vb')⌷chunk_info)←vb
-            ((idx,Ci'vb_kind')⌷chunk_info)←vi
-          :Endif
-
+          vb←device Fetch_buffer vi
+          ((idx,Ci'vb')⌷chunk_info)←vb
+          ((idx,Ci'vb_kind')⌷chunk_info)←vi
+          
           q,←⊂tb_pos vs ic idx
-          tb_queue←1↓tb_queue
+          tb_queue↓⍨←1
           tb_pos+←vs
       :EndWhile
       ##.SDL_UnmapGPUTransferBuffer device tb
@@ -244,58 +248,54 @@
       :EndFor
     ∇
 
-    ∇ Update_range(device x z);range;dist;new;old;m;pair;tx;tz;ty;vbts;vbs
+    ∇ Update_range(device x z);range;dist;new;old;m;pair;tx;tz;ty
       range←,∘.,⍨((-view_distance)+⍳1+2×view_distance)
-      range←(⊂x z)+range/⍨∊view_distance≥0.5*⍨+/¨range*2
+      range←(⊂⌊16÷⍨x z)+range/⍨∊view_distance≥0.5*⍨+/¨range*2
      
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
      
-      chunks←chunks⌿⍨m←~old∊⍨Cg'xz'
-      vbts ← (~m)/Cg'vb_kind' ⋄ vbs ← (~m)/Cg'vb'
-      {(vi vbs)←⍵⋄(vi⊃vb_pools),←vbs}¨vbts{⊂⍺ ⍵}⌸vbs
-
-      chunk_info←m⌿chunk_info
+      chunks⌿⍨←m←~old∊⍨Cg'xz'
+      ⍝ reallocate back to respective pools.
+      'vb_kind'{(⍺⊃vb_pools),←⍵}⌸⍥{⍵/⍨~m}⍥Cg'vb'
+      chunk_info⌿⍨←m
      
       :For pair :In new
           blocks←l⍴0
-          blocks[;0;]←1
-          ⍝ Tree :)
-          tx tz←4+?10 10
-          ty←3+?3
-          blocks[tx;1+⍳ty;tz]←4
-          blocks[tx+¯2+⍳5;1 2+ty;tz+¯2+⍳5]←5
-          blocks[tx+¯1+⍳3;3 4+ty;tz+¯1+⍳3]←5
-          blocks[?14;1;?14]←2
-
           ⍝ Testing different vb_pool
-          :If 0.9<?0
-              blocks ← (⍴blocks)⍴1 0 1 0 1 0
+          :If 0.95<?0
+              {w←⍵+⍳16-2×⍵ ⋄ blocks[w;3+⍵;w]←6 ⋄ ⍵+1}⍣8⊢0
+          :Else
+              blocks[;(0 1);]←2
+              blocks[;2;]←1
+              ⍝ Tree :)
+              tx tz←4+?10 10
+              ty←3+?3
+              blocks[tx;3+⍳ty;tz]←4
+              blocks[tx+¯2+⍳5;3 4+ty;tz+¯2+⍳5]←5
+              blocks[tx+¯1+⍳3;5 6+ty;tz+¯1+⍳3]←5
           :EndIf
-
+     
           Queue_chunk device blocks pair
       :EndFor
     ∇
 
-    ∇ Draw_chunks(cmd_buf pass px pz lx lz proj_view);vec;dist;num;den;m;vbs;inds;xz;ud
-
-      
-      vec←(⊂px pz)-⍨Cg'xz'
-      dist←0.5*⍨+/¨vec*2
+    ∇ Draw_chunks(cmd_buf pass px pz lx lz proj_view);w;vec;dist;num;den;m;vbs;inds;xz;ud
+      ⍝ arccos(theta) corners of chunk from player-origin against look-at vector
+      ⍝     for chunk culling
+      vec←[0 0 ⋄ w 0 ⋄ 0 w ⋄ w w](+⍤2)4/[1],[0.5]↑(⊂px pz)-⍨(w←⊃l)×Cg'xz'
+      dist←0.5*⍨+/[2]vec*2
       num←(lx lz)(+.×⍤1)↑vec
       den←dist×0.5*⍨+/(lx lz)*2
-      ⍝ Filter out zero-dist chunk and re-add
-      m←(0≠den)∧Cg'ready'
-      (m/m)←(○0.8)>¯2○(m⌿num)÷(m⌿den)
-      m←(Cg'ready')∧(m∨0=den)
+      m←(Cg'ready')∧∨/(○0.4)>¯2○num÷den
+     
       vbs←m/Cg'vb'
       inds←m/Cg'idx_cnt'
       ⍝ Translation matrix for each chunk and rank-multiply to get MVP
-      ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵⋄,[¯0.5](x 0 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
+      ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
       ##.SDL_BindGPUFragmentSamplers pass 0(⊂texture sampler)1
       ##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       ##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
-     
     ∇
 
 :EndNamespace

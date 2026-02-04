@@ -19,12 +19,12 @@
  world.Init_chunks device
 
  blocks←world.l⍴0
- blocks[;1;]←1
+ blocks[;3;]←1
  world.Queue_chunk device blocks(0 0)
  world.Update_range device 0 0
 
  depth_format←Get_depth_format device
- depth_texture←(1280 720) Create_depth_texture device
+ depth_texture←(1280 720)Create_depth_texture device
  'Error creating depth texture'Assert depth_texture
 
 
@@ -72,7 +72,7 @@
 
  'Error creating render pipeline'Assert pipeline
 
- proj←math.Proj (○75÷180⋄1280÷720⋄0.1⋄500)
+ proj←math.Proj(○75÷180 ⋄ 1280÷720 ⋄ 0.1 ⋄ 500)
  view←player.Get_view ⍬
  proj_view←view+.×proj
 
@@ -90,10 +90,8 @@
          :EndIf
          player.Input 1280 720
      :EndWhile
-
-     (px pz)←(⌊16÷⍨player.x player.z)
      (lx _ lz)←player.Get_look_vec ⍬
-     world.Update_range device px pz
+     world.Update_range device player.x player.z
 
      new_time←⊃SDL_GetTicks ⍬
      dt←1000÷⍨time-⍨⊃SDL_GetTicks ⍬
@@ -118,7 +116,7 @@
 
      pass←SDL_BeginGPURenderPass cmd_buf color_info 1 depth_info
      SDL_BindGPUGraphicsPipeline pass pipeline
-     world.Draw_chunks cmd_buf pass px pz lx lz proj_view
+     world.Draw_chunks cmd_buf pass player.x player.z lx lz proj_view
 
      SDL_EndGPURenderPass pass
      SDL_SubmitGPUCommandBuffer cmd_buf
