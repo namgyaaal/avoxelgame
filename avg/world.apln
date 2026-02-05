@@ -96,9 +96,9 @@
           ⍝ ⍵ ←→ Pool Index
           ⍝ Note: either return it back to the vector or destroy it
           ⍝ Memory leak otherwise
-          0<≢⍵⊃vb_pools:{o←⊃⍵⊃vb_pools ⋄ (⍵⊃vb_pools)↓⍨←1⋄o}⍵
+          0<≢⍵⊃vb_pools:{o←⊃⍵⊃vb_pools ⋄ (⍵⊃vb_pools)↓⍨←1 ⋄ o}⍵
           vb←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓vb_sizes)0)
-          0=vb: 'Error creating vertex buffer'##.Assert vb
+          0=vb:'Error creating vertex buffer'##.Assert vb
           vb
       }
 
@@ -148,7 +148,7 @@
       'Error creating chunk transfer buffer'##.Assert tb
       ib←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_INDEX isize 0)
      
-      sam_params←⊂0 0 0 2 2 2 0 0 0 0 100 0 0 0 0 0
+      sam_params←⊂0 0 0 2 2 2 0 4.0 0 0.0 200.0 1 0 0 0 0
       sampler←##.SDL_CreateGPUSampler device sam_params
       'Error creating chunk sampler'##.Assert sampler
       ⍝ Do copy pass just to copy index buffer over
@@ -198,20 +198,19 @@
       flat←∊chunk
       solid←chunk≠0
       edges←solid∧box
-      ⍝ Returns format (16 32 16 3 2) where (3 2) are rotations
-      exposed←↑[0]{edges∨solid>⍵}¨0 1 2∘.{⍵⌽[⍺]solid}¯1 1
-     
-      vert←vertices⌿⍨4/m←∊exposed
-      ⍝ collapse into (vertex_num 6) multiply by index where not 0
-      tex←(⍳×/l)(×⍤¯1),[1+⍳2],[⍳3]exposed
-      ⍝ index into box and 6wise multiply+⍳add for texture index
-      tex←∊(⍳6)(+⍤1)6×flat[tex]
-      ⍝ index into texture and select exposed faces, duplicate 4 for faces
-      tex←4/m/,textures[tex]
-      ⍝ do some bitpacking here. Since we know x z ∊ [0, 16], they only take 5 bits
-      ⍝ use the leading bit for uv coordinate into 4 corners (hence adding 128)
-      ⍝ with this we only need 4 bytes for a vertex
-      vert+←(3,⍨≢vert)⍴128×[0 0 0 ⋄ 0 0 1 ⋄ 1 0 1 ⋄ 1 0 0]
+      ⍝ (1) Returns format (16 32 16 3 2) where (3 2) are rotations
+      ⍝ (2) collapse into (vertex_num 6) multiply by index where not 0
+      ⍝ (3) index into box and 6wise multiply+⍳add for texture index
+      ⍝ (4) index into texture and select exposed faces, duplicate 4 for faces
+      ⍝ (5) do some bitpacking here. Since we know x z ∊ [0, 16], they only take 5 bits
+      ⍝     use the leading bit for uv coordinate into 4 corners (hence adding 128)
+      ⍝     with this we only need 4 bytes for a vertex
+      exposed←↑[0]{edges∨solid>⍵}¨0 1 2∘.{⍵⌽[⍺]solid}¯1 1  ⍝ (1)
+      vert←vertices⌿⍨4/m←∊exposed                         
+      tex←(⍳×/l)(×⍤¯1),[1+⍳2],[⍳3]exposed                  ⍝ (2)
+      tex←∊(⍳6)(+⍤1)6×flat[tex]                            ⍝ (3)
+      tex←4/m/,textures[tex]                               ⍝ (4)
+      vert+←(3,⍨≢vert)⍴128×[0 0 0 ⋄ 0 0 1 ⋄ 1 0 1 ⋄ 1 0 0] ⍝ (5)
       buf←∊vert,tex
       vs←≢buf
       ic←6×4÷⍨≢vert
@@ -227,13 +226,13 @@
       :While (tb_size>tb_pos+vsize)∧(0≠≢tb_queue)
           (x z)←⊃1↑tb_queue
           idx←⊃⍸(⊂x z)Cl'xz'
-          (vs ic)←Copy_chunk(idx⌷chunks) (x×⊃l) (z×⊃l) p tb_pos
+          (vs ic)←Copy_chunk(idx⌷chunks)(x×⊃l)(z×⊃l)p tb_pos
      
           vi←vb_sizes⍸vs
           vb←device Fetch_buffer vi
           ((idx,Ci'vb')⌷chunk_info)←vb
           ((idx,Ci'vb_kind')⌷chunk_info)←vi
-          
+     
           q,←⊂tb_pos vs ic idx
           tb_queue↓⍨←1
           tb_pos+←vs
@@ -281,17 +280,21 @@
     ∇
 
     ∇ Draw_chunks(cmd_buf pass px pz lx lz proj_view);w;vec;dist;num;den;m;vbs;inds;xz;ud
-      ⍝ arccos(theta) corners of chunk from player-origin against look-at vector
+      ⍝ theta←arccos(num÷den) corners of chunk from player-origin against look-at vector
       ⍝     for chunk culling
-      vec←[0 0 ⋄ w 0 ⋄ 0 w ⋄ w w](+⍤2)4/[1],[0.5]↑(⊂px pz)-⍨(w←⊃l)×Cg'xz'
+      ⍝ view consists of a near and far plane clipping (projection matrices) w/o origin
+      ⍝     because of this, we translate the player position by lookat vector back a bit
+      ⍝     hence, 'px pz-lx lz×w×0.25'
+      ⍝     1/4th of a chunk is arbitrary.
+      vec←[0 0 ⋄ w 0 ⋄ 0 w ⋄ w w](+⍤2)4/[1],[0.5]↑(⊂px pz-lx lz×w×0.25)-⍨(w←⊃l)×Cg'xz'
       dist←0.5*⍨+/[2]vec*2
       num←(lx lz)(+.×⍤1)↑vec
-      den←dist×0.5*⍨+/(lx lz)*2
-      m←(Cg'ready')∧∨/(○0.4)>¯2○num÷den
+      den←dist×0.5*⍨+/(lx lz)*2 
+      m←(Cg'ready')∧∨/(○70÷180)>¯2○num(⎕DIV:1).÷den ⍝ Chance that distance could be 0
      
       vbs←m/Cg'vb'
       inds←m/Cg'idx_cnt'
-      ⍝ Translation matrix for each chunk and rank-multiply to get MVP
+      ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
       ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
       ##.SDL_BindGPUFragmentSamplers pass 0(⊂texture sampler)1
       ##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT

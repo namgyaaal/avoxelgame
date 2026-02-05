@@ -72,7 +72,7 @@
 
  'Error creating render pipeline'Assert pipeline
 
- proj←math.Proj(○75÷180 ⋄ 1280÷720 ⋄ 0.1 ⋄ 500)
+ proj←math.Proj(○70÷180 ⋄ 1280÷720 ⋄ 0.1 ⋄ 500)
  view←player.Get_view ⍬
  proj_view←view+.×proj
 
