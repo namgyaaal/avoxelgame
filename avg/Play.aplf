@@ -110,15 +110,16 @@
      :EndIf
      (res swap_texture _ _)←SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
      'Error acquiring swapchain texture'Assert res
+     :If 0≠swap_texture
+         color_info←⊂swap_texture 0 0(0.1 0.2 0.3 1)1 0 0 0 0 0 0 0 0
+         depth_info←⊂depth_texture 1 1 1 0 0 0 0 0 0
 
-     color_info←⊂swap_texture 0 0(0.1 0.2 0.3 1)1 0 0 0 0 0 0 0 0
-     depth_info←⊂depth_texture 1 1 1 0 0 0 0 0 0
+         pass←SDL_BeginGPURenderPass cmd_buf color_info 1 depth_info
+         SDL_BindGPUGraphicsPipeline pass pipeline
+         world.Draw_chunks cmd_buf pass player.x player.z lx lz proj_view
 
-     pass←SDL_BeginGPURenderPass cmd_buf color_info 1 depth_info
-     SDL_BindGPUGraphicsPipeline pass pipeline
-     world.Draw_chunks cmd_buf pass player.x player.z lx lz proj_view
-
-     SDL_EndGPURenderPass pass
+         SDL_EndGPURenderPass pass
+     :EndIf
      SDL_SubmitGPUCommandBuffer cmd_buf
  :EndWhile
  world.Delete device
@@ -127,7 +128,7 @@
  SDL_ReleaseGPUShader device f_shader
 
  SDL_ReleaseGPUGraphicsPipeline device pipeline
-
+ SDL_ReleaseWindowFromGPUDevice device window
  SDL_DestroyGPUDevice device
  SDL_DestroyWindow window
 

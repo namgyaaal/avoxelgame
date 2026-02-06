@@ -19,18 +19,25 @@
           ⍝ ⍵ ←→ velocity where only one field is set, rest are 0
           ⍝ Returns vector (collision (velocity))
           min←(x y z)-(half 0 half) ⋄ max←(x y z)+(half height half)
-          old←↑min max
-          new←⍵(+⍤1)old
+          old←[min⋄max]
+
+          ⍝ If ⍵>1 there is a chance that it will go through a block
+          ⍝     to solve this: set v to s (sign) and recurse with ⍵-s
+          ⍝     at (1) if it didn't hit anything until the end.
+          ⍝ (there are probably better ways to sweep, but this works,
+          ⍝     maybe look into this if become an issue: 
+          ⍝     "continuous collision detection using swept AABB method and Minkowski sum")
+          new←old(+⍤1)v←(s←×+/⍵)×1⌊|⍵
           Touch←{(⌊0⌷⍵)(+⍤1)↑,⍳(⌈1⌷⍵)-(⌊0⌷⍵)}
           m←{0≠⍵⌷##.world.chunks}¨##.world.Transform_points blks←new~⍥↓⍥Touch old
-          ~1∊m:0,⍵
+          (1<+/⍵)∧(~1∊m):∇⍵-s ⍝ (1)
+          (~1∊m):0,⍵
           ⍝ Arbitrary block it intersects (can be any block!)
           blk←⊖↑(⊂1 1 1)∘+⍛, 0⌷blks
           cut←new((⌊⍥(1⌷⊢))-(⌈⍥(0⌷⊢))) blk
-          s←×+/⍵
           ⍝ Modify vector by intersection distance into the block
-          d←∊-s×cut/⍨0≠⍵
-          (1×s), {d+⍵}@(0≠⊢)⊢⍵
+          d←∊-s×cut/⍨0≠v
+          (1×s), (⍵≠0)×d+v
       }
 
       Bound_check←{

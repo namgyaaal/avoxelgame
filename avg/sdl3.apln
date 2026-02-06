@@ -47,6 +47,7 @@
     'SDL_CreateGPUDevice' ptr (u32 bool cstr)
     'SDL_DestroyGPUDevice' ⍬ ptr
     'SDL_ClaimWindowForGPUDevice' bool (ptr ptr)
+    'SDL_ReleaseWindowFromGPUDevice' ⍬ (ptr ptr)
     'SDL_WaitForGPUIdle' bool ptr
         ⍝ Command Buffer
     'SDL_AcquireGPUCommandBuffer' ptr ptr
