@@ -13,43 +13,75 @@
     jump_power ← 6
 
     (e_w e_a e_s e_d) ← 0 0 0 0
+    (e_place e_break) ← 0 0
     (e_mx e_my) ← 0 0
 
       Axis_check←{
           ⍝ ⍵ ←→ velocity where only one field is set, rest are 0
-          ⍝ Returns vector (collision (velocity))
+          ⍝ Returns vector (collision, velocity)
           min←(x y z)-(half 0 half) ⋄ max←(x y z)+(half height half)
-          old←[min⋄max]
-
+          old←[min ⋄ max]
+     
           ⍝ If ⍵>1 there is a chance that it will go through a block
           ⍝     to solve this: set v to s (sign) and recurse with ⍵-s
           ⍝     at (1) if it didn't hit anything until the end.
           ⍝ (there are probably better ways to sweep, but this works,
-          ⍝     maybe look into this if become an issue: 
+          ⍝     maybe look into this if become an issue:
           ⍝     "continuous collision detection using swept AABB method and Minkowski sum")
           new←old(+⍤1)v←(s←×+/⍵)×1⌊|⍵
           Touch←{(⌊0⌷⍵)(+⍤1)↑,⍳(⌈1⌷⍵)-(⌊0⌷⍵)}
           m←{0≠⍵⌷##.world.chunks}¨##.world.Transform_points blks←new~⍥↓⍥Touch old
-          (1<+/⍵)∧(~1∊m):∇⍵-s ⍝ (1)
+          (1<+/⍵)∧(~1∊m):∇ ⍵-s ⍝ (1)
           (~1∊m):0,⍵
           ⍝ Arbitrary block it intersects (can be any block!)
-          blk←⊖↑(⊂1 1 1)∘+⍛, 0⌷blks
-          cut←new((⌊⍥(1⌷⊢))-(⌈⍥(0⌷⊢))) blk
+          blk←⊖↑(⊂1 1 1)∘+⍛,0⌷blks
+          cut←new((⌊⍥(1⌷⊢))-(⌈⍥(0⌷⊢)))blk
           ⍝ Modify vector by intersection distance into the block
           d←∊-s×cut/⍨0≠v
-          (1×s), (⍵≠0)×d+v
+          s,(⍵≠0)×d+v+(⎕CT×-s)
       }
 
       Bound_check←{
         ⍝ ⍵ ←→ velocity
           v←⍵ ⋄ m←0⍴⍨,⍨≢v ⋄ (0 0⍉m)←v
-          axis ← Axis_check¨↓m
+          axis←Axis_check¨↓m
           (x y z)+←1↓⊃+⌿axis
           col_dirs⊢←0⌷⍉↑axis
       }
 
+      Break←{
+          ⍝ ⍵ ←→ view vector
+          (x y z)←⍵
+          0=e_break:
+          p←(x y z)##.Ray_hit 5×Get_look_vec ⍬
+          m←{0≠⍵⌷##.world.chunks}¨##.world.Transform_points p
+          blks←m/##.world.Transform_points p
+          0=≢blks:
+          blks←⊃blks
+          (blks⌷##.world.chunks)←0
+          ##.world.tb_queue,←⊂⌊16÷⍨(⊂0 2)⌷⊃m/p
+      }
 
-    ∇ Input(w h)
+      Place←{
+        ⍝ ⍵ ←→ view vector
+        ⍝ ⍺ ←→ block type
+          ⍺←1
+          (x y z)←⍵
+          0=e_place:
+          p←(x y z)##.Ray_hit 5×Get_look_vec ⍬
+          m←{0≠⍵⌷##.world.chunks}¨##.world.Transform_points p
+          0=∨/m:
+          blks←##.world.Transform_points p
+          i←0⌈¯1+m⍳1
+     
+          blk←i⊃blks
+          (blk⌷##.world.chunks)←3
+   
+          ##.world.tb_queue,←⊂⌊16÷⍨(⊂0 2)⌷i⊃p
+      }
+
+
+    ∇ Input(w h);button
       :If ##.LSE_CheckEvent ##.SDL_EVENT_KEY_DOWN
           :Select ⊃##.LSE_GetKeyPressed ⍬
           :Case ##.SDLK_W
@@ -62,7 +94,7 @@
               e_d←1
           :Case ##.SDLK_SPACE
               :If ¯1=1⊃col_dirs
-                vy←jump_power
+                  vy←jump_power
               :EndIf
           :EndSelect
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_KEY_UP
@@ -78,10 +110,18 @@
           :EndSelect
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_MOUSE_MOTION
           (e_mx e_my)←##.LSE_GetMouseMoveRel 0 0
+      :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_MOUSE_BUTTON_DOWN
+          button←##.LSE_GetButton
+     
+          :If button=1
+              e_break←1
+          :ElseIf button=3
+              e_place←1
+          :EndIf
       :EndIf
     ∇
 
-    ∇ Update dt;v;look;forward;sideways
+    ∇ Update dt;v;look;forward;sideways;blks
       (yaw pitch)-←dt×(e_mx e_my)
       pitch←1.59((-1.59)⌈⌊)pitch
       (e_mx e_my)←0 0
@@ -95,6 +135,11 @@
       (1⊃v)←0
       v+←dt×(0 vy 0)
       Bound_check v
+     
+      Break(0 cam_offset 0)+(x y z)
+      Place(0 cam_offset 0)+(x y z)
+     
+      (e_place e_break)←0 0
     ∇
 
       Get_look_vec←{

@@ -148,7 +148,7 @@
       'Error creating chunk transfer buffer'##.Assert tb
       ib←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_INDEX isize 0)
      
-      sam_params←⊂0 0 0 2 2 2 0 4.0 0 0.0 200.0 1 0 0 0 0
+      sam_params←⊂0 0 0 2 2 2 0 4 0 0 200 1 0 0 0 0
       sampler←##.SDL_CreateGPUSampler device sam_params
       'Error creating chunk sampler'##.Assert sampler
       ⍝ Do copy pass just to copy index buffer over
@@ -206,7 +206,7 @@
       ⍝     use the leading bit for uv coordinate into 4 corners (hence adding 128)
       ⍝     with this we only need 4 bytes for a vertex
       exposed←↑[0]{edges∨solid>⍵}¨0 1 2∘.{⍵⌽[⍺]solid}¯1 1  ⍝ (1)
-      vert←vertices⌿⍨4/m←∊exposed                         
+      vert←vertices⌿⍨4/m←∊exposed
       tex←(⍳×/l)(×⍤¯1),[1+⍳2],[⍳3]exposed                  ⍝ (2)
       tex←∊(⍳6)(+⍤1)6×flat[tex]                            ⍝ (3)
       tex←4/m/,textures[tex]                               ⍝ (4)
@@ -218,7 +218,7 @@
       info←vs ic
     ∇
 
-    ∇ Copy_chunks(device pass);idx;q;x;z;tx;tz;m;is;tex;buf;vs;ic;p;pos;i;vb;vi
+    ∇ Copy_chunks(device pass);idx;q;x;z;tx;tz;m;is;tex;buf;vs;ic;p;pos;i;vb;vi;vk
       tb_pos←0
      
       q←⍬
@@ -228,6 +228,10 @@
           idx←⊃⍸(⊂x z)Cl'xz'
           (vs ic)←Copy_chunk(idx⌷chunks)(x×⊃l)(z×⊃l)p tb_pos
      
+          :If 0≠vb←idx Cgc'vb' ⍝ Chunk being updated
+            vk←idx Cgc 'vb_kind'
+            (vk⊃vb_pools),←vb
+          :Endif
           vi←vb_sizes⍸vs
           vb←device Fetch_buffer vi
           ((idx,Ci'vb')⌷chunk_info)←vb
@@ -289,7 +293,7 @@
       vec←[0 0 ⋄ w 0 ⋄ 0 w ⋄ w w](+⍤2)4/[1],[0.5]↑(⊂px pz-lx lz×w×0.25)-⍨(w←⊃l)×Cg'xz'
       dist←0.5*⍨+/[2]vec*2
       num←(lx lz)(+.×⍤1)↑vec
-      den←dist×0.5*⍨+/(lx lz)*2 
+      den←dist×0.5*⍨+/(lx lz)*2
       m←(Cg'ready')∧∨/(○70÷180)>¯2○num(⎕DIV:1).÷den ⍝ Chance that distance could be 0
      
       vbs←m/Cg'vb'

@@ -33,6 +33,7 @@
     'LSE_GetKeyPressed' u32 ⍬
     'LSE_GetMouseMove' ⍬ ('>'i32 '>'i32)
     'LSE_GetMouseMoveRel' ⍬ ('>'i32 '>'i32)
+    'LSE_GetButton' u8 ⍬
         ⍝ General Graphics
     'LSE_CreateGPUShader' ptr (ptr '<'GPUShaderCreateInfo cstr)
         ⍝ Pipeline Handling

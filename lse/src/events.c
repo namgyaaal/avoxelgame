@@ -24,3 +24,5 @@ void LSE_GetMouseMoveRel(int32_t* xrel, int32_t* yrel) {
     *xrel = global_event.motion.xrel;
     *yrel = global_event.motion.yrel;
 }
+
+uint8_t LSE_GetButton() { return global_event.button.button; }
