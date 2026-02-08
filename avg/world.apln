@@ -85,7 +85,9 @@
 
       Transform_points←{
           ⍝ ⍵ ←→ list of integers 3d space
-          ⍝ returns them in terms of indices into chunk matrix
+          ⍝ ⍺ ←→ filter out invalid ones (default false) (TODO)
+          ⍝ returns them in terms of locations into 4d chunk matrix
+          ⍺ ← 0
           coords←⌊l[0]÷⍨(⊂0 2)∘⌷¨⍵
           cindices←coords⍳⍨Cg'xz'
           cindices,¨16|⍵
@@ -191,7 +193,7 @@
       tb_queue,←⊂x z
     ∇
 
-    ∇ info←Copy_chunk(chunk tx tz ptr offset);tx;tz;flat;solid;edges;exposed;m;vert;tex;buf;vs;ic
+    ∇ info←Copy_chunk(chunk ptr offset);flat;solid;edges;exposed;m;vert;tex;buf;vs;ic
       ⍝ Collapse chunk @ x z and write it to ptr
       ⍝ Return vertex size in bytes and number of indices
       ⍝ IMPORTANT: Assumes that where data is being written to has enough space
@@ -218,37 +220,38 @@
       info←vs ic
     ∇
 
-    ∇ Copy_chunks(device pass);idx;q;x;z;tx;tz;m;is;tex;buf;vs;ic;p;pos;i;vb;vi;vk
+    ∇ Copy_chunks(device pass);m;p;vb;vi;vk;idxs;copied_info;dirty_m;vbs
       tb_pos←0
-     
-      q←⍬
+      ⍝ Copy into transfer buffer until full or queue is empty
       p←##.SDL_MapGPUTransferBuffer device tb 1
-      :While (tb_size>tb_pos+vsize)∧(0≠≢tb_queue)
-          (x z)←⊃1↑tb_queue
-          idx←⊃⍸(⊂x z)Cl'xz'
-          (vs ic)←Copy_chunk(idx⌷chunks)(x×⊃l)(z×⊃l)p tb_pos
-     
-          :If 0≠vb←idx Cgc'vb' ⍝ Chunk being updated
-            vk←idx Cgc 'vb_kind'
-            (vk⊃vb_pools),←vb
-          :Endif
-          vi←vb_sizes⍸vs
-          vb←device Fetch_buffer vi
-          ((idx,Ci'vb')⌷chunk_info)←vb
-          ((idx,Ci'vb_kind')⌷chunk_info)←vi
-     
-          q,←⊂tb_pos vs ic idx
-          tb_queue↓⍨←1
-          tb_pos+←vs
-      :EndWhile
+      idxs←tb_queue⍳⍨Cg'xz'
+      ⍝ Copied info in total will be:
+      ⍝.   (position into transfer buffer, vertex size, index count, vertex kind, vertex buffer)
+      copied_info ← {
+          (vs ic)←Copy_chunk(chunks⌷⍨idxs⊃⍨≢⍵⋄p⋄tb_pos)
+          pos←tb_pos⋄tb_pos+←vs
+          ⍵⍪(pos vs ic)
+      }⍣{(tb_size≤tb_pos+vsize)∨⍺≥⍥≢idxs} ⊢ 0 3⍴0
       ##.SDL_UnmapGPUTransferBuffer device tb
-     
-      :For (pos vs ic i) :In q
-          vb←i Cgc'vb'
-          ##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0
-          ((i,Ci'idx_cnt')⌷chunk_info)←ic
-          ((i,Ci'ready')⌷chunk_info)←1
-      :EndFor
+
+      ⍝ Add vertex kinds (vb pool index)
+      copied_info,← vb_sizes∘⍸¨1⌷⍉copied_info
+
+      idxs↑⍨←≢copied_info
+      tb_queue↓⍨←≢copied_info
+
+      m←idxs∊⍨⍳≢chunk_info
+      dirty_m ← m∧0≠Cg'vb'
+      'vb_kind'{(⍺⊃vb_pools),←⍵}⌸⍥{⍵/⍨dirty_m}⍥Cg'vb'
+      vbs ← device∘Fetch_buffer¨3⌷⍉copied_info
+      copied_info,←vbs
+
+      ⍝ GPU Upload and set loaded chunks as ready with render info
+      {(pos vs _ _ vb)←⍵⋄##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0}¨↓copied_info
+      (m/(Ci'idx_cnt')⌷⍉chunk_info)←2⌷⍉copied_info
+      (m/(Ci'vb')⌷⍉chunk_info)←vbs
+      (m/(Ci'vb_kind')⌷⍉chunk_info)←3⌷⍉copied_info
+      (m/(Ci'ready')⌷⍉chunk_info)←1
     ∇
 
     ∇ Update_range(device x z);range;dist;new;old;m;pair;tx;tz;ty

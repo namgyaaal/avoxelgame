@@ -76,7 +76,7 @@
      
           blk←i⊃blks
           (blk⌷##.world.chunks)←3
-   
+     
           ##.world.tb_queue,←⊂⌊16÷⍨(⊂0 2)⌷i⊃p
       }
 
