@@ -49,9 +49,13 @@
     'SDL_ClaimWindowForGPUDevice' bool (ptr ptr)
     'SDL_ReleaseWindowFromGPUDevice' ⍬ (ptr ptr)
     'SDL_WaitForGPUIdle' bool ptr
-        ⍝ Command Buffer
+        ⍝ Command Buffer & Fence
     'SDL_AcquireGPUCommandBuffer' ptr ptr
     'SDL_SubmitGPUCommandBuffer' ⍬ ptr
+    'SDL_SubmitGPUCommandBufferAndAcquireFence' ptr ptr
+    'SDL_QueryGPUFence' bool (ptr ptr)
+    'SDL_WaitForGPUFences' bool (ptr bool '<'(ptr)'[]' u32)
+    'SDL_ReleaseGPUFence' ⍬ (ptr ptr)
         ⍝ Swapchain
     'SDL_GPUTextureSupportsFormat' bool (ptr i32 i32 u32)
     'SDL_WaitAndAcquireGPUSwapchainTexture' bool (ptr ptr '>' ptr '>' u32 '>' u32)

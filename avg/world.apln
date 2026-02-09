@@ -25,6 +25,14 @@
     vb_pools ← ⍬ ⍬ ⍬
     vb_start_lens ← ⌊1.0 0.6 0.2×max_chunks
 
+
+    ⍝ vbs that aren't done being used by the gpu
+    ⍝ (fence pointer, idx into vb_pools, vb pointer)
+    ⍝ freed vbs are added with fence pointer 0 and when fence is 
+    ⍝   retrieved, they're set with func Push_fence. 
+    ⍝ Released with Pop_fence
+    vb_fenced ← 0 3⍴0
+
     ib ← 0
     tb ← 0
     tb_pos ← 0
@@ -58,22 +66,17 @@
     ]
     v_cnt ← ≢faces
 
-    textures ← ∊(
-        ⍝ Air (Here for easy indexing, filtered out)
-    0 0 0 0 0 0
-        ⍝ Grass
-    3 3 2 0 3 3
-        ⍝ Stone
-    1 1 1 1 1 1
-        ⍝ Wood
-    4 4 4 4 4 4
-        ⍝ Log
-    9 9 9 9 9 9
-        ⍝ Leaf
-    10 10 10 10 10 10
-        ⍝ Brick
-    5 5 5 5 5 5
+
+    blocks←(
+    (name: 'Air' ⋄ tex: 0 0 0 0 0 0)
+    (name: 'Grass' ⋄ tex: 3 3 2 0 3 3)
+    (name: 'Stone' ⋄ tex: 1 1 1 1 1 1)
+    (name: 'Wood' ⋄ tex: 4 4 4 4 4 4)
+    (name: 'Log' ⋄ tex: 9 9 9 9 9 9)
+    (name: 'Leaf' ⋄ tex: 10 10 10 10 10 10)
+    (name: 'Brick' ⋄ tex: 5 5 5 5 5 5)
     )
+    textures ← ∊⎕VGET∘'tex'¨blocks
     ⍝ From ⍳-vertex count in shape of l:
     ⍝ - Extend into 3d coordinate space with ⊤
     ⍝ - Transpose into format where position is last and insert rank
@@ -87,7 +90,7 @@
           ⍝ ⍵ ←→ list of integers 3d space
           ⍝ ⍺ ←→ filter out invalid ones (default false) (TODO)
           ⍝ returns them in terms of locations into 4d chunk matrix
-          ⍺ ← 0
+          ⍺←0
           coords←⌊l[0]÷⍨(⊂0 2)∘⌷¨⍵
           cindices←coords⍳⍨Cg'xz'
           cindices,¨16|⍵
@@ -102,6 +105,25 @@
           vb←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓vb_sizes)0)
           0=vb:'Error creating vertex buffer'##.Assert vb
           vb
+      }
+
+      Push_fence←{
+          ⍝ ⍵ ←→ Fence pointer
+          0=≢vb_fenced:
+          m←0=0⌷⍉vb_fenced
+          (m/0⌷⍉vb_fenced)←⍵
+      }
+
+      Pop_fence←{
+          ⍝ ⍵ ←→ Fence pointers
+          0=≢vb_fenced:
+          m←⍵∊⍨0⌷⍉vb_fenced
+     
+          kinds←1⌷⍉vb_fenced
+          vbs←2⌷⍉vb_fenced
+
+          vb_fenced←vb_fenced⌿⍨~m
+          kinds {(⍺⊃vb_pools),←⍵}⌸⍥{m/⍵} vbs
       }
 
     ∇ info←Create_block_texture(device ptr);size;surface_type;img;surface;full_w;full_h;w;h;tex_params;section
@@ -227,27 +249,30 @@
       idxs←tb_queue⍳⍨Cg'xz'
       ⍝ Copied info in total will be:
       ⍝.   (position into transfer buffer, vertex size, index count, vertex kind, vertex buffer)
-      copied_info ← {
-          (vs ic)←Copy_chunk(chunks⌷⍨idxs⊃⍨≢⍵⋄p⋄tb_pos)
-          pos←tb_pos⋄tb_pos+←vs
+      copied_info←{
+          (vs ic)←Copy_chunk(chunks⌷⍨idxs⊃⍨≢⍵ ⋄ p ⋄ tb_pos)
+          pos←tb_pos ⋄ tb_pos+←vs
           ⍵⍪(pos vs ic)
-      }⍣{(tb_size≤tb_pos+vsize)∨⍺≥⍥≢idxs} ⊢ 0 3⍴0
+      }⍣{(tb_size≤tb_pos+vsize)∨⍺≥⍥≢idxs}⊢0 3⍴0
       ##.SDL_UnmapGPUTransferBuffer device tb
-
+     
       ⍝ Add vertex kinds (vb pool index)
-      copied_info,← vb_sizes∘⍸¨1⌷⍉copied_info
-
+      copied_info,←vb_sizes∘⍸¨1⌷⍉copied_info
+     
       idxs↑⍨←≢copied_info
       tb_queue↓⍨←≢copied_info
-
+     
       m←idxs∊⍨⍳≢chunk_info
-      dirty_m ← m∧0≠Cg'vb'
-      'vb_kind'{(⍺⊃vb_pools),←⍵}⌸⍥{⍵/⍨dirty_m}⍥Cg'vb'
-      vbs ← device∘Fetch_buffer¨3⌷⍉copied_info
-      copied_info,←vbs
+      dirty_m←m∧0≠Cg'vb'
+      
+      vb_fenced⍪←0,'vb_kind' {⍉↑⍺ ⍵}⍥{⍵/⍨dirty_m}⍥Cg 'vb'
+      ⍝'vb_kind'{(⍺⊃vb_pools),←⍵}⌸⍥{⍵/⍨dirty_m}⍥Cg'vb'
 
+      vbs←device∘Fetch_buffer¨3⌷⍉copied_info
+      copied_info,←vbs
+     
       ⍝ GPU Upload and set loaded chunks as ready with render info
-      {(pos vs _ _ vb)←⍵⋄##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0}¨↓copied_info
+      {(pos vs _ _ vb)←⍵ ⋄ ##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0}¨↓copied_info
       (m/(Ci'idx_cnt')⌷⍉chunk_info)←2⌷⍉copied_info
       (m/(Ci'vb')⌷⍉chunk_info)←vbs
       (m/(Ci'vb_kind')⌷⍉chunk_info)←3⌷⍉copied_info
@@ -262,8 +287,10 @@
       old←range~⍨Cg'xz'
      
       chunks⌿⍨←m←~old∊⍨Cg'xz'
-      ⍝ reallocate back to respective pools.
-      'vb_kind'{(⍺⊃vb_pools),←⍵}⌸⍥{⍵/⍨~m}⍥Cg'vb'
+
+      vb_fenced⍪←0,'vb_kind' {⍉↑⍺ ⍵}⍥{⍵/⍨~m}⍥Cg 'vb'
+      ⍝ reallocate
+      ⍝'vb_kind'{(⍺⊃vb_pools),←⍵}⌸⍥{⍵/⍨~m}⍥Cg'vb'
       chunk_info⌿⍨←m
      
       :For pair :In new
@@ -307,5 +334,4 @@
       ##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       ##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
     ∇
-
 :EndNamespace

@@ -77,6 +77,7 @@
  proj_view←view+.×proj
 
  time←⊃SDL_GetTicks ⍬
+ fences←⍬
  running←1
  :While running
      :While ⊃LSE_PollEvent ⍬
@@ -120,7 +121,15 @@
 
          SDL_EndGPURenderPass pass
      :EndIf
-     SDL_SubmitGPUCommandBuffer cmd_buf
+
+    fence←⊃SDL_SubmitGPUCommandBufferAndAcquireFence cmd_buf
+    world.Push_fence fence
+    fences,←fence
+    fence_m←{⊃SDL_QueryGPUFence device ⍵}¨fences
+    ⍝{SDL_ReleaseGPUFence device ⍵}¨fence_m/fences
+    ⍝⎕←≢fence_m/fences
+    world.Pop_fence fence_m/fences
+    fences⌿⍨←~fence_m
  :EndWhile
  world.Delete device
 
