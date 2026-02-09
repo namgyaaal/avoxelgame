@@ -27,9 +27,9 @@
 
 
     ⍝ vbs that aren't done being used by the gpu
-    ⍝ (fence pointer, idx into vb_pools, vb pointer)
-    ⍝ freed vbs are added with fence pointer 0 and when fence is 
-    ⍝   retrieved, they're set with func Push_fence. 
+    ⍝ (fence counter, index into vb_pools, vb pointer)
+    ⍝ freed vbs are added with fence pointer 0 and when fence is
+    ⍝   retrieved, they're set with func Push_fence.
     ⍝ Released with Pop_fence
     vb_fenced ← 0 3⍴0
 
@@ -96,6 +96,7 @@
           cindices,¨16|⍵
       }
 
+      foo←0
       Fetch_buffer←{
           ⍝ ⍺ ←→ GPU Device
           ⍝ ⍵ ←→ Pool Index
@@ -104,26 +105,25 @@
           0<≢⍵⊃vb_pools:{o←⊃⍵⊃vb_pools ⋄ (⍵⊃vb_pools)↓⍨←1 ⋄ o}⍵
           vb←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓vb_sizes)0)
           0=vb:'Error creating vertex buffer'##.Assert vb
+          foo+←1
           vb
       }
 
       Push_fence←{
           ⍝ ⍵ ←→ Fence pointer
           0=≢vb_fenced:
-          m←0=0⌷⍉vb_fenced
+          m←¯1=0⌷⍉vb_fenced
           (m/0⌷⍉vb_fenced)←⍵
       }
 
       Pop_fence←{
-          ⍝ ⍵ ←→ Fence pointers
+          ⍝ ⍵ ←→ Fence counters
           0=≢vb_fenced:
           m←⍵∊⍨0⌷⍉vb_fenced
-     
           kinds←1⌷⍉vb_fenced
-          vbs←2⌷⍉vb_fenced
-
-          vb_fenced←vb_fenced⌿⍨~m
-          kinds {(⍺⊃vb_pools),←⍵}⌸⍥{m/⍵} vbs
+          vbs←2⌷⍉vb_fenced     
+          vb_fenced⌿⍨←~m
+          _←kinds{(⍺⊃vb_pools),←⍵}⌸⍥{m/⍵}vbs
       }
 
     ∇ info←Create_block_texture(device ptr);size;surface_type;img;surface;full_w;full_h;w;h;tex_params;section
@@ -264,10 +264,8 @@
      
       m←idxs∊⍨⍳≢chunk_info
       dirty_m←m∧0≠Cg'vb'
-      
-      vb_fenced⍪←0,'vb_kind' {⍉↑⍺ ⍵}⍥{⍵/⍨dirty_m}⍥Cg 'vb'
-      ⍝'vb_kind'{(⍺⊃vb_pools),←⍵}⌸⍥{⍵/⍨dirty_m}⍥Cg'vb'
-
+    
+      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨dirty_m}⍥Cg'vb'     
       vbs←device∘Fetch_buffer¨3⌷⍉copied_info
       copied_info,←vbs
      
@@ -287,8 +285,7 @@
       old←range~⍨Cg'xz'
      
       chunks⌿⍨←m←~old∊⍨Cg'xz'
-
-      vb_fenced⍪←0,'vb_kind' {⍉↑⍺ ⍵}⍥{⍵/⍨~m}⍥Cg 'vb'
+      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨~m}⍥Cg'vb'
       ⍝ reallocate
       ⍝'vb_kind'{(⍺⊃vb_pools),←⍵}⌸⍥{⍵/⍨~m}⍥Cg'vb'
       chunk_info⌿⍨←m

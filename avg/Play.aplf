@@ -77,7 +77,13 @@
  proj_view←view+.×proj
 
  time←⊃SDL_GetTicks ⍬
- fences←⍬
+
+
+
+ fence_ctr←0
+ ⍝ Fence Counter, Fence Ptr
+ fences←0 2⍴0
+
  running←1
  :While running
      :While ⊃LSE_PollEvent ⍬
@@ -122,14 +128,14 @@
          SDL_EndGPURenderPass pass
      :EndIf
 
-    fence←⊃SDL_SubmitGPUCommandBufferAndAcquireFence cmd_buf
-    world.Push_fence fence
-    fences,←fence
-    fence_m←{⊃SDL_QueryGPUFence device ⍵}¨fences
-    ⍝{SDL_ReleaseGPUFence device ⍵}¨fence_m/fences
-    ⍝⎕←≢fence_m/fences
-    world.Pop_fence fence_m/fences
-    fences⌿⍨←~fence_m
+     fence←SDL_SubmitGPUCommandBufferAndAcquireFence cmd_buf
+     fence_idx←fence_ctr ⋄ fence_ctr+←1
+     world.Push_fence fence_idx
+     fences⍪←(fence_idx fence)
+     fence_m←{(_ ptr)←⍵⋄SDL_QueryGPUFence device ptr}¨↓fences
+     {(_ ptr)←⍵⋄SDL_ReleaseGPUFence device ptr}¨↓fence_m⌿fences
+     world.Pop_fence 1⌷⍉fence_m⌿fences
+     fences⌿⍨←~fence_m
  :EndWhile
  world.Delete device
 
