@@ -37,6 +37,7 @@
     tb ← 0
     tb_pos ← 0
     tb_size ← 5×vsize
+    ⍝ Vector of x and z positions corresponding to xz column
     tb_queue ← ⍬
     (texture sampler) ← ⍬ ⍬
 
@@ -96,7 +97,6 @@
           cindices,¨16|⍵
       }
 
-      foo←0
       Fetch_buffer←{
           ⍝ ⍺ ←→ GPU Device
           ⍝ ⍵ ←→ Pool Index
@@ -105,7 +105,6 @@
           0<≢⍵⊃vb_pools:{o←⊃⍵⊃vb_pools ⋄ (⍵⊃vb_pools)↓⍨←1 ⋄ o}⍵
           vb←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓vb_sizes)0)
           0=vb:'Error creating vertex buffer'##.Assert vb
-          foo+←1
           vb
       }
 
@@ -121,7 +120,7 @@
           0=≢vb_fenced:
           m←⍵∊⍨0⌷⍉vb_fenced
           kinds←1⌷⍉vb_fenced
-          vbs←2⌷⍉vb_fenced     
+          vbs←2⌷⍉vb_fenced
           vb_fenced⌿⍨←~m
           _←kinds{(⍺⊃vb_pools),←⍵}⌸⍥{m/⍵}vbs
       }
@@ -242,7 +241,7 @@
       info←vs ic
     ∇
 
-    ∇ Copy_chunks(device pass);m;p;vb;vi;vk;idxs;copied_info;dirty_m;vbs
+    ∇ Copy_chunks(device pass);m;p;vb;vi;vk;idxs;copied_info;dirty_m;vbs;xzs;sort
       tb_pos←0
       ⍝ Copy into transfer buffer until full or queue is empty
       p←##.SDL_MapGPUTransferBuffer device tb 1
@@ -260,12 +259,17 @@
       copied_info,←vb_sizes∘⍸¨1⌷⍉copied_info
      
       idxs↑⍨←≢copied_info
+      m←idxs∊⍨⍳≢chunk_info
+      ⍝ Since queue and chunk)info are unsorted and might assign in a
+      ⍝     different order, need to sort what has been selected from the
+      ⍝     queue with what it's being assigned to
+      sort←(⊂⍋⍋m/Cg'xz')⌷⍋tb_queue↑⍨≢copied_info
+      copied_info←(⊂sort)⌷copied_info
       tb_queue↓⍨←≢copied_info
      
-      m←idxs∊⍨⍳≢chunk_info
       dirty_m←m∧0≠Cg'vb'
-    
-      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨dirty_m}⍥Cg'vb'     
+     
+      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨dirty_m}⍥Cg'vb'
       vbs←device∘Fetch_buffer¨3⌷⍉copied_info
       copied_info,←vbs
      
@@ -285,9 +289,8 @@
       old←range~⍨Cg'xz'
      
       chunks⌿⍨←m←~old∊⍨Cg'xz'
+      ⍝ unload chunks
       vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨~m}⍥Cg'vb'
-      ⍝ reallocate
-      ⍝'vb_kind'{(⍺⊃vb_pools),←⍵}⌸⍥{⍵/⍨~m}⍥Cg'vb'
       chunk_info⌿⍨←m
      
       :For pair :In new
@@ -299,11 +302,13 @@
               blocks[;(0 1);]←2
               blocks[;2;]←1
               ⍝ Tree :)
-              tx tz←4+?10 10
-              ty←3+?3
-              blocks[tx;3+⍳ty;tz]←4
-              blocks[tx+¯2+⍳5;3 4+ty;tz+¯2+⍳5]←5
-              blocks[tx+¯1+⍳3;5 6+ty;tz+¯1+⍳3]←5
+              :If 0.6<?0
+                  tx tz←4+?10 10
+                  ty←3+?3
+                  blocks[tx;3+⍳ty;tz]←4
+                  blocks[tx+¯2+⍳5;3 4+ty;tz+¯2+⍳5]←5
+                  blocks[tx+¯1+⍳3;5 6+ty;tz+¯1+⍳3]←5
+              :EndIf
           :EndIf
      
           Queue_chunk device blocks pair
