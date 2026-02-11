@@ -1,5 +1,5 @@
 #include <SDL3/SDL.h>
-#include <SDL3_ttf/SDL3_ttf.h>
+#include <SDL3_ttf/SDL_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -40,7 +40,54 @@ void LSE_MemcpyF32(void* dst, void* src, uint32_t size) {
     SDL_memcpy(dst, src, size);
 }
 
-void LSE_FontGPU() {}
+void LSE_FontGPUCopy(void* dst, TTF_GPUAtlasDrawSequence* sequence,
+                     uint32_t* vb_count, uint32_t* ib_count, float r, float g,
+                     float b, float a) {
+    *vb_count = 0;
+    *ib_count = 0;
+    float* dst_ptr_vb = dst;
+    int* dst_ptr_ib = ((int*)dst) + (9 * 4000);
+    for (; sequence; sequence = sequence->next) {
+        for (int i = 0; i < sequence->num_vertices; i++) {
+            // Positions
+            *dst_ptr_vb++ = sequence->xy[i].x;
+            *dst_ptr_vb++ = sequence->xy[i].y;
+            *dst_ptr_vb++ = -10.0f;
+            // Color
+            *dst_ptr_vb++ = r;
+            *dst_ptr_vb++ = g;
+            *dst_ptr_vb++ = b;
+            *dst_ptr_vb++ = a;
+            // UV
+            *dst_ptr_vb++ = sequence->uv[i].x;
+            *dst_ptr_vb++ = sequence->uv[i].y;
+        }
+        memcpy(dst_ptr_ib, sequence->indices,
+               sizeof(int) * sequence->num_indices);
+        dst_ptr_ib += sequence->num_indices;
+
+        *vb_count += sequence->num_vertices;
+        *ib_count += sequence->num_indices;
+    }
+}
+
+void LSE_FontGPUDraw(SDL_GPURenderPass* pass, SDL_GPUSampler* sampler,
+                     TTF_GPUAtlasDrawSequence* sequence) {
+    int index_offset = 0, vertex_offset = 0;
+    for (TTF_GPUAtlasDrawSequence* seq = sequence; seq != NULL;
+         seq = seq->next) {
+        SDL_BindGPUFragmentSamplers(
+            pass, 0,
+            &(SDL_GPUTextureSamplerBinding){.texture = seq->atlas_texture,
+                                            .sampler = sampler},
+            1);
+
+        SDL_DrawGPUIndexedPrimitives(pass, seq->num_indices, 1, index_offset,
+                                     vertex_offset, 0);
+        index_offset += seq->num_indices;
+        vertex_offset += seq->num_vertices;
+    }
+}
 
 void LSE_DrawList(SDL_GPURenderPass* pass, SDL_GPUBuffer** buffers,
                   uint32_t* indices, uint32_t buffer_count) {
@@ -70,4 +117,10 @@ void LSE_DrawListWithPushConstants(SDL_GPUCommandBuffer* buf,
         SDL_BindGPUVertexBuffers(pass, 0, &binding, 1);
         SDL_DrawGPUIndexedPrimitives(pass, indices[i], 1, 0, 0, 0);
     }
+}
+
+SDL_GPURenderPass* LSE_BeginDepthLessRenderPass(SDL_GPUCommandBuffer* buf,
+                                                SDL_GPUColorTargetInfo* info,
+                                                uint32_t num_targets) {
+    return SDL_BeginGPURenderPass(buf, info, num_targets, NULL);
 }

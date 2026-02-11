@@ -20,7 +20,7 @@
         'TTF_DestroyText' ⍬ ptr
 
 
-        'TTF_SetTextString' bool (ptr cstr u64)
+        'TTF_SetTextString' bool (ptr '<U1[]' u64)
         'TTF_GetTextSize' bool (ptr '>' i32 '>' i32)
         'TTF_GetGPUTextDrawData' ptr ptr
     )

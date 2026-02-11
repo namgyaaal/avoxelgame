@@ -45,6 +45,7 @@
     chunks ← 0⍴⍨0,l
     cnames ← 'xz' 'vb' 'vb_kind' 'idx_cnt' 'ready'
     chunk_info ← 0⍴⍨0, ≢cnames
+    chunks_rendered←0
 
 
     I←⌷⍨∘⊃⍨⍤0 99
@@ -78,7 +79,7 @@
     (name: 'Brick' ⋄ tex: 5 5 5 5 5 5)
     )
     textures ← ∊⎕VGET∘'tex'¨blocks
-    
+
     ⍝ Block index (from name)
     Bi ← (⎕VGET∘'name'¨blocks)∘⍳∘⊂
 
@@ -99,7 +100,7 @@
           0=≢⍵:⍬
           coords←⌊l[0]÷⍨(⊂0 2)∘⌷¨⍵
           cindices←coords⍳⍨Cg'xz'
-          ⍺∘{(~⍺)∨0≤2⊃⍵}¨⍛/cindices,¨((⊃l)∘|@(0 2)⊢)¨⍵   
+          ⍺∘{(~⍺)∨0≤2⊃⍵}¨⍛/cindices,¨((⊃l)∘|@(0 2)⊢)¨⍵
       }
 
       Fetch_buffer←{
@@ -333,6 +334,7 @@
       den←dist×0.5*⍨+/(lx lz)*2
       m←(Cg'ready')∧∨/(○70÷180)>¯2○num(⎕DIV:1).÷den ⍝ Chance that distance could be 0
      
+      chunks_rendered←+/m
       vbs←m/Cg'vb'
       inds←m/Cg'idx_cnt'
       ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each

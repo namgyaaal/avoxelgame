@@ -15,6 +15,9 @@
 
     fns ← ⍬
 
+    FColor ← (f32 f32 f32 f32)
+    GPUColorTargetInfo ← (ptr u32 u32 FColor i32 i32 ptr u32 u32 bool bool u8 u8)
+
     GPUShaderCreateInfo ← u64 ptr ptr u32 i32 u32 u32 u32 u32 u32
     StencilOpState ← i32 i32 i32 i32
     ⍝ Util
@@ -36,6 +39,9 @@
     'LSE_GetButton' u8 ⍬
         ⍝ General Graphics
     'LSE_CreateGPUShader' ptr (ptr '<'GPUShaderCreateInfo cstr)
+        ⍝ Font Stuff
+    'LSE_FontGPUCopy' ⍬ (ptr ptr '>' u32 '>' u32 f32 f32 f32 f32)
+    'LSE_FontGPUDraw' ⍬ (ptr ptr ptr)
         ⍝ Pipeline Handling
     'LSE_PipelineClearParams' ⍬ ⍬
     'LSE_PipelineCreate' ptr ptr
@@ -53,6 +59,8 @@
     'LSE_PipelineSetProperties' ⍬ u32
     'LSE_DrawList' ⍬ (ptr '<P[]' u32_arr u32)
     'LSE_DrawListWithPushConstants' ⍬ (ptr ptr '<P[]' u32_arr u32 f32_arr u32 u32)
+
+    'LSE_BeginDepthLessRenderPass' ptr (ptr '<' GPUColorTargetInfo u32)
     )
 
     ∇ Load_lib path
