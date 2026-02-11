@@ -92,26 +92,29 @@ void LSE_PipelineSetMultisample(SDL_GPUSampleCount sample_count,
 }
 
 void LSE_PipelineSetDepthStencil(SDL_GPUCompareOp compare_op,
-                                 SDL_GPUStencilOpState back_stencil_state,
-                                 SDL_GPUStencilOpState front_stencil_state,
+                                 // SDL_GPUStencilOpState back_stencil_state,
+                                 // SDL_GPUStencilOpState front_stencil_state,
                                  uint8_t compare_mask, uint8_t write_mask,
                                  bool enable_depth_test,
                                  bool enable_depth_write,
                                  bool enable_stencil_test) {
-    SDL_GPUDepthStencilState state = {.compare_op = SDL_GPU_COMPAREOP_LESS,
-                                      .enable_depth_test = true,
-                                      .enable_depth_write = true};
+    // Commented out for bugfixing if I ever need back_stencil_state and
+    // front_stencil_state back SDL_GPUDepthStencilState state = {.compare_op =
+    // SDL_GPU_COMPAREOP_LESS,
+    //                                   .enable_depth_test = true,
+    //                                   .enable_depth_write = true};
 
     global_params.depth_stencil_state.compare_op = compare_op;
-    global_params.depth_stencil_state.back_stencil_state = back_stencil_state;
-    global_params.depth_stencil_state.front_stencil_state = front_stencil_state;
+    // global_params.depth_stencil_state.back_stencil_state =
+    // back_stencil_state; global_params.depth_stencil_state.front_stencil_state
+    // = front_stencil_state;
     global_params.depth_stencil_state.compare_mask = compare_mask;
     global_params.depth_stencil_state.write_mask = write_mask;
     global_params.depth_stencil_state.enable_depth_test = enable_depth_test;
     global_params.depth_stencil_state.enable_depth_write = enable_depth_write;
     global_params.depth_stencil_state.enable_stencil_test = enable_stencil_test;
 
-    global_params.depth_stencil_state = state;
+    // global_params.depth_stencil_state = state;
 }
 
 void LSE_PipelineSetTargetInfo(

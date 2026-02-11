@@ -1,0 +1,31 @@
+:Namespace sdl3_ttf
+    ptr ← 'P-'
+    bool ← 'I1'
+    cstr ← '<0C1[]'
+    f32 ← 'F4'
+    i32 ← 'I4'
+    u64 ← 'U8'
+    fns ← (
+        'TTF_Init' bool ⍬
+        'TTF_Quit' ⍬ ⍬
+        'TTF_OpenFont' ptr (cstr f32)
+        'TTF_CloseFont' ⍬ ptr
+
+        'TTF_SetFontSDF' ptr (ptr bool)
+        'TTF_SetFontWrapAlignment' ⍬ (ptr i32)
+        'TTF_CreateGPUTextEngine' ptr ptr
+        'TTF_DestroyGPUTextEngine' ⍬ ptr
+        
+        'TTF_CreateText' ptr (ptr ptr cstr u64)
+        'TTF_DestroyText' ⍬ ptr
+
+
+        'TTF_SetTextString' bool (ptr cstr u64)
+        'TTF_GetTextSize' bool (ptr '>' i32 '>' i32)
+        'TTF_GetGPUTextDrawData' ptr ptr
+    )
+
+    ∇ Load_lib path
+        path ##.easy_na.Safe_load fns
+    ∇
+:EndNamespace

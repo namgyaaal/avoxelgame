@@ -1,44 +1,49 @@
 cbuffer MVPBlock : register(b0)
 {
-    row_major float4x4 _41_mvp : packoffset(c0);
+    row_major float4x4 _30_mvp : packoffset(c0);
 };
 
 uniform float4 gl_HalfPixel;
 
 static float4 gl_Position;
-static uint4 position;
-static float3 o_uv;
-static float o_z_depth;
+static float4 o_color;
+static float4 color;
+static float2 o_uv;
+static float2 uv;
+static float3 position;
 
 struct SPIRV_Cross_Input
 {
-    float4 position : TEXCOORD0;
+    float3 position : TEXCOORD0;
+    float4 color : TEXCOORD1;
+    float2 uv : TEXCOORD2;
 };
 
 struct SPIRV_Cross_Output
 {
-    float3 o_uv : TEXCOORD0;
-    float o_z_depth : TEXCOORD1;
+    float4 o_color : TEXCOORD0;
+    float2 o_uv : TEXCOORD1;
     float4 gl_Position : POSITION;
 };
 
 void vert_main()
 {
-    float4 pos = float4(float(position.x & 31u), float(position.y), float(position.z & 31u), 1.0f);
-    gl_Position = mul(pos, _41_mvp);
-    o_uv = float3(float(position.z >> uint(7)), float(position.x >> uint(7)), float(position.w));
-    o_z_depth = gl_Position.z;
+    o_color = color;
+    o_uv = uv;
+    gl_Position = mul(float4(position, 1.0f), _30_mvp);
     gl_Position.x = gl_Position.x - gl_HalfPixel.x * gl_Position.w;
     gl_Position.y = gl_Position.y + gl_HalfPixel.y * gl_Position.w;
 }
 
 SPIRV_Cross_Output main(SPIRV_Cross_Input stage_input)
 {
+    color = stage_input.color;
+    uv = stage_input.uv;
     position = stage_input.position;
     vert_main();
     SPIRV_Cross_Output stage_output;
     stage_output.gl_Position = gl_Position;
+    stage_output.o_color = o_color;
     stage_output.o_uv = o_uv;
-    stage_output.o_z_depth = o_z_depth;
     return stage_output;
 }

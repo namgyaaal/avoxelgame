@@ -1,4 +1,5 @@
 #include <SDL3/SDL.h>
+#include <SDL3_ttf/SDL3_ttf.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +39,8 @@ void LSE_MemcpyU32(void* dst, void* src, uint32_t size) {
 void LSE_MemcpyF32(void* dst, void* src, uint32_t size) {
     SDL_memcpy(dst, src, size);
 }
+
+void LSE_FontGPU() {}
 
 void LSE_DrawList(SDL_GPURenderPass* pass, SDL_GPUBuffer** buffers,
                   uint32_t* indices, uint32_t buffer_count) {

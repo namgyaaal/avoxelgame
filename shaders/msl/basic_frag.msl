@@ -5,24 +5,24 @@ using namespace metal;
 
 struct main0_out
 {
-    float4 out_color [[color(0)]];
+    float4 o_color [[color(0)]];
 };
 
 struct main0_in
 {
-    float3 in_uv [[user(locn0)]];
-    float in_z_depth [[user(locn1)]];
+    float3 uv [[user(locn0)]];
+    float z_depth [[user(locn1)]];
 };
 
-fragment main0_out main0(main0_in in [[stage_in]], texture2d_array<float> sampleTex [[texture(0)]], sampler sampleTexSmplr [[sampler(0)]])
+fragment main0_out main0(main0_in in [[stage_in]], texture2d_array<float> sample_tex [[texture(0)]], sampler sample_texSmplr [[sampler(0)]])
 {
     main0_out out = {};
     float fog_start = 30.0;
     float fog_end = 50.0;
     float4 fog_color = float4(0.4699999988079071044921875, 0.4799999892711639404296875, 0.4900000095367431640625, 1.0);
-    float fog_factor = (fog_end - in.in_z_depth) / (fog_end - fog_start);
+    float fog_factor = (fog_end - in.z_depth) / (fog_end - fog_start);
     fog_factor = fast::clamp(fog_factor, 0.0, 1.0);
-    out.out_color = mix(fog_color, sampleTex.sample(sampleTexSmplr, in.in_uv.xy, uint(rint(in.in_uv.z))), float4(fog_factor));
+    out.o_color = mix(fog_color, sample_tex.sample(sample_texSmplr, in.uv.xy, uint(rint(in.uv.z))), float4(fog_factor));
     return out;
 }
 

@@ -45,10 +45,10 @@
     'LSE_PipelineSetRasterizer' ⍬ (i32 i32 i32 f32 f32 f32 bool bool)
     'LSE_PipelineSetMultisample' ⍬ (i32 u32 bool bool)
 
-        ⍝ Sometimes padding is required. I don't think C-FFI requires this. TODO: do more research on this
-        ⍝ If padding isn't added the last bool (enable_stencil_test) won't match what is passed.
-        ⍝ Might be something unique to ⎕NA?
-    'LSE_PipelineSetDepthStencil' ⍬ (i32 StencilOpState StencilOpState u8 u8 bool bool bool pad pad pad)
+    'LSE_PipelineSetDepthStencil' ⍬ (i32 u8 u8 bool bool bool)
+    ⍝ Remove StencilOpStates temporarily, that might be the problem
+    ⍝ Weird padding issues when they are added in the arguments!
+    ⍝'LSE_PipelineSetDepthStencil' ⍬ (i32 StencilOpState StencilOpState u8 u8 bool bool bool)
     'LSE_PipelineSetTargetInfo' ⍬ ('<' (i32 (i32 i32 i32 i32 i32 i32 u8 bool bool u8 u8)) '[]' u32 i32 bool)
     'LSE_PipelineSetProperties' ⍬ u32
     'LSE_DrawList' ⍬ (ptr '<P[]' u32_arr u32)
