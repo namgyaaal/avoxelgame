@@ -20,9 +20,9 @@
  res←TTF_Init
  'Error initializing SDL3_ttf'Assert res
 
- font←TTF_OpenFont'assets/APL387.ttf' 200
+ font←TTF_OpenFont'assets/APL387.ttf' 64
  'Error loading APL387 font'Assert font
- TTF_SetFontSDF font 1
+ TTF_SetFontSDF font 0
  text_engine←TTF_CreateGPUTextEngine device
  'Error creating font engine'Assert text_engine
 
@@ -64,9 +64,9 @@
 
 
 
-sam_params←⊂1 1 1 2 2 2 0 0 0 0 0 0 0 0 0 0
-sampler←##.SDL_CreateGPUSampler device sam_params
-'Error creating font sampler'Assert sampler
+ sam_params←⊂1 1 1 2 2 2 0 0 0 0 0 0 0 0 0 0
+ sampler←##.SDL_CreateGPUSampler device sam_params
+ 'Error creating font sampler'Assert sampler
 
 
  default_format←⊃SDL_GetGPUSwapchainTextureFormat device window
@@ -111,8 +111,8 @@ sampler←##.SDL_CreateGPUSampler device sam_params
      SDL_ReleaseGPUShader device fw_shader
  :EndSection world_pipeline
  :Section text_pipeline
-     (v_src v_size)←SDL_LoadFile(Get_shader_path'text_sdf_vert')0
-     (f_src f_size)←SDL_LoadFile(Get_shader_path'text_sdf_frag')0
+     (v_src v_size)←SDL_LoadFile(Get_shader_path'text_vert')0
+     (f_src f_size)←SDL_LoadFile(Get_shader_path'text_frag')0
 
      'Error loading shaders'Assert v_src f_src
      v_info←v_size v_src 0 shader_format SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
@@ -168,13 +168,13 @@ sampler←##.SDL_CreateGPUSampler device sam_params
  fences←0 2⍴0
 
 
- text_base ← (
-    'Hello ⌽''dlrow'''
-    'Chunks Loaded: '
-    'Chunks Rendered: '
-    'Average FPS: '
-    'Vertex Pool Sizes: '
-    'Fenced Vertex Buffers: '
+ text_base←(
+     'Hello ⌽''dlrow'''
+     'Chunks Loaded: '
+     'Chunks Rendered: '
+     'Average FPS: '
+     'Vertex Pool Sizes: '
+     'Fenced Vertex Buffers: '
  )
 
  fps_counts←⍬
@@ -188,7 +188,7 @@ sampler←##.SDL_CreateGPUSampler device sam_params
              key←⊃LSE_GetKeyPressed ⍬
              :If key=SDLK_Q
                  running←0
-             :Elseif key=SDLK_I
+             :ElseIf key=SDLK_I
                  toggle_ui←~toggle_ui
              :EndIf
          :EndIf
@@ -209,31 +209,31 @@ sampler←##.SDL_CreateGPUSampler device sam_params
 
 
      fps_counts,⍨←÷dt
-     fps_counts ← 60↑fps_counts
+     fps_counts←60↑fps_counts
      text_copy←text_base
-     (2⊃text_copy),← ⍕≢world.chunks
-     (3⊃text_copy),← ⍕world.chunks_rendered
-     (4⊃text_copy),← ⍕ (+⌿÷≢)fps_counts
-     (5⊃text_copy),← ⍕ ≢¨world.vb_pools
-     (6⊃text_copy),← ⍕ ≢world.vb_fenced
+     text_copy[2 3 4 5 6],←⍕¨(≢world.chunks
+         world.chunks_rendered
+         (+⌿÷≢)fps_counts
+         ≢¨world.vb_pools
+         ≢world.vb_fenced)
 
-    ustr ← 'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
-    TTF_SetTextString text (ustr) (≢ustr)
+     ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
+     TTF_SetTextString text(ustr)(≢ustr)
 
 
-    sequence←TTF_GetGPUTextDrawData text
-    p←##.SDL_MapGPUTransferBuffer device font_tb 1
- vbc ibc←##.LSE_FontGPUCopy p sequence 0 0 0.0 0.0 0.0 1.0
- ##.SDL_UnmapGPUTransferBuffer device font_tb
+     sequence←TTF_GetGPUTextDrawData text
+     p←##.SDL_MapGPUTransferBuffer device font_tb 1
+     vbc ibc←##.LSE_FontGPUCopy p sequence 0 0 0 0 0 1
+     ##.SDL_UnmapGPUTransferBuffer device font_tb
 
- pass←##.SDL_BeginGPUCopyPass cmd_buf
- ##.SDL_UploadToGPUBuffer pass(font_tb 0)(font_vb 0(36×vbc))1
- ##.SDL_UploadToGPUBuffer pass(font_tb(36×4000))(font_ib 0(4×ibc))1
+     pass←##.SDL_BeginGPUCopyPass cmd_buf
+     ##.SDL_UploadToGPUBuffer pass(font_tb 0)(font_vb 0(36×vbc))1
+     ##.SDL_UploadToGPUBuffer pass(font_tb(36×4000))(font_ib 0(4×ibc))1
 
      :If 0≠≢world.tb_queue
          world.Copy_chunks device pass
      :EndIf
-      SDL_EndGPUCopyPass pass
+     SDL_EndGPUCopyPass pass
      (res swap_texture _ _)←SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
      'Error acquiring swapchain texture'Assert res
      :If 0≠swap_texture
@@ -249,16 +249,16 @@ sampler←##.SDL_CreateGPUSampler device sam_params
          ⍝ Text Render Pass
          :If toggle_ui
 
-             color_info←⊂swap_texture 0 0(0.0 0.0 0.0 0.0)0 0 0 0 0 0 0 0 0
+             color_info←⊂swap_texture 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
              pass←LSE_BeginDepthLessRenderPass cmd_buf color_info 1
              SDL_BindGPUGraphicsPipeline pass text_pipeline
 
              model←(800 700 0 1)@4⊢∘.=⍨⍳4
-             scale← 1@(⊂4 4) ⊢ 0.1×∘.=⍨⍳4
+             scale←1@(⊂4 4)⊢0.4×∘.=⍨⍳4
              model←scale+.×model
-             SDL_PushGPUVertexUniformData cmd_buf 0 (∊model +.× ui_proj) (16×4)
-             SDL_BindGPUVertexBuffers pass 0 (⊂font_vb 0) 1
-             SDL_BindGPUIndexBuffer pass (⊂font_ib 0) SDL_GPU_INDEXELEMENTSIZE_32BIT
+             SDL_PushGPUVertexUniformData cmd_buf 0(∊model+.×ui_proj)(16×4)
+             SDL_BindGPUVertexBuffers pass 0(⊂font_vb 0)1
+             SDL_BindGPUIndexBuffer pass(⊂font_ib 0)SDL_GPU_INDEXELEMENTSIZE_32BIT
 
              LSE_FontGPUDraw pass sampler sequence
              SDL_EndGPURenderPass pass
