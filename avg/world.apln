@@ -78,6 +78,10 @@
     (name: 'Brick' ⋄ tex: 5 5 5 5 5 5)
     )
     textures ← ∊⎕VGET∘'tex'¨blocks
+    
+    ⍝ Block index (from name)
+    Bi ← (⎕VGET∘'name'¨blocks)∘⍳∘⊂
+
     ⍝ From ⍳-vertex count in shape of l:
     ⍝ - Extend into 3d coordinate space with ⊤
     ⍝ - Transpose into format where position is last and insert rank
@@ -88,13 +92,14 @@
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
       Transform_points←{
-          ⍝ ⍵ ←→ list of integers 3d space
-          ⍝ ⍺ ←→ filter out invalid ones (default false) (TODO)
+          ⍝ ⍵ ←→ vector of integers 3d space
+          ⍝ ⍺ ←→ filter out invalid ones (default true)
           ⍝ returns them in terms of locations into 4d chunk matrix
-          ⍺←0
+          ⍺←1
+          0=≢⍵:⍬
           coords←⌊l[0]÷⍨(⊂0 2)∘⌷¨⍵
           cindices←coords⍳⍨Cg'xz'
-          cindices,¨16|⍵
+          ⍺∘{(~⍺)∨0≤2⊃⍵}¨⍛/cindices,¨((⊃l)∘|@(0 2)⊢)¨⍵   
       }
 
       Fetch_buffer←{

@@ -9,12 +9,12 @@
     max_gravity←2×gravity
     speed←5
     vy ← gravity
-    col_dirs← 0 0 0
+    col_y←0
     jump_power ← 6
 
-    (e_w e_a e_s e_d) ← 0 0 0 0
-    (e_place e_break) ← 0 0
-    (e_mx e_my) ← 0 0
+    (e_w e_a e_s e_d e_jump) ← 0
+    (e_place e_break) ← 0
+    (e_mx e_my) ← 0
 
       Axis_check←{
           ⍝ ⍵ ←→ velocity where only one field is set, rest are 0
@@ -46,7 +46,7 @@
           v←⍵ ⋄ m←0⍴⍨,⍨≢v ⋄ (0 0⍉m)←v
           axis←Axis_check¨↓m
           (x y z)+←1↓⊃+⌿axis
-          col_dirs⊢←0⌷⍉↑axis
+          0⌷⍉↑axis
       }
 
       Break←{
@@ -54,30 +54,30 @@
           (x y z)←⍵
           0=e_break:
           p←(x y z)##.Ray_hit 5×Get_look_vec ⍬
-          m←{0≠⍵⌷##.world.chunks}¨##.world.Transform_points p
-          blks←m/##.world.Transform_points p
-          0=≢blks:
-          blks←⊃blks
-          (blks⌷##.world.chunks)←0
-          ##.world.tb_queue,←⊂⌊16÷⍨(⊂0 2)⌷⊃m/p
+          tp←##.world.Transform_points p
+          m←{0≠⍵⌷##.world.chunks}¨tp
+          0=∨/m:0
+          blk←⊃m/tp
+          (blk⌷##.world.chunks)←0
+          ##.world.tb_queue,←(##.world.Cg'xz')⌷⍨⊃blk
+          1
       }
 
       Place←{
         ⍝ ⍵ ←→ view vector
         ⍝ ⍺ ←→ block type
-          ⍺←1
+          ⍺←##.world.Bi'Wood'
           (x y z)←⍵
           0=e_place:
           p←(x y z)##.Ray_hit 5×Get_look_vec ⍬
-          m←{0≠⍵⌷##.world.chunks}¨##.world.Transform_points p
-          0=∨/m:
-          blks←##.world.Transform_points p
+          tp←##.world.Transform_points p
+          m←{0≠⍵⌷##.world.chunks}¨tp
+          0=∨/m:0
           i←0⌈¯1+m⍳1
-     
-          blk←i⊃blks
-          (blk⌷##.world.chunks)←3
-     
-          ##.world.tb_queue,←⊂⌊16÷⍨(⊂0 2)⌷i⊃p
+          blk←tp⊃⍨0⌈¯1+m⍳1
+          (blk⌷##.world.chunks)←⍺
+          ##.world.tb_queue,←(##.world.Cg'xz')⌷⍨⊃blk
+          1
       }
 
 
@@ -93,9 +93,7 @@
           :Case ##.SDLK_D
               e_d←1
           :Case ##.SDLK_SPACE
-              :If ¯1=1⊃col_dirs
-                  vy←jump_power
-              :EndIf
+              e_jump←1
           :EndSelect
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_KEY_UP
           :Select ⊃##.LSE_GetKeyPressed ⍬
@@ -121,29 +119,40 @@
       :EndIf
     ∇
 
-    ∇ Update dt;v;look;forward;sideways;blks
+    ∇ Update dt;v;dir;forward;sideways;blks;m
       (yaw pitch)-←dt×(e_mx e_my)
-      pitch←1.59((-1.59)⌈⌊)pitch
-      (e_mx e_my)←0 0
+      pitch←1.54((-1.54)⌈⌊)pitch
+      (e_mx e_my)←0
      
       vy←max_gravity⌈vy-dt×(0.5×|gravity)×speed
-      look←Get_look_vec ⍬
-      (forward sideways)←(e_w-e_s ⋄ e_d-e_a)
+      ⍝ 3 cases
+      ⍝ (1) Able to jump
+      ⍝ (2) On a block (don't go to max acceleration otherwise when falling off it'll zoom)
+      ⍝     Set it to a bit of gravity
+      ⍝ (3) Otherwise
+      vy←{e_jump∧¯1=col_y: jump_power⋄¯1=col_y:0.3×gravity⋄⍵} vy
+
+      dir←##.math.Norm 0@1⊢Get_look_vec ⍬
+      m←0≠(forward sideways)←(e_w-e_s ⋄ e_d-e_a)
+      (forward sideways)←m×##.math.Norm(forward sideways)
      
-      v←dt×speed×forward×look
-      v+←dt×speed×sideways×look ##.math.Cross 0 1 0
-      (1⊃v)←0
+      v←dt×speed×forward×dir
+      v+←dt×speed×sideways×dir ##.math.Cross 0 1 0
       v+←dt×(0 vy 0)
-      Bound_check v
+      (_ col_y _) ← Bound_check v
      
       Break(0 cam_offset 0)+(x y z)
       Place(0 cam_offset 0)+(x y z)
      
-      (e_place e_break)←0 0
+      (e_place e_break e_jump)←0
     ∇
 
       Get_look_vec←{
-          1 1 2○yaw pitch yaw
+          (
+              ×/1 2○yaw pitch
+              1○pitch
+              ×/2 2○yaw pitch
+          )
       }
 
       Get_view←{
