@@ -321,19 +321,25 @@
       :EndFor
     ∇
 
-    ∇ Draw_chunks(cmd_buf pass px pz lx lz proj_view);w;vec;dist;num;den;m;vbs;inds;xz;ud
-      ⍝ theta←arccos(num÷den) corners of chunk from player-origin against look-at vector
-      ⍝     for chunk culling
-      ⍝ view consists of a near and far plane clipping (projection matrices) w/o origin
-      ⍝     because of this, we translate the player position by lookat vector back a bit
-      ⍝     hence, 'px pz-lx lz×w×0.25'
-      ⍝     1/4th of a chunk is arbitrary.
-      vec←[0 0 ⋄ w 0 ⋄ 0 w ⋄ w w](+⍤2)4/[1],[0.5]↑(⊂px pz-lx lz×w×0.25)-⍨(w←⊃l)×Cg'xz'
-      dist←0.5*⍨+/[2]vec*2
-      num←(lx lz)(+.×⍤1)↑vec
-      den←dist×0.5*⍨+/(lx lz)*2
-      m←(Cg'ready')∧∨/(○70÷180)>¯2○num(⎕DIV:1).÷den ⍝ Chance that distance could be 0
+    ∇ Draw_chunks(cmd_buf pass px pz lx lz proj_view);w;vec;dist;num;den;m;vbs;inds;xz;ud;frs;n;d;box;h;t;t2
+      ⍝ Frustum Culling
+
+      frs←##.player.Get_frustum (○70÷180⋄1280÷720⋄0.1⋄500.0)
+      n←3↑[1]frs
+      d←,3↓[1]frs
      
+      (w h)←(⊃l ⋄ 1⊃l)
+      box←[
+          0 0 0 ⋄ w 0 0 ⋄ 0 0 w ⋄ w 0 w
+          0 h 0 ⋄ w h 0 ⋄ 0 h w ⋄ w h w
+      ]
+      vec←box(+⍤2)8/[1],[0.5]⌽2⌽0,(w←⊃l)×↑Cg'xz'  
+      t←~(∧/⍤1)(∨/⍤1)0>d(-⍤1)⍨ n(+.×⍤2 1)vec   
+      ⍝ Just get chunks around player, this is since we only check edge points of 
+      ⍝ chunks and frustum doesn't contain when close to player
+      ⍝ (TODO: replace with proper AABB testing)
+      t2 ← (2×w)>({0.5*⍨+/⍵*2}⍤1)↑(⊂px pz)-⍨w×Cg'xz'
+      m←(t2∨t)∧(Cg'ready')
       chunks_rendered←+/m
       vbs←m/Cg'vb'
       inds←m/Cg'idx_cnt'

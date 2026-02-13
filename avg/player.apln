@@ -130,8 +130,8 @@
       ⍝ (2) On a block (don't go to max acceleration otherwise when falling off it'll zoom)
       ⍝     Set it to a bit of gravity
       ⍝ (3) Otherwise
-      vy←{e_jump∧¯1=col_y: jump_power⋄¯1=col_y:0.3×gravity⋄⍵} vy
-
+      vy←{e_jump∧¯1=col_y:jump_power ⋄ ¯1=col_y:0.3×gravity ⋄ ⍵}vy
+     
       dir←##.math.Norm 0@1⊢Get_look_vec ⍬
       m←0≠(forward sideways)←(e_w-e_s ⋄ e_d-e_a)
       (forward sideways)←m×##.math.Norm(forward sideways)
@@ -139,7 +139,7 @@
       v←dt×speed×forward×dir
       v+←dt×speed×sideways×dir ##.math.Cross 0 1 0
       v+←dt×(0 vy 0)
-      (_ col_y _) ← Bound_check v
+      (_ col_y _)←Bound_check v
      
       Break(0 cam_offset 0)+(x y z)
       Place(0 cam_offset 0)+(x y z)
@@ -160,4 +160,41 @@
           l←Get_look_vec ⍬
           ##.math.Look_at at(at+l)(0 1 0)
       }
+
+      Get_frustum←{
+          ⍝ ⍵ ←→ (fov, aspect ratio, znear, zfar)
+          ⍝ Should be returned as (normals distance) as (6 4) matrix
+          ⍝ (Near Far Right Left Top Bottom)
+          (fov ⋄ ar ⋄ zn ⋄ zf)←⍵
+          front←Get_look_vec ⍬
+          right←##.math.Norm front ##.math.Cross 0 1 0
+          up←right ##.math.Cross front
+          half_v_side←zf×(3○0.5×fov)
+          half_h_side←half_v_side×ar
+          front_mult_far←zf×front
+     
+          p←(x ⋄ y+cam_offset ⋄ z)
+      
+          p1←[
+              p+zn×front
+              p+front_mult_far
+              p
+              p
+              p
+              p
+          ]
+          normals←(##.math.Norm⍤¯1)[
+              front
+              -front
+              (front_mult_far-right×half_h_side)##.math.Cross up
+              up ##.math.Cross(front_mult_far+right×half_h_side)
+              right ##.math.Cross(front_mult_far-up×half_v_side)
+              (front_mult_far+up×half_v_side)##.math.Cross right
+          ]
+          distance←p1(+.×⍤¯1)normals
+     
+          normals,distance
+      }
+
+
 :EndNamespace

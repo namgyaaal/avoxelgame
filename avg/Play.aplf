@@ -178,7 +178,7 @@
  )
 
  fps_counts←⍬
- toggle_ui←0
+ toggle_ui←1
  running←1
  :While running
      :While ⊃LSE_PollEvent ⍬
