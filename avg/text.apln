@@ -23,8 +23,10 @@
     ⍝ - Rotation
     ⍝ - Color : rgba with (4⍴256)⊥
     ⍝ - Hashes : for updating if it changed
+    ⍝ - Width
+    ⍝ - Height
 
-    tnames ← 'ptr' 'str' 'x' 'y' 'scale' 'rotation' 'color' 'hash'
+    tnames ← 'ptr' 'str' 'x' 'y' 'scale' 'rotation' 'color' 'w' 'h' 'center' 'hash' 
     table ← (≢tnames)⍴⊂⍬
 
     Ti ← tnames∘⍳∘⊂
@@ -61,17 +63,23 @@
       'Error creating font sampler'##.Assert sampler
     ∇
 
-    ∇ Copy(device pass);p;colors;hash;update_mask;vbc;ibc;sum
+    ∇ Copy(device pass);wh_tbl;p;colors;hash;update_mask;vbc;ibc;sum
+      update_mask←(table⊃⍨Ti'hash')≠hashes←chksum¨table⊃⍨Ti'str'
+      wh_tbl←⊃⍪⌿{
+          (ptr str) ← ⍵
+          _←{##.TTF_SetTextString ptr str (≢str)}⍬
+          (_ w h)←{##.TTF_GetTextSize ptr 0 0}⍬
+          [w h⋄]
+      }¨↓⍉↑'ptr'{⍺⍵}⍥{update_mask/⍵⊃table}⍥Ti'str'
+      ((Ti'hash')⊃table)←hashes   
+      (update_mask/(Ti'w')⊃table) ← 0⌷⍉wh_tbl
+      (update_mask/(Ti'h')⊃table) ← 1⌷⍉wh_tbl
+
       sequences←##.TTF_GetGPUTextDrawData¨table⊃⍨Ti'ptr'
       p←##.SDL_MapGPUTransferBuffer device font_tb 1
       colors←↓⍉255÷⍨(4⍴256)⊤table⊃⍨Ti'color'
 
-      update_mask←(table⊃⍨Ti'hash')≠hashes←chksum¨table⊃⍨Ti'str'
-      {
-          (ptr str) ← ⍵
-          _←{##.TTF_SetTextString ptr str (≢str)⋄0}⍬
-      }¨↓⍉↑'ptr'{⍺⍵}⍥{update_mask/⍵⊃table}⍥Ti'str'
-      ((Ti'hash')⊃table)←hashes
+
 
       ⍝ Need to accumulate offsets into the vertex and index buffers
       ⍝     through this since all texts are packed, hence why we do power.
@@ -82,6 +90,7 @@
           (1↓⊃⍵ ⋄ 1↓1⊃⍵ ⋄ cnt⍪[vbc ibc ⋄ ])
       }⍣{0=≢⊃⍺}⊢(sequences ⋄ colors ⋄ 0 2⍴0)
       (vbc ibc)←+⌿counts
+
      
       ##.SDL_UnmapGPUTransferBuffer device font_tb
      
@@ -89,21 +98,26 @@
       ##.SDL_UploadToGPUBuffer pass(font_tb(36×max_vertices))(font_ib 0(4×ibc))1
     ∇
 
-    ∇ Draw(cmd_buf pass proj_mat);rotations;rot;trans;scale;models;x;y;offsets
+    ∇ Draw(cmd_buf pass proj_mat);origin;rotations;rot;trans;scale;models;x;y;w;h;offsets;centered
       ##.SDL_BindGPUGraphicsPipeline pass pipeline
      
       x←table⊃⍨Ti'x'
       y←table⊃⍨Ti'y'
-     
+      w←table⊃⍨Ti'w'
+      h←table⊃⍨Ti'h'
+      centered←table⊃⍨Ti'center'
+      origin←↑{(-⊃⍵ ⋄ 1⊃⍵ ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4}¨↓⍉↑2÷⍨w h
+      ((~centered)⌿origin) ← (∘.=⍨⍳4)
       rot←↑{
           ul←1 ¯1 1 1×2 1 1 2○⍵ ⍝ Rotate on XY plane
           4 4⍴(ul,1,1)@(0 1 4 5 10 15)⊢16⍴0
       }¨table⊃⍨Ti'rotation'
+
       trans←↑{(⊃⍵ ⋄ 1⊃⍵ ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4}¨↓⍉↑x y
       scale←↑{1@(⊂3 3)⊢⍵×∘.=⍨⍳4}¨table⊃⍨Ti'scale'
-      models←proj_mat+.×⍨rot(+.×⍤2 2)scale(+.×⍤2 2)trans
+      models←proj_mat+.×⍨origin(+.×⍤2 2)rot(+.×⍤2 2)scale(+.×⍤ 2 2)trans
       offsets←¯1↓0 0⍪+⍀counts
-     
+
       ##.SDL_BindGPUVertexBuffers pass 0(⊂font_vb 0)1
       ##.SDL_BindGPUIndexBuffer pass(⊂font_ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       {
@@ -112,7 +126,7 @@
           ##.LSE_FontGPUDraw pass sampler seq v i
      
       }¨↓⍉↑(sequences ⋄ ↓,[1+⍳2]models ⋄ ↓offsets)
-     
+    
     ∇
 
     ∇ Release device
