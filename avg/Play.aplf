@@ -21,9 +21,9 @@
  text.Init device window
 
  text_render←TTF_CreateText text.engine text.font'Foobar' 0
- ⍝text_render2←TTF_CreateText text.engine text.font'Foobar' 0
- text.table⍪¨←(text_render ⋄ 'UTF-8'⎕UCS'Foobar' ⋄ 800 700 ⋄ 0.4 ⋄ 1 1 1 1)
- ⍝text.table⍪¨←(text_render2⋄'UTF-8'⎕UCS'Foobar'⋄800 500⋄0.4⋄1.0 1.0 1.0 1.0)
+ text_render2←TTF_CreateText text.engine text.font'AVoxelGame' 0
+ text.table⍪¨←(text_render ⋄ 'UTF-8'⎕UCS'Foobar' ⋄ 800 ⋄ 700 ⋄ 0.4 ⋄ 1 1 1 1)
+ text.table⍪¨←(text_render2 ⋄ 'UTF-8'⎕UCS'AVoxelGame' ⋄ 10 ⋄ 716 ⋄ 0.7 ⋄ 1 1 1 1)
 
 
  world.Init_chunks device
@@ -147,7 +147,7 @@
          ≢world.vb_fenced)
 
      ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
-     TTF_SetTextString(⊃text.table⌷⍨text.Ti'ptr')(ustr)(≢ustr)
+     TTF_SetTextString(⊃text.table⊃⍨text.Ti'ptr')(ustr)(≢ustr)
 
      pass←##.SDL_BeginGPUCopyPass cmd_buf
 

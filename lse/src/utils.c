@@ -42,11 +42,12 @@ void LSE_MemcpyF32(void* dst, void* src, uint32_t size) {
 
 void LSE_FontGPUCopy(void* dst, TTF_GPUAtlasDrawSequence* sequence,
                      uint32_t* vb_count, uint32_t* ib_count, float r, float g,
-                     float b, float a, uint32_t MAX_VERTICES) {
+                     float b, float a, uint32_t MAX_VERTICES,
+                     uint32_t vertex_offset, uint32_t index_offset) {
     *vb_count = 0;
     *ib_count = 0;
-    float* dst_ptr_vb = dst;
-    int* dst_ptr_ib = ((int*)dst) + (9 * MAX_VERTICES);
+    float* dst_ptr_vb = ((float*)dst) + (9 * vertex_offset);
+    int* dst_ptr_ib = ((int*)dst) + (9 * MAX_VERTICES) + index_offset;
     for (; sequence; sequence = sequence->next) {
         for (int i = 0; i < sequence->num_vertices; i++) {
             // Positions
@@ -72,8 +73,8 @@ void LSE_FontGPUCopy(void* dst, TTF_GPUAtlasDrawSequence* sequence,
 }
 
 void LSE_FontGPUDraw(SDL_GPURenderPass* pass, SDL_GPUSampler* sampler,
-                     TTF_GPUAtlasDrawSequence* sequence) {
-    int index_offset = 0, vertex_offset = 0;
+                     TTF_GPUAtlasDrawSequence* sequence, uint32_t vertex_offset,
+                     uint32_t index_offset) {
     for (TTF_GPUAtlasDrawSequence* seq = sequence; seq != NULL;
          seq = seq->next) {
         SDL_BindGPUFragmentSamplers(

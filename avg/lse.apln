@@ -40,8 +40,8 @@
         ⍝ General Graphics
     'LSE_CreateGPUShader' ptr (ptr '<'GPUShaderCreateInfo cstr)
         ⍝ Font Stuff
-    'LSE_FontGPUCopy' ⍬ (ptr ptr '>' u32 '>' u32 f32 f32 f32 f32 u32)
-    'LSE_FontGPUDraw' ⍬ (ptr ptr ptr)
+    'LSE_FontGPUCopy' ⍬ (ptr ptr '>' u32 '>' u32 f32 f32 f32 f32 u32 u32 u32)
+    'LSE_FontGPUDraw' ⍬ (ptr ptr ptr u32 u32)
         ⍝ Pipeline Handling
     'LSE_PipelineClearParams' ⍬ ⍬
     'LSE_PipelineCreate' ptr ptr

@@ -12,6 +12,7 @@
     font_tb ← 0
 
     sequences ← ⍬
+    counts ← 0 2⍴0
 
     ⍝ Inverted Table
     ⍝ - Text Pointer
@@ -19,8 +20,8 @@
     ⍝ - Translation
     ⍝ - Scale
     ⍝ - Color (rgba)
-    tnames ← 'ptr' 'str' 'xy' 'scale' 'color'
-    table ← ⍬ ⍬ ⍬ ⍬ ⍬
+    tnames ← 'ptr' 'str' 'x' 'y' 'scale' 'color'
+    table ← ⍬ ⍬ ⍬ ⍬ ⍬ ⍬
 
     Ti ← tnames∘⍳∘⊂
 
@@ -50,37 +51,55 @@
           ##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD((36×max_vertices)+(4×max_indices))0
       )
       'Error creating font buffers'##.Assert font_vb font_ib font_tb
-
+     
       sam_params←⊂1 1 1 2 2 2 0 0 0 0 0 0 0 0 0 0
       sampler←##.SDL_CreateGPUSampler device sam_params
       'Error creating font sampler'##.Assert sampler
     ∇
 
-    ∇ Copy (device pass);p;vbc;ibc
-      sequences←##.TTF_GetGPUTextDrawData¨(Ti'ptr')⌷table
+    ∇ Copy(device pass);p;vbc;ibc;sum
+      sequences←##.TTF_GetGPUTextDrawData¨table⊃⍨Ti'ptr'
       p←##.SDL_MapGPUTransferBuffer device font_tb 1
-      vbc ibc←⊃+⌿{##.LSE_FontGPUCopy p ⍵ 0 0 0 0 0 1 max_vertices}¨sequences
-      ##.SDL_UnmapGPUTransferBuffer device font_tb
+      ⍝vbc ibc←⊃+⍀{(vbc ibc)←##.LSE_FontGPUCopy p ⍵ 0 0 0 0 0 1 max_vertices}¨sequences
+     
 
+      counts ← 1⊃{
+          (seq cnt) ← (1↑⊃⍵⋄1⊃⍵)
+          (vo io) ← +⌿cnt
+          (vbc ibc) ← ##.LSE_FontGPUCopy p seq 0 0 0 0 0 1 max_vertices vo io
+          (1↓⊃⍵⋄cnt⍪[vbc ibc⋄])
+      }⍣{0=≢⊃⍺} ⊢ sequences (0 2⍴0)
+      (vbc ibc) ← +⌿counts
+
+      ##.SDL_UnmapGPUTransferBuffer device font_tb
+     
       ##.SDL_UploadToGPUBuffer pass(font_tb 0)(font_vb 0(36×vbc))1
       ##.SDL_UploadToGPUBuffer pass(font_tb(36×max_vertices))(font_ib 0(4×ibc))1
     ∇
 
-    ∇ Draw (cmd_buf pass proj_mat);trans;scale;model
+    ∇ Draw(cmd_buf pass proj_mat);trans;scale;models;x;y;offsets
       ##.SDL_BindGPUGraphicsPipeline pass pipeline
+     
 
-      trans ← ↑{(⊃⍵⋄1⊃⍵⋄0⋄1)@3⊢∘.=⍨⍳4}¨table⌷⍨Ti'xy'
-      scale ← ↑{1@(⊂3 3)⊢⍵×∘.=⍨⍳4}¨table⌷⍨Ti'scale'
 
-      model ← scale (+.×⍤2 2) trans
+      x ← table⊃⍨Ti'x'
+      y ← table⊃⍨Ti'y'
 
-      ##.SDL_PushGPUVertexUniformData cmd_buf 0(∊model+.×proj_mat)(16×4)
+      trans←↑{(⊃⍵ ⋄ 1⊃⍵ ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4}¨↓⍉↑x y
+      scale←↑{1@(⊂3 3)⊢⍵×∘.=⍨⍳4}¨table⊃⍨Ti'scale'
+      models←proj_mat+.×⍨scale(+.×⍤2 2)trans
+      offsets←¯1↓0 0⍪+⍀counts
+
       ##.SDL_BindGPUVertexBuffers pass 0(⊂font_vb 0)1
       ##.SDL_BindGPUIndexBuffer pass(⊂font_ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
+      {
+          (seq ⋄ mat ⋄ (v i)) ← ⍵
+          mat←4 4⍴mat
+          _ ←{##.SDL_PushGPUVertexUniformData cmd_buf 0(∊mat)(16×4)⋄0}⍬
+          ##.LSE_FontGPUDraw pass sampler seq v i
 
-
-      {##.LSE_FontGPUDraw pass sampler ⍵}¨sequences
-
+      }¨↓⍉↑(sequences⋄↓,[1+⍳2] models⋄↓offsets)
+     
     ∇
 
     ∇ Release device
@@ -89,7 +108,7 @@
       ##.SDL_ReleaseGPUBuffer device font_tb
       ##.SDL_ReleaseGPUSampler device sampler
       ##.SDL_ReleaseGPUGraphicsPipeline device pipeline
-      ##.TTF_DestroyText¨table⌷⍨Ti'ptr'
+      ##.TTF_DestroyText¨table⊃⍨Ti'ptr'
       ##.TTF_DestroyGPUTextEngine engine
       ##.TTF_CloseFont font
       ##.TTF_Quit
