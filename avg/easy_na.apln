@@ -1,5 +1,4 @@
 :Namespace easy_na
-
       Clean_def←{
           ⍝ Cases where <>= have a space after the struct/type they're on.
           ⍝ One-letter characters are too weird to handle properly, for now

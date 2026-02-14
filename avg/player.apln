@@ -53,7 +53,7 @@
           ⍝ ⍵ ←→ view vector
           (x y z)←⍵
           0=e_break:
-          p←(x y z)##.Ray_hit 5×Get_look_vec ⍬
+          p←(x y z)##.Ray_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
           m←{0≠⍵⌷##.world.chunks}¨tp
           0=∨/m:0
@@ -69,7 +69,7 @@
           ⍺←##.world.Bi'Wood'
           (x y z)←⍵
           0=e_place:
-          p←(x y z)##.Ray_hit 5×Get_look_vec ⍬
+          p←(x y z)##.Ray_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
           m←{0≠⍵⌷##.world.chunks}¨tp
           0=∨/m:0
@@ -129,10 +129,11 @@
       ⍝ (1) Able to jump
       ⍝ (2) On a block (don't go to max acceleration otherwise when falling off it'll zoom)
       ⍝     Set it to a bit of gravity
+      ⍝ (3) Touching from jumping, set to 0
       ⍝ (3) Otherwise
-      vy←{e_jump∧¯1=col_y:jump_power ⋄ ¯1=col_y:0.3×gravity ⋄ ⍵}vy
+      vy←{e_jump∧¯1=col_y:jump_power ⋄ ¯1=col_y:0.3×gravity ⋄ 1=col_y:0⋄⍵}vy
      
-      dir←##.math.Norm 0@1⊢Get_look_vec ⍬
+      dir←##.math.Norm 0@1⊢Get_look ⍬
       m←0≠(forward sideways)←(e_w-e_s ⋄ e_d-e_a)
       (forward sideways)←m×##.math.Norm(forward sideways)
      
@@ -141,23 +142,19 @@
       v+←dt×(0 vy 0)
       (_ col_y _)←Bound_check v
      
-      Break(0 cam_offset 0)+(x y z)
-      Place(0 cam_offset 0)+(x y z)
+      Break(x⋄y + cam_offset⋄z)
+      Place(x⋄y + cam_offset⋄z)
      
       (e_place e_break e_jump)←0
     ∇
 
-      Get_look_vec←{
-          (
-              ×/1 2○yaw pitch
-              1○pitch
-              ×/2 2○yaw pitch
-          )
+      Get_look←{
+          (×/1 2○yaw pitch⋄1○pitch⋄×/2 2○yaw pitch)
       }
 
       Get_view←{
           at←(x y z)+(0 cam_offset 0)
-          l←Get_look_vec ⍬
+          l←Get_look ⍬
           ##.math.Look_at at(at+l)(0 1 0)
       }
 
@@ -166,7 +163,7 @@
           ⍝ Should be returned as (normals distance) as (6 4) matrix
           ⍝ (Near Far Right Left Top Bottom)
           (fov ⋄ ar ⋄ zn ⋄ zf)←⍵
-          front←Get_look_vec ⍬
+          front←Get_look ⍬
           right←##.math.Norm front ##.math.Cross 0 1 0
           up←right ##.math.Cross front
           half_v_side←zf×(3○0.5×fov)

@@ -42,11 +42,11 @@ void LSE_MemcpyF32(void* dst, void* src, uint32_t size) {
 
 void LSE_FontGPUCopy(void* dst, TTF_GPUAtlasDrawSequence* sequence,
                      uint32_t* vb_count, uint32_t* ib_count, float r, float g,
-                     float b, float a) {
+                     float b, float a, uint32_t MAX_VERTICES) {
     *vb_count = 0;
     *ib_count = 0;
     float* dst_ptr_vb = dst;
-    int* dst_ptr_ib = ((int*)dst) + (9 * 4000);
+    int* dst_ptr_ib = ((int*)dst) + (9 * MAX_VERTICES);
     for (; sequence; sequence = sequence->next) {
         for (int i = 0; i < sequence->num_vertices; i++) {
             // Positions

@@ -115,13 +115,13 @@
       }
 
       Push_fence←{
-          ⍝ ⍵ ←→ Fence pointer
+          ⍝ ⍵ ←→ Fence counter
           0=≢vb_fenced:
           m←¯1=0⌷⍉vb_fenced
           (m/0⌷⍉vb_fenced)←⍵
       }
 
-      Pop_fence←{
+      Pop_fences←{
           ⍝ ⍵ ←→ Fence counters
           0=≢vb_fenced:
           m←⍵∊⍨0⌷⍉vb_fenced
@@ -208,7 +208,11 @@
       ##.SDL_SubmitGPUCommandBuffer cmd
     ∇
 
-    ∇ Delete device
+    ∇ Release device
+      {##.SDL_ReleaseGPUBuffer device ⍵}¨∊vb_pools,(2⌷⍉vb_fenced),Cg'vb'
+      ##.SDL_ReleaseGPUBuffer device ib
+      ##.SDL_ReleaseGPUBuffer device tb
+      
       ##.SDL_ReleaseGPUTexture device texture
       ##.SDL_ReleaseGPUSampler device sampler
     ∇

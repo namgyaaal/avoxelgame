@@ -1,4 +1,6 @@
 :Namespace math
+    ⎕IO←0
+
     ⍝ https://codegolf.stackexchange.com/a/149160
     Norm ← ⊢÷0.5*⍨+.×⍨
 
@@ -8,12 +10,12 @@
       Proj←{
           (fov ar n f)←⍵
           t←÷3○fov×0.5
-          4 4⍴(t÷ar ⋄ t ⋄ f÷n-f ⋄ ¯1 ⋄ n(×÷-)f)@1 6 11 12 15⊢16⍴0
+          4 4⍴(t÷ar ⋄ t ⋄ f÷n-f ⋄ ¯1 ⋄ n(×÷-)f)@0 5 10 11 14⊢16⍴0
       }
-      Ortho ← {
-        (b l t r n f)←⍵
-        m←3 4⍴(2÷r-l⋄2÷t-b⋄¯2÷f-n)@1 6 11⊢12⍴0
-        m⍪(-(r+l)÷(r-l)⋄-(t+b)÷(t-b)⋄-(f+n)÷(f-n)⋄1)
+      Ortho←{
+          (b l t r n f)←⍵
+          m←3 4⍴(2÷r-l ⋄ 2÷t-b ⋄ ¯2÷f-n)@0 5 10⊢12⍴0
+          m⍪(-(r+l)÷(r-l) ⋄ -(t+b)÷(t-b) ⋄ -(f+n)÷(f-n) ⋄ 1)
       }
 
       Look_at←{
