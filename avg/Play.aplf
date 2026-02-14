@@ -20,11 +20,13 @@
 
  text.Init device window
 
- text_render←TTF_CreateText text.engine text.font'Foobar' 0
- text_render2←TTF_CreateText text.engine text.font'AVoxelGame' 0
- text.table⍪¨←(text_render ⋄ 'UTF-8'⎕UCS'Foobar' ⋄ 800 ⋄ 700 ⋄ 0.4 ⋄ 1 1 1 1)
- text.table⍪¨←(text_render2 ⋄ 'UTF-8'⎕UCS'AVoxelGame' ⋄ 10 ⋄ 716 ⋄ 0.7 ⋄ 1 1 1 1)
 
+ txt←'UTF-8'⎕UCS'AVoxelGame'
+
+ text_render←TTF_CreateText text.engine text.font 0 0
+ text_render2←TTF_CreateText text.engine text.font (∊txt) (≢txt)
+ text.table⍪¨←(text_render ⋄⊆'UTF-8'⎕UCS'Foobar' ⋄ 800 ⋄ 700 ⋄ 0.4 ⋄ 0 ⋄ (4⍴256)⊥0 0 0 255⋄0)
+ text.table⍪¨←(text_render2 ⋄⊆txt⋄ 10 ⋄ 716 ⋄ 0.7 ⋄ 0 ⋄ (4⍴256)⊥50 150 50 255⋄0)
 
  world.Init_chunks device
 
@@ -147,7 +149,9 @@
          ≢world.vb_fenced)
 
      ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
-     TTF_SetTextString(⊃text.table⊃⍨text.Ti'ptr')(ustr)(≢ustr)
+     (0⊃(text.Ti'str')⊃text.table) ← ustr
+
+     (1⊃(text.Ti'rotation')⊃text.table)+←0.001
 
      pass←##.SDL_BeginGPUCopyPass cmd_buf
 
@@ -176,6 +180,7 @@
              SDL_EndGPURenderPass pass
          :EndIf
      :EndIf
+
 
      fence←SDL_SubmitGPUCommandBufferAndAcquireFence cmd_buf
      fence_idx←fence_ctr ⋄ fence_ctr+←1

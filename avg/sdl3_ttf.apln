@@ -6,26 +6,25 @@
     i32 ← 'I4'
     u64 ← 'U8'
     fns ← (
-        'TTF_Init' bool ⍬
-        'TTF_Quit' ⍬ ⍬
-        'TTF_OpenFont' ptr (cstr f32)
-        'TTF_CloseFont' ⍬ ptr
+    'TTF_Init' bool ⍬
+    'TTF_Quit' ⍬ ⍬
+    'TTF_OpenFont' ptr (cstr f32)
+    'TTF_CloseFont' ⍬ ptr
 
-        'TTF_SetFontSDF' ptr (ptr bool)
-        'TTF_SetFontWrapAlignment' ⍬ (ptr i32)
-        'TTF_CreateGPUTextEngine' ptr ptr
-        'TTF_DestroyGPUTextEngine' ⍬ ptr
-        
-        'TTF_CreateText' ptr (ptr ptr cstr u64)
-        'TTF_DestroyText' ⍬ ptr
+    'TTF_SetFontSDF' ptr (ptr bool)
+    'TTF_SetFontWrapAlignment' ⍬ (ptr i32)
+    'TTF_CreateGPUTextEngine' ptr ptr
+    'TTF_DestroyGPUTextEngine' ⍬ ptr
 
+    'TTF_CreateText' ptr (ptr ptr '<U1[]' u64)
+    'TTF_DestroyText' ⍬ ptr
 
-        'TTF_SetTextString' bool (ptr '<U1[]' u64)
-        'TTF_GetTextSize' bool (ptr '>' i32 '>' i32)
-        'TTF_GetGPUTextDrawData' ptr ptr
+    'TTF_SetTextString' bool (ptr '<U1[]' u64)
+    'TTF_GetTextSize' bool (ptr '>' i32 '>' i32)
+    'TTF_GetGPUTextDrawData' ptr ptr
     )
 
     ∇ Load_lib path
-        path ##.easy_na.Safe_load fns
+      path ##.easy_na.Safe_load fns
     ∇
 :EndNamespace
