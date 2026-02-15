@@ -8,27 +8,27 @@
     pipeline ← 0
     sampler ← 0
 
-    font_vb ← 0
-    font_ib ← 0
-    font_tb ← 0
+    vb ← 0
+    ib ← 0
+    tb ← 0
 
     sequences ← ⍬
     counts ← 0 2⍴0
 
-    ⍝ Inverted Table
+    ⍝ Table Format
     ⍝ - Text Pointer
     ⍝ - Text Data : 'UTF-8'⎕UCS
     ⍝ - Translation
     ⍝ - Scale
     ⍝ - Rotation
     ⍝ - Color : rgba with (4⍴256)⊥
-    ⍝ - Hashes : for updating if it changed
     ⍝ - Width
     ⍝ - Height
+    ⍝ - Centered : translate by size, usful for rotation around center
+    ⍝ - Hash : for updating if it changed
 
-    tnames ← 'ptr' 'str' 'x' 'y' 'scale' 'rotation' 'color' 'w' 'h' 'center' 'hash' 
+    tnames ← 'ptr' 'str' 'x' 'y' 'scale' 'rotation' 'color' 'w' 'h' 'center' 'hash'
     table ← (≢tnames)⍴⊂⍬
-
     Ti ← tnames∘⍳∘⊂
 
     ∇ Init(device window);res;sam_params
@@ -42,21 +42,21 @@
      
       Create_pipeline device window
      
-      font_vb←##.SDL_CreateGPUBuffer device(
+      vb←##.SDL_CreateGPUBuffer device(
           ##.SDL_GPU_BUFFERUSAGE_VERTEX
           36×max_vertices
           0
       )
-      font_ib←##.SDL_CreateGPUBuffer device(
+      ib←##.SDL_CreateGPUBuffer device(
           ##.SDL_GPU_BUFFERUSAGE_INDEX
           4×max_indices
           0
       )
-      font_tb←##.SDL_CreateGPUTransferBuffer(
+      tb←##.SDL_CreateGPUTransferBuffer(
           device
           ##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD((36×max_vertices)+(4×max_indices))0
       )
-      'Error creating font buffers'##.Assert font_vb font_ib font_tb
+      'Error creating font buffers'##.Assert vb ib tb
      
       sam_params←⊂1 1 1 2 2 2 0 0 0 0 0 0 0 0 0 0
       sampler←##.SDL_CreateGPUSampler device sam_params
@@ -66,21 +66,19 @@
     ∇ Copy(device pass);wh_tbl;p;colors;hash;update_mask;vbc;ibc;sum
       update_mask←(table⊃⍨Ti'hash')≠hashes←chksum¨table⊃⍨Ti'str'
       wh_tbl←⊃⍪⌿{
-          (ptr str) ← ⍵
-          _←{##.TTF_SetTextString ptr str (≢str)}⍬
+          (ptr str)←⍵
+          _←{##.TTF_SetTextString ptr str(≢str)}⍬
           (_ w h)←{##.TTF_GetTextSize ptr 0 0}⍬
-          [w h⋄]
-      }¨↓⍉↑'ptr'{⍺⍵}⍥{update_mask/⍵⊃table}⍥Ti'str'
-      ((Ti'hash')⊃table)←hashes   
-      (update_mask/(Ti'w')⊃table) ← 0⌷⍉wh_tbl
-      (update_mask/(Ti'h')⊃table) ← 1⌷⍉wh_tbl
-
+          [w h ⋄ ]
+      }¨↓⍉↑'ptr'{⍺ ⍵}⍥{update_mask/⍵⊃table}⍥Ti'str'
+      ((Ti'hash')⊃table)←hashes
+      (update_mask/(Ti'w')⊃table)←0⌷⍉wh_tbl
+      (update_mask/(Ti'h')⊃table)←1⌷⍉wh_tbl
+     
       sequences←##.TTF_GetGPUTextDrawData¨table⊃⍨Ti'ptr'
-      p←##.SDL_MapGPUTransferBuffer device font_tb 1
+      p←##.SDL_MapGPUTransferBuffer device tb 1
       colors←↓⍉255÷⍨(4⍴256)⊤table⊃⍨Ti'color'
-
-
-
+     
       ⍝ Need to accumulate offsets into the vertex and index buffers
       ⍝     through this since all texts are packed, hence why we do power.
       counts←2⊃{
@@ -90,55 +88,64 @@
           (1↓⊃⍵ ⋄ 1↓1⊃⍵ ⋄ cnt⍪[vbc ibc ⋄ ])
       }⍣{0=≢⊃⍺}⊢(sequences ⋄ colors ⋄ 0 2⍴0)
       (vbc ibc)←+⌿counts
-
      
-      ##.SDL_UnmapGPUTransferBuffer device font_tb
      
-      ##.SDL_UploadToGPUBuffer pass(font_tb 0)(font_vb 0(36×vbc))1
-      ##.SDL_UploadToGPUBuffer pass(font_tb(36×max_vertices))(font_ib 0(4×ibc))1
+      ##.SDL_UnmapGPUTransferBuffer device tb
+     
+      ##.SDL_UploadToGPUBuffer pass(tb 0)(vb 0(36×vbc))1
+      ##.SDL_UploadToGPUBuffer pass(tb(36×max_vertices))(ib 0(4×ibc))1
     ∇
 
     ∇ Draw(cmd_buf pass proj_mat);origin;rotations;rot;trans;scale;models;x;y;w;h;offsets;centered
       ##.SDL_BindGPUGraphicsPipeline pass pipeline
      
-      x←table⊃⍨Ti'x'
-      y←table⊃⍨Ti'y'
-      w←table⊃⍨Ti'w'
-      h←table⊃⍨Ti'h'
-      centered←table⊃⍨Ti'center'
+      (x y w h centered) ← ⊃∘table⍤Ti¨('x' 'y' 'w' 'h' 'center')
       origin←↑{(-⊃⍵ ⋄ 1⊃⍵ ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4}¨↓⍉↑2÷⍨w h
-      ((~centered)⌿origin) ← (∘.=⍨⍳4)
+      ((~centered)⌿origin)←(∘.=⍨⍳4)
+     
       rot←↑{
           ul←1 ¯1 1 1×2 1 1 2○⍵ ⍝ Rotate on XY plane
           4 4⍴(ul,1,1)@(0 1 4 5 10 15)⊢16⍴0
       }¨table⊃⍨Ti'rotation'
-
+     
       trans←↑{(⊃⍵ ⋄ 1⊃⍵ ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4}¨↓⍉↑x y
       scale←↑{1@(⊂3 3)⊢⍵×∘.=⍨⍳4}¨table⊃⍨Ti'scale'
-      models←proj_mat+.×⍨origin(+.×⍤2 2)rot(+.×⍤2 2)scale(+.×⍤ 2 2)trans
+      models ← proj_mat+.×⍨⊃(+.×⍤2 2)/origin rot scale trans
       offsets←¯1↓0 0⍪+⍀counts
-
-      ##.SDL_BindGPUVertexBuffers pass 0(⊂font_vb 0)1
-      ##.SDL_BindGPUIndexBuffer pass(⊂font_ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
+      ##.SDL_BindGPUVertexBuffers pass 0(⊂vb 0)1
+      ##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       {
           (seq ⋄ mat ⋄ (v i))←⍵
           _←{##.SDL_PushGPUVertexUniformData cmd_buf 0 mat(16×4) ⋄ 0}⍬
           ##.LSE_FontGPUDraw pass sampler seq v i
      
       }¨↓⍉↑(sequences ⋄ ↓,[1+⍳2]models ⋄ ↓offsets)
-    
+     
     ∇
 
     ∇ Release device
-      ##.SDL_ReleaseGPUBuffer device font_vb
-      ##.SDL_ReleaseGPUBuffer device font_ib
-      ##.SDL_ReleaseGPUBuffer device font_tb
+      ##.SDL_ReleaseGPUBuffer device vb
+      ##.SDL_ReleaseGPUBuffer device ib
+      ##.SDL_ReleaseGPUBuffer device tb
       ##.SDL_ReleaseGPUSampler device sampler
       ##.SDL_ReleaseGPUGraphicsPipeline device pipeline
       ##.TTF_DestroyText¨table⊃⍨Ti'ptr'
       ##.TTF_DestroyGPUTextEngine engine
       ##.TTF_CloseFont font
       ##.TTF_Quit
+
+      font ← 0
+      engine ← 0
+      pipeline ← 0
+      sampler ← 0
+
+      vb ← 0
+      ib ← 0
+      tb ← 0
+
+      sequences ← ⍬
+      counts ← 0 2⍴0
+      table ← (≢tnames)⍴⊂⍬
     ∇
 
     ∇ r←Create_shaders device;v_src;v_size;f_src;f_size;v_info;f_info;entry_point;shader_format;v_shader;f_shader

@@ -24,14 +24,14 @@
  txt←'UTF-8'⎕UCS'AVoxelGame'
 
  text_render←TTF_CreateText text.engine text.font 0 0
- text_render2←TTF_CreateText text.engine text.font (∊txt) (≢txt)
- text.table⍪¨←(text_render ⋄⊆'UTF-8'⎕UCS'Foobar' ⋄ 800 ⋄ 700 ⋄ 0.4 ⋄ 0 ⋄ (4⍴256)⊥0 0 0 255⋄0⋄0⋄0⋄0)
- text.table⍪¨←(text_render2 ⋄⊆txt⋄ 200 ⋄ 500 ⋄ 0.7 ⋄ 0 ⋄ (4⍴256)⊥50 150 50 255⋄0⋄0⋄1⋄0)
+ text_render2←TTF_CreateText text.engine text.font(∊txt)(≢txt)
+ text.table⍪¨←(text_render ⋄ ⊆'UTF-8'⎕UCS'Foobar' ⋄ 800 ⋄ 700 ⋄ 0.4 ⋄ 0 ⋄ (4⍴256)⊥0 0 0 255 ⋄ 0 ⋄ 0 ⋄ 0 ⋄ 0)
+ text.table⍪¨←(text_render2 ⋄ ⊆txt ⋄ 200 ⋄ 500 ⋄ 0.7 ⋄ 0 ⋄ (4⍴256)⊥50 150 50 255 ⋄ 0 ⋄ 0 ⋄ 1 ⋄ 0)
 
  world.Init_chunks device
 
  blocks←world.l⍴0
- blocks[;2;]←1
+ blocks[;40;]←1
  world.Queue_chunk device blocks(0 0)
  world.Update_range device 0 0
 
@@ -149,7 +149,7 @@
          ≢world.vb_fenced)
 
      ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
-     (0⊃(text.Ti'str')⊃text.table) ← ustr
+     (0⊃(text.Ti'str')⊃text.table)←ustr
 
      (1⊃(text.Ti'rotation')⊃text.table)+←0.01
 

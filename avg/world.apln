@@ -1,6 +1,6 @@
 :Namespace world
     ⎕IO ← 0
-    l ← 16 32 16
+    l ← 16 128 16
     box ← ⊃∘.∨/1@0¨l-⍛↑¨1
 
 
@@ -36,7 +36,7 @@
     ib ← 0
     tb ← 0
     tb_pos ← 0
-    tb_size ← 5×vsize
+    tb_size ← 3×vsize
     ⍝ Vector of x and z positions corresponding to xz column
     tb_queue ← ⍬
     (texture sampler) ← ⍬ ⍬
@@ -212,7 +212,7 @@
       {##.SDL_ReleaseGPUBuffer device ⍵}¨∊vb_pools,(2⌷⍉vb_fenced),Cg'vb'
       ##.SDL_ReleaseGPUBuffer device ib
       ##.SDL_ReleaseGPUBuffer device tb
-      
+     
       ##.SDL_ReleaseGPUTexture device texture
       ##.SDL_ReleaseGPUSampler device sampler
     ∇
@@ -291,9 +291,8 @@
       (m/(Ci'ready')⌷⍉chunk_info)←1
     ∇
 
-    ∇ Update_range(device x z);range;dist;new;old;m;pair;tx;tz;ty
-      range←,∘.,⍨((-view_distance)+⍳1+2×view_distance)
-      range←(⊂⌊16÷⍨x z)+range/⍨∊view_distance≥0.5*⍨+/¨range*2
+    ∇ Update_range(device x z);range;dist;new;old;m;pair;tx;tz;ty;ground
+      range←(⊂⌊16÷⍨x z)+,∘.,⍨((-view_distance)+⍳1+2×view_distance)
      
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
@@ -303,21 +302,22 @@
       vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨~m}⍥Cg'vb'
       chunk_info⌿⍨←m
      
+      ground←40
       :For pair :In new
           blocks←l⍴0
           ⍝ Testing different vb_pool
           :If 0.95<?0
-              {w←⍵+⍳16-2×⍵ ⋄ blocks[w;3+⍵;w]←6 ⋄ ⍵+1}⍣8⊢0
+              {w←⍵+⍳16-2×⍵ ⋄ blocks[w;1+ground+⍵;w]←6 ⋄ ⍵+1}⍣8⊢0
           :Else
-              blocks[;(0 1);]←2
-              blocks[;2;]←1
+              blocks[;⍳ground;]←2
+              blocks[;ground;]←1
               ⍝ Tree :)
               :If 0.6<?0
                   tx tz←4+?10 10
                   ty←3+?3
-                  blocks[tx;3+⍳ty;tz]←4
-                  blocks[tx+¯2+⍳5;3 4+ty;tz+¯2+⍳5]←5
-                  blocks[tx+¯1+⍳3;5 6+ty;tz+¯1+⍳3]←5
+                  blocks[tx;ground+⍳ty;tz]←4
+                  blocks[tx+¯2+⍳5;(ground⋄ground+1)+ty;tz+¯2+⍳5]←5
+                  blocks[tx+¯1+⍳3;(ground+2⋄ground+3)+ty;tz+¯1+⍳3]←5
               :EndIf
           :EndIf
      
@@ -325,25 +325,17 @@
       :EndFor
     ∇
 
-    ∇ Draw_chunks(cmd_buf pass px pz lx lz proj_view);w;vec;dist;num;den;m;vbs;inds;xz;ud;frs;n;d;box;h;t;t2
+    ∇ Draw_chunks(cmd_buf pass px pz lx lz proj_view);w;m;vbs;inds;xz;ud;frs;n;d;box;h;t;t2;centers;extents;r
       ⍝ Frustum Culling
-
-      frs←##.player.Get_frustum (○70÷180⋄1280÷720⋄0.1⋄500.0)
+      frs←##.player.Get_frustum(○70÷180 ⋄ 1280÷720 ⋄ 0.1 ⋄ 500)
       n←3↑[1]frs
       d←,3↓[1]frs
-     
-      (w h)←(⊃l ⋄ 1⊃l)
-      box←[
-          0 0 0 ⋄ w 0 0 ⋄ 0 0 w ⋄ w 0 w
-          0 h 0 ⋄ w h 0 ⋄ 0 h w ⋄ w h w
-      ]
-      vec←box(+⍤2)8/[1],[0.5]⌽2⌽0,(w←⊃l)×↑Cg'xz'  
-      t←~(∧/⍤1)(∨/⍤1)0>d(-⍤1)⍨ n(+.×⍤2 1)vec   
-      ⍝ Just get chunks around player, this is since we only check edge points of 
-      ⍝ chunks and frustum doesn't contain when close to player
-      ⍝ (TODO: replace with proper AABB testing)
-      t2 ← (2×w)>({0.5*⍨+/⍵*2}⍤1)↑(⊂px pz)-⍨w×Cg'xz'
-      m←(t2∨t)∧(Cg'ready')
+
+      ⍝ https://web.archive.org/web/20220115111822/https://gdbooks.gitbooks.io/3dcollisions/content/Chapter2/static_aabb_plane.html
+      centers←(w÷2⋄2÷⍨h←1⊃l⋄w÷2) (+⍤1) ⌽2⌽0,(w←⊃l)×↑Cg'xz'
+      r←+/(|n)(×⍤1)(w⋄h⋄w)÷2
+      m←(Cg'ready')∧∧/(-r)(≤⍤1) d(-⍤1)⍨n(+.×⍤2 1)centers
+
       chunks_rendered←+/m
       vbs←m/Cg'vb'
       inds←m/Cg'idx_cnt'

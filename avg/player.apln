@@ -3,7 +3,7 @@
     cam_offset ← 1.45
     height ← 1.6
     half ← 0.3
-    (x y z) ← 6 10 6
+    (x y z) ← 6 50 6
     (yaw pitch) ← 0 0
     gravity←¯6.1
     max_gravity←2×gravity
@@ -131,7 +131,7 @@
       ⍝     Set it to a bit of gravity
       ⍝ (3) Touching from jumping, set to 0
       ⍝ (3) Otherwise
-      vy←{e_jump∧¯1=col_y:jump_power ⋄ ¯1=col_y:0.3×gravity ⋄ 1=col_y:0⋄⍵}vy
+      vy←{e_jump∧¯1=col_y:jump_power ⋄ ¯1=col_y:0.3×gravity ⋄ 1=col_y:0 ⋄ ⍵}vy
      
       dir←##.math.Norm 0@1⊢Get_look ⍬
       m←0≠(forward sideways)←(e_w-e_s ⋄ e_d-e_a)
@@ -142,14 +142,14 @@
       v+←dt×(0 vy 0)
       (_ col_y _)←Bound_check v
      
-      Break(x⋄y + cam_offset⋄z)
-      Place(x⋄y + cam_offset⋄z)
+      Break(x ⋄ y+cam_offset ⋄ z)
+      Place(x ⋄ y+cam_offset ⋄ z)
      
       (e_place e_break e_jump)←0
     ∇
 
       Get_look←{
-          (×/1 2○yaw pitch⋄1○pitch⋄×/2 2○yaw pitch)
+          (×/1 2○yaw pitch ⋄ 1○pitch ⋄ ×/2 2○yaw pitch)
       }
 
       Get_view←{
@@ -171,7 +171,7 @@
           front_mult_far←zf×front
      
           p←(x ⋄ y+cam_offset ⋄ z)
-      
+     
           p1←[
               p+zn×front
               p+front_mult_far
