@@ -1,9 +1,0 @@
- Get_lse_path ← {
-    os←('Mac' ⋄ 'Linux' ⋄ 'Unsupported')
-    formats←(
-        'libLSE.dylib'
-        'libLSE.so'
-        ''
-    )
-    ∊'libs/',formats⌷⍨os⍳⊂'-64'~⍨⊃# ⎕WG'APLVersion'
- }

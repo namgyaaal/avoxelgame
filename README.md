@@ -19,6 +19,7 @@ This is highly experimental and buggy.
 - Dyalog APL 20.0
 - A C Compiler
 - CMake
+- Vulkan, DirectX12 or Metal graphics are required. For more information, check [here](https://wiki.libsdl.org/SDL3/CategoryGPU#system-requirements)
 - sdl3, sdl3_ttf and sdl3_image (MacOS with `brew`)
 
 This has been developed on MacOS and Linux should work with minimal changes. Windows will be tested in the near future.
@@ -34,7 +35,7 @@ make
 make install
 ```
 
-This should install `libLSE.dylib` on macOS and `libLSE.so` on Linux in `./libs/`.
+This should install `libLSE.dylib` on macOS and `libLSE.so` on Linux in `./libs/` alongside the relevant SDL3 library files. 
 
 Some Linux users may have `dyalogscript` located in a different directory. If that's the case, the shebang in `main.apls` should be replaced with the path specified by `which dyalogscript`
 

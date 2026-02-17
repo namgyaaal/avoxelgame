@@ -1,5 +1,12 @@
- Run
- sdl3.Load_lib Get_lse_path ⍬
- sdl3_image.Load_lib Get_lse_path ⍬
- sdl3_ttf.Load_lib Get_lse_path ⍬
- lse.Load_lib Get_lse_path ⍬
+ Run;libs;Path
+
+ libs←(⊃0⎕NINFO⍠1,∘'/*')'libs'
+ Path←{
+     r←(⍸∨/⍤(⍵∘⍷)¨)⍛⊃libs
+     1≠≡r:('Can''t find lib ',⍵) ⎕SIGNAL 201
+     r
+ }
+ sdl3.Load_lib Path 'SDL3.'
+ sdl3_image.Load_lib Path 'SDL3_image.'
+ sdl3_ttf.Load_lib Path 'SDL3_ttf.'
+ lse.Load_lib Path 'LSE.'
