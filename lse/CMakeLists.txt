@@ -31,6 +31,10 @@ foreach(sdl_target SDL3::SDL3-shared SDL3_image::SDL3_image SDL3_ttf::SDL3_ttf)
     if(NOT sdl_path)
         get_target_property(sdl_path ${sdl_target} IMPORTED_LOCATION_RELEASE)
     endif()
+    if(NOT sdl_path)
+        get_target_property(sdl_path ${sdl_target} LOCATION)
+    endif()
+
     if(sdl_path)
     ADD_CUSTOM_COMMAND(TARGET LSE POST_BUILD
                     COMMAND ${CMAKE_COMMAND} -E copy

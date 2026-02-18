@@ -138,8 +138,11 @@
 
      cmd_buf←SDL_AcquireGPUCommandBuffer device
 
-
-     fps_counts,⍨←÷dt
+     ⍝ Sometimes 0
+     ⍝ - (rendering skipped due to swapchain returning null)
+     ⍝ - (time from initialization to first frame is small enough)
+     ⍝ - Hence just add 16.66ms if it's 0 as proxy
+     fps_counts,⍨←÷dt+(1÷60)×0=dt
      fps_counts←60↑fps_counts
      text_copy←text_base
      text_copy[1 2 3 4 5],←⍕¨(≢world.chunks
@@ -150,7 +153,6 @@
 
      ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
      (0⊃(text.Ti'str')⊃text.table)←ustr
-
      (1⊃(text.Ti'rotation')⊃text.table)+←0.01
 
      pass←##.SDL_BeginGPUCopyPass cmd_buf
