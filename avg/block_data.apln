@@ -1,0 +1,81 @@
+:Namespace block_data
+    ⎕IO←0
+
+    atlas_len←5
+    data←(
+    (name: 'Air' ⋄ tex: 0 0 0 0 0 0)
+    (name: 'Grass' ⋄ tex: 3 3 2 0 3 3)
+    (name: 'Stone' ⋄ tex: 1 1 1 1 1 1)
+    (name: 'Wood' ⋄ tex: 4 4 4 4 4 4)
+    (name: 'Log' ⋄ tex: 9 9 9 9 9 9)
+    (name: 'Leaf' ⋄ tex: 10 10 10 10 10 10)
+    (name: 'Brick' ⋄ tex: 5 5 5 5 5 5)
+    )
+    names←⎕VGET∘'name'¨data
+    tex_z←∊⎕VGET∘'tex'¨data
+    Bi←names∘⍳∘⊂
+
+    texture←0
+
+    ∇ Init device;enc;img;surface;full_w;full_h;w;h;tex_params;size;tb;ptr
+      ⍝ Magic number for 8 8 8 8 A B G R image encoding
+      enc←376840196
+      img←##.IMG_Load⊂'assets/blocks.bmp'
+
+      surface←##.SDL_ConvertSurface img enc
+      'Error loading block image'##.Assert img surface
+      ##.SDL_DestroySurface img
+      (full_w full_h _ _) ← ##.LSE_GetSurfaceParams surface 0 0 0 0
+      (w h)←atlas_len÷⍨(full_w full_h)
+
+      tex_params←⊂1 ##.SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM 3 w h(atlas_len*2)4 0 0
+      texture←##.SDL_CreateGPUTexture device tex_params
+      'Error creating block texture'##.Assert texture
+
+      tb←##.SDL_CreateGPUTransferBuffer device (
+          ##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD
+          (4×full_w×full_h) 
+          0
+      )
+      ptr←##.SDL_MapGPUTransferBuffer device tb 0
+      ⍝ Copy 2d texture onto 2d texture array
+      size←0
+      {
+          (x y)←(w h)×⍵
+          section←##.SDL_CreateSurface w h enc
+          r1←##.SDL_UnlockSurface section
+          r2←##.SDL_BlitSurface surface(⊂x y w h) section (⊂0 0 w h)
+          _←##.SDL_LockSurface section
+          (w h pitch _)←##.LSE_GetSurfaceParams section 0 0 0 0
+          size⊢←h×pitch
+          addr←##.LSE_GetSurfaceDataAddress section
+          offset←size×(0⊃⍵)+atlas_len×(1⊃⍵)
+          _←##.SDL_memcpy(ptr+offset)(addr)size
+          _←##.SDL_DestroySurface section
+          'Error loading block images onto the GPU'##.Assert r1 r2
+      }¨∘.,⍨⍳atlas_len
+      ##.SDL_DestroySurface surface
+      ##.SDL_UnmapGPUTransferBuffer device tb
+      cmd←##.SDL_AcquireGPUCommandBuffer device
+      pass←##.SDL_BeginGPUCopyPass cmd
+      {
+          (x y)←⍵
+          offset←x+atlas_len×y
+          ##.SDL_UploadToGPUTexture(
+              pass
+              tb(size×offset)0 0
+              texture 0(offset)0 0 0 w h 1
+              0
+          )
+      }¨∘.,⍨⍳atlas_len
+      ##.SDL_EndGPUCopyPass pass
+      ##.SDL_GenerateMipmapsForGPUTexture cmd texture
+      ##.SDL_SubmitGPUCommandBuffer cmd
+
+    ∇ 
+
+    ∇ Release device
+      ##.SDL_ReleaseGPUTexture device texture
+      texture←0
+    ∇
+:EndNamespace

@@ -3,10 +3,8 @@
     l ← 16 128 16
     box ← ⊃∘.∨/1@0¨l-⍛↑¨1
 
-
     view_distance ← 8
-    max_chunks ← +/{⍵>0.5*⍨+/¨2*⍨,∘.,⍨((-⍵)+⍳1+2×⍵)} view_distance
-    atlas_len ← 5 ⍝ Texture atlas length
+    max_chunks ← 2*⍨1+2×view_distance
 
     ⍝ The maximum possible surface can be visualized as a
     ⍝   3d checkerboard. We need to also account for the edges
@@ -21,10 +19,9 @@
     ⍝ Furthermore, we need the amount of info per vertex and size of indices
     (vsize isize) ← (4×4×max_faces ⋄ 4×6×max_faces)
 
-    vb_sizes ← ⌈0 0.4 0.7 1.0 × vsize
+    vb_sizes ← ⌈0 0.35 0.7 1.0 × vsize
     vb_pools ← ⍬ ⍬ ⍬
-    vb_start_lens ← ⌊1.0 0.6 0.2×max_chunks
-
+    vb_start_lens ← ⌊1.0 0.25 0.1×max_chunks
 
     ⍝ vbs that aren't done being used by the gpu
     ⍝ (fence counter, index into vb_pools, vb pointer)
@@ -36,11 +33,10 @@
     ib ← 0
     tb ← 0
     tb_pos ← 0
-    tb_size ← 3×vsize
+    tb_size ← 2×vsize
     ⍝ Vector of x and z positions corresponding to xz column
     tb_queue ← ⍬
     (texture sampler) ← ⍬ ⍬
-
 
     chunks ← 0⍴⍨0,l
     cnames ← 'xz' 'vb' 'vb_kind' 'idx_cnt' 'ready'
@@ -67,21 +63,6 @@
     0 1 1 ⋄ 1 1 1 ⋄ 1 0 1 ⋄ 0 0 1 ⍝ Front
     ]
     v_cnt ← ≢faces
-
-
-    blocks←(
-    (name: 'Air' ⋄ tex: 0 0 0 0 0 0)
-    (name: 'Grass' ⋄ tex: 3 3 2 0 3 3)
-    (name: 'Stone' ⋄ tex: 1 1 1 1 1 1)
-    (name: 'Wood' ⋄ tex: 4 4 4 4 4 4)
-    (name: 'Log' ⋄ tex: 9 9 9 9 9 9)
-    (name: 'Leaf' ⋄ tex: 10 10 10 10 10 10)
-    (name: 'Brick' ⋄ tex: 5 5 5 5 5 5)
-    )
-    textures ← ∊⎕VGET∘'tex'¨blocks
-
-    ⍝ Block index (from name)
-    Bi ← (⎕VGET∘'name'¨blocks)∘⍳∘⊂
 
     ⍝ From ⍳-vertex count in shape of l:
     ⍝ - Extend into 3d coordinate space with ⊤
@@ -131,41 +112,7 @@
           _←kinds{(⍺⊃vb_pools),←⍵}⌸⍥{m/⍵}vbs
       }
 
-    ∇ info←Create_block_texture(device ptr);size;surface_type;img;surface;full_w;full_h;w;h;tex_params;section
-      ⍝ Magic number for 8 8 8 8 A B G R texture
-      surface_type←376840196
-      img←##.IMG_Load⊂'assets/blocks.bmp'
-     
-      surface←##.SDL_ConvertSurface img surface_type
-      'Error loading chunk image'##.Assert img surface
-      ##.SDL_DestroySurface img
-      (full_w full_h _ _)←##.LSE_GetSurfaceParams surface 0 0 0 0
-      (w h)←atlas_len÷⍨(full_w full_h)
-     
-      tex_params←⊂1 ##.SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM 3 w h(atlas_len*2)4 0 0
-      texture←##.SDL_CreateGPUTexture device tex_params
-      'Error creating chunk texture'##.Assert texture
-      size←0
-      {
-          (x y)←(w h)×⍵
-          section←##.SDL_CreateSurface w h surface_type
-          r1←##.SDL_UnlockSurface section
-          r2←##.SDL_BlitSurface surface(⊂x y w h)section(⊂0 0 w h)
-          _←##.SDL_LockSurface section
-          (w h pitch _)←##.LSE_GetSurfaceParams section 0 0 0 0
-          size⊢←h×pitch
-          addr←##.LSE_GetSurfaceDataAddress section
-          offset←size×(0⊃⍵)+atlas_len×(1⊃⍵)
-          _←##.SDL_memcpy(ptr+offset)(addr)size
-          _←##.SDL_DestroySurface section
-          'Error loading textures onto GPU'##.Assert r1 r2
-      }¨∘.,⍨⍳atlas_len
-      ##.SDL_DestroySurface surface
-      ⍝ return so that reading onto texture in the GPU has reference
-      info←(w h size)
-    ∇
-
-    ∇ Init_chunks device;vb_params;tb_params;p;cmd;pass;sam_params;w;h;pitch;addr;size
+    ∇ Init device;vb_params;tb_params;p;cmd;pass;sam_params;w;h;pitch;addr;size
       vb_pools←{
           (cnt size)←⍵
           vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX size 0
@@ -185,26 +132,12 @@
       ⍝ Overhead should be minimal if this is done once
       p←##.SDL_MapGPUTransferBuffer device tb 0
       ##.LSE_MemcpyU32 p(indices)isize
-      (w h size)←Create_block_texture device(p+isize)
-     
       ##.SDL_UnmapGPUTransferBuffer device tb
       cmd←##.SDL_AcquireGPUCommandBuffer device
       pass←##.SDL_BeginGPUCopyPass cmd
-     
+    
       ##.SDL_UploadToGPUBuffer pass(tb 0)(ib 0 isize)0
-      {
-          (x y)←⍵
-          offset←x+atlas_len×y
-          ##.SDL_UploadToGPUTexture(
-              pass
-              tb(isize+size×offset)0 0
-              texture 0(offset)0 0 0 w h 1
-              0
-          )
-      }¨∘.,⍨⍳atlas_len
-     
       ##.SDL_EndGPUCopyPass pass
-      ##.SDL_GenerateMipmapsForGPUTexture cmd texture
       ##.SDL_SubmitGPUCommandBuffer cmd
     ∇
 
@@ -213,7 +146,6 @@
       ##.SDL_ReleaseGPUBuffer device ib
       ##.SDL_ReleaseGPUBuffer device tb
      
-      ##.SDL_ReleaseGPUTexture device texture
       ##.SDL_ReleaseGPUSampler device sampler
     ∇
 
@@ -242,7 +174,7 @@
       vert←vertices⌿⍨4/m←∊exposed
       tex←(⍳×/l)(×⍤¯1),[1+⍳2],[⍳3]exposed                  ⍝ (2)
       tex←∊(⍳6)(+⍤1)6×flat[tex]                            ⍝ (3)
-      tex←4/m/,textures[tex]                               ⍝ (4)
+      tex←4/m/,##.block_data.tex_z[tex]                    ⍝ (4)
       vert+←(3,⍨≢vert)⍴128×[0 0 0 ⋄ 0 0 1 ⋄ 1 0 1 ⋄ 1 0 0] ⍝ (5)
       buf←∊vert,tex
       vs←≢buf
@@ -291,7 +223,7 @@
       (m/(Ci'ready')⌷⍉chunk_info)←1
     ∇
 
-    ∇ Update_range(device x z);range;dist;new;old;m;pair;tx;tz;ty;ground
+    ∇ Update_range(device x z);range;dist;new;old;m;pair;tx;tz;ty;ground;blocks
       range←(⊂⌊16÷⍨x z)+,∘.,⍨((-view_distance)+⍳1+2×view_distance)
      
       new←range~Cg'xz'
@@ -316,8 +248,8 @@
                   tx tz←4+?10 10
                   ty←3+?3
                   blocks[tx;ground+⍳ty;tz]←4
-                  blocks[tx+¯2+⍳5;(ground⋄ground+1)+ty;tz+¯2+⍳5]←5
-                  blocks[tx+¯1+⍳3;(ground+2⋄ground+3)+ty;tz+¯1+⍳3]←5
+                  blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←5
+                  blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←5
               :EndIf
           :EndIf
      
@@ -330,18 +262,18 @@
       frs←##.player.Get_frustum(○70÷180 ⋄ 1280÷720 ⋄ 0.1 ⋄ 500)
       n←3↑[1]frs
       d←,3↓[1]frs
-
+     
       ⍝ https://web.archive.org/web/20220115111822/https://gdbooks.gitbooks.io/3dcollisions/content/Chapter2/static_aabb_plane.html
-      centers←(w÷2⋄2÷⍨h←1⊃l⋄w÷2) (+⍤1) ⌽2⌽0,(w←⊃l)×↑Cg'xz'
-      r←+/(|n)(×⍤1)(w⋄h⋄w)÷2
-      m←(Cg'ready')∧∧/(-r)(≤⍤1) d(-⍤1)⍨n(+.×⍤2 1)centers
-
+      centers←(w÷2 ⋄ 2÷⍨h←1⊃l ⋄ w÷2)(+⍤1)⌽2⌽0,(w←⊃l)×↑Cg'xz'
+      r←+/(|n)(×⍤1)(w ⋄ h ⋄ w)÷2
+      m←(Cg'ready')∧∧/(-r)(≤⍤1)d(-⍤1)⍨n(+.×⍤2 1)centers
+     
       chunks_rendered←+/m
       vbs←m/Cg'vb'
       inds←m/Cg'idx_cnt'
       ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
       ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
-      ##.SDL_BindGPUFragmentSamplers pass 0(⊂texture sampler)1
+      ##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
       ##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       ##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
     ∇

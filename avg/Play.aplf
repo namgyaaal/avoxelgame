@@ -1,4 +1,4 @@
- Play
+ Play;blocks
  ⎕IO←0
  res←SDL_Init SDL_INIT_VIDEO
  'Error initializing SDL3'Assert res
@@ -17,9 +17,9 @@
  res←SDL_ClaimWindowForGPUDevice device window
  'Error attaching device to window'Assert res
 
-
+ block_data.Init device
  text.Init device window
-
+ world.Init device
 
  txt←'UTF-8'⎕UCS'AVoxelGame'
 
@@ -28,7 +28,7 @@
  text.table⍪¨←(text_render ⋄ ⊆'UTF-8'⎕UCS'Foobar' ⋄ 800 ⋄ 700 ⋄ 0.4 ⋄ 0 ⋄ (4⍴256)⊥0 0 0 255 ⋄ 0 ⋄ 0 ⋄ 0 ⋄ 0)
  text.table⍪¨←(text_render2 ⋄ ⊆txt ⋄ 200 ⋄ 500 ⋄ 0.7 ⋄ 0 ⋄ (4⍴256)⊥50 150 50 255 ⋄ 0 ⋄ 0 ⋄ 1 ⋄ 0)
 
- world.Init_chunks device
+
 
  blocks←world.l⍴0
  blocks[;40;]←1
@@ -195,6 +195,7 @@
  :EndWhile
  world.Release device
  text.Release device
+ block_data.Release device
 
  SDL_ReleaseGPUGraphicsPipeline device pipeline
  SDL_ReleaseWindowFromGPUDevice device window

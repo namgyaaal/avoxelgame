@@ -66,7 +66,7 @@
       Place←{
         ⍝ ⍵ ←→ view vector
         ⍝ ⍺ ←→ block type
-          ⍺←##.world.Bi'Wood'
+          ⍺←##.block_data.Bi 'Wood'
           (x y z)←⍵
           0=e_place:
           p←(x y z)##.Ray_hit 5×Get_look ⍬
