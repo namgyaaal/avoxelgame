@@ -39,6 +39,7 @@
     'SDL_ConvertSurface' ptr (ptr i32)
     'SDL_BlitSurface' bool (ptr '<' (i32 i32 i32 i32) ptr '<' (i32 i32 i32 i32))
     'SDL_WriteSurfacePixelFloat' bool (ptr i32 i32 f32 f32 f32 f32)
+    'SDL_ScaleSurface' ptr (ptr i32 i32 i32)
     'SDL_SaveBMP' bool (ptr cstr)
     'SDL_LoadBMP' ptr cstr
         ⍝ GPU Stuff

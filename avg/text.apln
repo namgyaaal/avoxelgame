@@ -99,10 +99,9 @@
     ∇ Draw(cmd_buf pass proj_mat);origin;rotations;rot;trans;scale;models;x;y;w;h;offsets;centered
       ##.SDL_BindGPUGraphicsPipeline pass pipeline
      
-      (x y w h centered) ← ⊃∘table⍤Ti¨('x' 'y' 'w' 'h' 'center')
+      (x y w h centered)←⊃∘table⍤Ti¨('x' 'y' 'w' 'h' 'center')
       origin←↑{(-⊃⍵ ⋄ 1⊃⍵ ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4}¨↓⍉↑2÷⍨w h
-      ((~centered)⌿origin)←(∘.=⍨⍳4)
-     
+      ((~centered)⌿origin)← (+/~centered)⌿,[¯0.5]∘.=⍨⍳4     
       rot←↑{
           ul←1 ¯1 1 1×2 1 1 2○⍵ ⍝ Rotate on XY plane
           4 4⍴(ul,1,1)@(0 1 4 5 10 15)⊢16⍴0
@@ -110,7 +109,7 @@
      
       trans←↑{(⊃⍵ ⋄ 1⊃⍵ ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4}¨↓⍉↑x y
       scale←↑{1@(⊂3 3)⊢⍵×∘.=⍨⍳4}¨table⊃⍨Ti'scale'
-      models ← proj_mat+.×⍨⊃(+.×⍤2 2)/origin rot scale trans
+      models←proj_mat+.×⍨⊃(+.×⍤2 2)/origin rot scale trans
       offsets←¯1↓0 0⍪+⍀counts
       ##.SDL_BindGPUVertexBuffers pass 0(⊂vb 0)1
       ##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
@@ -133,19 +132,19 @@
       ##.TTF_DestroyGPUTextEngine engine
       ##.TTF_CloseFont font
       ##.TTF_Quit
-
-      font ← 0
-      engine ← 0
-      pipeline ← 0
-      sampler ← 0
-
-      vb ← 0
-      ib ← 0
-      tb ← 0
-
-      sequences ← ⍬
-      counts ← 0 2⍴0
-      table ← (≢tnames)⍴⊂⍬
+     
+      font←0
+      engine←0
+      pipeline←0
+      sampler←0
+     
+      vb←0
+      ib←0
+      tb←0
+     
+      sequences←⍬
+      counts←0 2⍴0
+      table←(≢tnames)⍴⊂⍬
     ∇
 
     ∇ r←Create_shaders device;v_src;v_size;f_src;f_size;v_info;f_info;entry_point;shader_format;v_shader;f_shader

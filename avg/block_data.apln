@@ -63,7 +63,7 @@
           offset←x+atlas_len×y
           ##.SDL_UploadToGPUTexture(
               pass
-              tb(size×offset)0 0
+              tb(size×offset) 0 0
               texture 0(offset)0 0 0 w h 1
               0
           )
