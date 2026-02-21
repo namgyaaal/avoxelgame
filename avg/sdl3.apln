@@ -26,6 +26,7 @@
     'SDL_DestroyWindow' ⍬ ptr
     'SDL_SetWindowMouseGrab' bool (ptr bool)
     'SDL_SetWindowRelativeMouseMode' bool (ptr bool)
+    'SDL_GetMouseState' u32 ('>' f32 '>' f32)
     'SDL_PumpEvents' ⍬ ⍬
     'SDL_LoadFile' ptr (cstr '>' u64)
     'SDL_free' ⍬ ptr

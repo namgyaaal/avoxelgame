@@ -64,7 +64,7 @@
     ∇
 
     ∇ Copy(device pass);wh_tbl;p;colors;hash;update_mask;vbc;ibc;sum
-      update_mask←(table⊃⍨Ti'hash')≠hashes←chksum¨table⊃⍨Ti'str'
+      update_mask←(table⊃⍨Ti'hash')≠hashes←chksum¨table⊃⍨'color',⍥Ti'str'
       wh_tbl←⊃⍪⌿{
           (ptr str)←⍵
           _←{##.TTF_SetTextString ptr str(≢str)}⍬
@@ -101,7 +101,7 @@
      
       (x y w h centered)←⊃∘table⍤Ti¨('x' 'y' 'w' 'h' 'center')
       origin←↑{(-⊃⍵ ⋄ 1⊃⍵ ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4}¨↓⍉↑2÷⍨w h
-      ((~centered)⌿origin)← (+/~centered)⌿,[¯0.5]∘.=⍨⍳4     
+      ((~centered)⌿origin)←(+/~centered)⌿,[¯0.5]∘.=⍨⍳4
       rot←↑{
           ul←1 ¯1 1 1×2 1 1 2○⍵ ⍝ Rotate on XY plane
           4 4⍴(ul,1,1)@(0 1 4 5 10 15)⊢16⍴0
