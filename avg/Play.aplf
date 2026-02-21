@@ -1,205 +1,76 @@
- Play;blocks
+ Play;res;window;device;core_data;cur_state;new_state;running;cmd_buf;time;new_time
  ⎕IO←0
+
  res←SDL_Init SDL_INIT_VIDEO
  'Error initializing SDL3'Assert res
 
  window←SDL_CreateWindow'A Voxel Game' 1280 720 0
- 'Error creating a window'Assert window
- SDL_SetWindowMouseGrab window 1
- SDL_SetWindowRelativeMouseMode window 1
+ 'Error creating window'Assert window
 
- backend←Get_device_backend ⍬
- shader_format←Get_shader_format ⍬
-
- device←SDL_CreateGPUDevice shader_format 1 backend
- 'Error creating a GPU device'Assert device
+ device←SDL_CreateGPUDevice(
+     Get_shader_format ⍬
+     1
+     Get_device_backend ⍬
+ )
+ 'Error creating GPU device'Assert device
 
  res←SDL_ClaimWindowForGPUDevice device window
- 'Error attaching device to window'Assert res
+ 'Error attaching GPU device to window'Assert res
 
  block_data.Init device
  text.Init device window
- world.Init device
 
- txt←'UTF-8'⎕UCS'AVoxelGame'
-
- text_render←TTF_CreateText text.engine text.font 0 0
- text_render2←TTF_CreateText text.engine text.font(∊txt)(≢txt)
- text.table⍪¨←(text_render ⋄ ⊆'UTF-8'⎕UCS'Foobar' ⋄ 800 ⋄ 700 ⋄ 0.4 ⋄ 0 ⋄ (4⍴256)⊥0 0 0 255 ⋄ 0 ⋄ 0 ⋄ 0 ⋄ 0)
- text.table⍪¨←(text_render2 ⋄ ⊆txt ⋄ 200 ⋄ 500 ⋄ 0.7 ⋄ 0 ⋄ (4⍴256)⊥50 150 50 255 ⋄ 0 ⋄ 0 ⋄ 1 ⋄ 0)
-
-
-
- blocks←world.l⍴0
- blocks[;40;]←1
- world.Queue_chunk device blocks(0 0)
- world.Update_range device 0 0
-
- depth_format←Get_depth_format device
- depth_texture←(1280 720)Create_depth_texture device
- 'Error creating depth texture'Assert depth_texture
-
-
- default_format←⊃SDL_GetGPUSwapchainTextureFormat device window
-⍝ Create world render pipeline
- :Section world_pipeline
-        ⍝ Load shaders
-     (v_src v_size)←SDL_LoadFile(Get_shader_path'basic_vert')0
-     (f_src f_size)←SDL_LoadFile(Get_shader_path'basic_frag')0
-
-     'Error loading shaders'Assert v_src f_src
-     v_info←v_size v_src 0 shader_format SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
-     f_info←f_size f_src 0 shader_format SDL_GPU_SHADERSTAGE_FRAGMENT 1 0 0 0 0
-     entry_point←Get_entry_point ⍬
-
-     vw_shader←LSE_CreateGPUShader device v_info entry_point
-     fw_shader←LSE_CreateGPUShader device f_info entry_point
-     'Error creating shaders'Assert vw_shader fw_shader
-
-     LSE_PipelineClearParams ⍬
-     LSE_PipelineSetShaders vw_shader fw_shader
-    ⍝ Vertex Buffer Descriptions and Attributes : Vertex Input
-
-     vb_desc←⊂(0 4 0 0)
-     vb_attr←⊂(0 0 SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4 0)
-
-     LSE_PipelineSetVertexInput vb_desc 1 vb_attr 1
-     LSE_PipelineSetDepthStencil 2 0 0 1 1 0
-     LSE_PipelineSetRasterizer 0 2 1 0 0 0 0 0
-
-    ⍝ Color Targets
-     blend_state←(SDL_GPU_BLENDFACTOR_SRC_ALPHA
-         SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
-         SDL_GPU_BLENDOP_ADD)
-    ⍝ 0's - padding, writemask, etc
-    ⍝ Duplicate alpha and color blendfactors and blendops
-     blend_state←(6⍴blend_state),5⍴0
-     ct_desc←⊂default_format blend_state
-
-     LSE_PipelineSetTargetInfo ct_desc 1 depth_format 1
-     pipeline←LSE_PipelineCreate device
-     SDL_ReleaseGPUShader device vw_shader
-     SDL_ReleaseGPUShader device fw_shader
- :EndSection world_pipeline
-
-
- 'Error creating render pipeline'Assert pipeline
-
- ui_proj←math.Ortho(0 0 720 1280 0.1 100)
- proj←math.Proj(○70÷180 ⋄ 1280÷720 ⋄ 0.1 ⋄ 500)
- view←player.Get_view ⍬
- proj_view←view+.×proj
-
- time←⊃SDL_GetTicks ⍬
-
-
-
- fence_ctr←0
- ⍝ Fence Counter, Fence Ptr
- fences←0 2⍴0
-
-
- text_base←(
-     'Hello ⌽''dlrow'''
-     'Chunks Loaded: '
-     'Chunks Rendered: '
-     'Average FPS: '
-     'Vertex Pool Sizes: '
-     'Fenced Vertex Buffers: '
+ core_data←(
+     window:window
+     device:device
+     w:1280
+     h:720
+     dt:÷60
+     quit:0
+     next_state:0
  )
 
- fps_counts←⍬
- toggle_ui←1
+ cur_state←menu_state
+ new_state←0
+
+
+ cur_state.Init core_data
+
+ time←⊃SDL_GetTicks
  running←1
- :While running
-     :While ⊃LSE_PollEvent ⍬
+ :While ~core_data.quit
+
+     :If core_data.next_state≠0
+         cur_state.Release core_data
+         cur_state←core_data.next_state
+         cur_state.Init core_data
+         core_data.next_state←0
+     :EndIf
+
+     :While ⊃LSE_PollEvent
          :If LSE_CheckEvent SDL_EVENT_QUIT
-             running←0
+             core_data.quit←1
          :ElseIf LSE_CheckEvent SDL_EVENT_KEY_DOWN
-             key←⊃LSE_GetKeyPressed ⍬
-             :If key=SDLK_Q
-                 running←0
-             :ElseIf key=SDLK_I
-                 toggle_ui←~toggle_ui
+             :If SDLK_Q=⊃LSE_GetKeyPressed
+                 core_data.quit←1
              :EndIf
          :EndIf
-         player.Input 1280 720
+         cur_state.Input core_data
      :EndWhile
-     (lx _ lz)←player.Get_look ⍬
-     world.Update_range device player.x player.z
 
-     new_time←⊃SDL_GetTicks ⍬
-     dt←1000÷⍨time-⍨⊃SDL_GetTicks ⍬
-     time←⊃SDL_GetTicks ⍬
-     player.Update dt
+     new_time←⊃SDL_GetTicks
+     core_data.dt←1000÷⍨time-⍨new_time
+     time←new_time
 
-     view←player.Get_view ⍬
-     proj_view←view+.×proj
-
-     cmd_buf←SDL_AcquireGPUCommandBuffer device
-
-     ⍝ Sometimes 0
-     ⍝ - (rendering skipped due to swapchain returning null)
-     ⍝ - (time from initialization to first frame is small enough)
-     ⍝ - Hence just add 16.66ms if it's 0 as proxy
-     fps_counts,⍨←÷dt+(1÷60)×0=dt
-     fps_counts←60↑fps_counts
-     text_copy←text_base
-     text_copy[1 2 3 4 5],←⍕¨(≢world.chunks
-         world.chunks_rendered
-         (+⌿÷≢)fps_counts
-         ≢¨world.vb_pools
-         ≢world.vb_fenced)
-
-     ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
-     (0⊃(text.Ti'str')⊃text.table)←ustr
-     (1⊃(text.Ti'rotation')⊃text.table)+←0.01
-
-     pass←##.SDL_BeginGPUCopyPass cmd_buf
-
-     text.Copy device pass
-     :If 0≠≢world.tb_queue
-         world.Copy_chunks device pass
-     :EndIf
-     SDL_EndGPUCopyPass pass
-     (res swap_texture _ _)←SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf window 0 0 0
-     'Error acquiring swapchain texture'Assert res
-     :If 0≠swap_texture
-         ⍝ World Render Pass
-         color_info←⊂swap_texture 0 0(0.1 0.2 0.3 1)1 0 0 0 0 0 0 0 0
-         depth_info←⊂depth_texture 1 1 1 0 0 0 0 0 0
-
-         pass←SDL_BeginGPURenderPass cmd_buf color_info 1 depth_info
-         SDL_BindGPUGraphicsPipeline pass pipeline
-         world.Draw_chunks cmd_buf pass player.x player.z lx lz proj_view
-         SDL_EndGPURenderPass pass
-
-         ⍝ Text Render Pass
-         :If toggle_ui
-             color_info←⊂swap_texture 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
-             pass←LSE_BeginDepthLessRenderPass cmd_buf color_info 1
-             text.Draw cmd_buf pass ui_proj
-             SDL_EndGPURenderPass pass
-         :EndIf
-     :EndIf
-
-
-     fence←SDL_SubmitGPUCommandBufferAndAcquireFence cmd_buf
-     fence_idx←fence_ctr ⋄ fence_ctr+←1
-     world.Push_fence fence_idx
-     fences⍪←(fence_idx fence)
-     fence_m←{(_ ptr)←⍵ ⋄ SDL_QueryGPUFence device ptr}¨↓fences
-     {(_ ptr)←⍵ ⋄ SDL_ReleaseGPUFence device ptr}¨↓fence_m⌿fences
-     world.Pop_fences 0⌷⍉fence_m⌿fences
-     fences⌿⍨←~fence_m
+     cur_state.Update core_data
+     cur_state.Draw core_data
  :EndWhile
- world.Release device
+
+ cur_state.Release core_data
  text.Release device
  block_data.Release device
 
- SDL_ReleaseGPUGraphicsPipeline device pipeline
  SDL_ReleaseWindowFromGPUDevice device window
  SDL_DestroyGPUDevice device
  SDL_DestroyWindow window
-
  SDL_Quit

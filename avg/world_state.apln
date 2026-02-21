@@ -1,0 +1,189 @@
+:Namespace world_state
+    ⎕IO←0
+
+    depth_texture←0
+    world_pipeline←0
+    
+    ui_proj←∘.=⍨⍳4
+    proj←∘.=⍨⍳4
+    view←∘.=⍨⍳4
+    proj_view←view+.×proj
+    time←0
+
+    toggle_ui←0
+    text_base←(
+     'Hello ⌽''dlrow'''
+     'Chunks Loaded: '
+     'Chunks Rendered: '
+     'Average FPS: '
+     'Vertex Pool Sizes: '
+     'Fenced Vertex Buffers: '
+     'Average WS Usage: '
+    )
+    recent_fps←⍬
+    recent_ws_usage←⍬
+
+
+    fence_ctr←0
+    ⍝ Fence Counter, Fence Ptr (avoid passing pointers)
+    fences←0 2⍴0
+
+    ∇ Init core_data;blocks;text_info
+      ##.SDL_SetWindowMouseGrab core_data.window 1
+      ##.SDL_SetWindowRelativeMouseMode core_data.window 1
+     
+      ##.world.Init core_data.device
+      blocks←##.world.l⍴0
+      blocks[;40;]←1
+      ##.world.Queue_chunk core_data.device blocks(0 0)
+      ##.world.Update_range core_data.device 0 0
+     
+      depth_texture←(1280 720)##.Create_depth_texture core_data.device
+      'Error creating depth texture'##.Assert depth_texture
+     
+      Create_pipelines core_data.device core_data.window
+     
+      view←##.player.Get_view ⍬
+      proj←##.math.Proj(○70÷180 ⋄ 1280÷720 ⋄ 0.1 ⋄ 500)
+      ui_proj←##.math.Ortho(0 0 720 1280 0.1 100)
+      proj_view←view+.×proj
+     
+      time←⊃##.SDL_GetTicks ⍬
+
+      text_info←##.TTF_CreateText ##.text.engine ##.text.font 0 0
+      ##.text.table⍪¨←(text_info ⋄ ⊆'UTF-8'⎕UCS'Foobar' ⋄ 800 ⋄ 700 ⋄ 0.4 ⋄ 0 ⋄ (4⍴256)⊥0 0 0 255 ⋄ 0 ⋄ 0 ⋄ 0 ⋄ 0)
+    ∇
+
+    ∇ Input core_data
+      :If ##.LSE_CheckEvent ##.SDL_EVENT_KEY_DOWN
+        key←⊃##.LSE_GetKeyPressed
+        :If key=#.SDLK_I
+            toggle_ui←~toggle_ui
+        :EndIf
+      :EndIf
+
+      ##.player.Input 1280 720
+    ∇
+
+    ∇ Update core_data;new_time;dt;text_copy;ustr
+      new_time←⊃##.SDL_GetTicks ⍬
+      dt←1000÷⍨new_time-time
+      time←new_time
+
+      ⍝ Sometimes 0
+      ⍝ - (rendering skipped due to swapchain returning null)
+      ⍝ - (time from initialization to first frame is small enough)
+      ⍝ - Hence just add 16.66ms if it's 0 as proxy
+      recent_fps,⍨←÷dt+(1÷60)×0=dt
+      recent_ws_usage,⍨←#.(2000⌶)1
+      (recent_fps recent_ws_usage)←60↑¨(recent_fps recent_ws_usage)
+     
+      ##.player.Update dt
+      view←##.player.Get_view ⍬
+      proj_view←view+.×proj
+     
+      ##.world.Update_range core_data.device ##.player.x ##.player.z
+     
+
+      text_copy←text_base
+      text_copy[1 2 3 4 5 6],←⍕¨(≢##.world.chunks
+          ##.world.chunks_rendered
+          (+⌿÷≢)recent_fps
+          ≢¨##.world.vb_pools
+          ≢##.world.vb_fenced
+          (+⌿÷≢)recent_ws_usage÷1024*2)
+
+     ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
+     (⊃(##.text.Ti'str')⊃##.text.table)←ustr
+
+    ∇
+
+    ∇ Draw core_data;lx;lz;cmd_buf;pass;res;swap;color_info;depth_info;fence;fence_idx;fence_m
+      (lx _ lz)←##.player.Get_look ⍬
+     
+      cmd_buf←##.SDL_AcquireGPUCommandBuffer core_data.device
+      pass←##.SDL_BeginGPUCopyPass cmd_buf
+      ##.world.Copy_chunks core_data.device pass
+      ##.text.Copy core_data.device pass
+      ##.SDL_EndGPUCopyPass pass
+      (res swap _ _)←##.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf core_data.window 0 0 0
+      'Error acquiring swapchain texture'##.Assert res
+     
+      :If 0≠swap
+         ⍝ World Render Pass
+          color_info←⊂swap 0 0(0.1 0.2 0.3 1)1 0 0 0 0 0 0 0 0
+          depth_info←⊂depth_texture 1 1 1 0 0 0 0 0 0
+     
+          pass←##.SDL_BeginGPURenderPass cmd_buf color_info 1 depth_info
+          ##.SDL_BindGPUGraphicsPipeline pass world_pipeline
+          ##.world.Draw_chunks cmd_buf pass ##.player.x ##.player.z lx lz proj_view
+          ##.SDL_EndGPURenderPass pass
+
+        ⍝ Text Render Pass
+          :If 1=toggle_ui
+              color_info←⊂swap 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
+              pass←##.LSE_BeginDepthLessRenderPass cmd_buf color_info 1
+              ##.text.Draw cmd_buf pass ui_proj
+              ##.SDL_EndGPURenderPass pass
+          :EndIf
+      :EndIf
+     
+      fence←##.SDL_SubmitGPUCommandBufferAndAcquireFence cmd_buf
+      fence_idx←fence_ctr ⋄ fence_ctr+←1
+      ##.world.Push_fence fence_idx
+      fences⍪←(fence_idx fence)
+      fence_m←{(_ ptr)←⍵ ⋄ ##.SDL_QueryGPUFence core_data.device ptr}¨↓fences
+      {(_ ptr)←⍵ ⋄ ##.SDL_ReleaseGPUFence core_data.device ptr}¨↓fence_m⌿fences
+      ##.world.Pop_fences 0⌷⍉fence_m⌿fences
+      fences⌿⍨←~fence_m
+    ∇
+
+
+    ∇ Release core_data
+      ##.world.Release core_data.device
+      ##.text.Clear core_data.device
+      ##.SDL_SetWindowMouseGrab core_data.window 0
+      ##.SDL_SetWindowRelativeMouseMode core_data.window 0
+    ∇
+
+    ∇ Create_pipelines(device window);default_format;shader_format;depth_format;v_src;v_size;f_src;f_size;v_info;f_info;entry_point;v_shader;f_shader;vb_desc;vb_attr;blend_state;ct_desc
+      default_format←⊃##.SDL_GetGPUSwapchainTextureFormat device window
+      shader_format←##.Get_shader_format ⍬
+      depth_format←##.Get_depth_format device
+     ⍝ Load shaders
+      (v_src v_size)←##.SDL_LoadFile(##.Get_shader_path'basic_vert')0
+      (f_src f_size)←##.SDL_LoadFile(##.Get_shader_path'basic_frag')0
+     
+      'Error loading shaders'##.Assert v_src f_src
+      v_info←v_size v_src 0 shader_format ##.SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
+      f_info←f_size f_src 0 shader_format ##.SDL_GPU_SHADERSTAGE_FRAGMENT 1 0 0 0 0
+      entry_point←##.Get_entry_point ⍬
+      v_shader←##.LSE_CreateGPUShader device v_info entry_point
+      f_shader←##.LSE_CreateGPUShader device f_info entry_point
+      'Error creating shaders'##.Assert v_shader f_shader
+     
+      ##.LSE_PipelineClearParams ⍬
+      ##.LSE_PipelineSetShaders v_shader f_shader
+    ⍝ Vertex Buffer Descriptions and Attributes : Vertex Input
+      vb_desc←⊂(0 4 0 0)
+      vb_attr←⊂(0 0 ##.SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4 0)
+     
+      ##.LSE_PipelineSetVertexInput vb_desc 1 vb_attr 1
+      ##.LSE_PipelineSetDepthStencil 2 0 0 1 1 0
+      ##.LSE_PipelineSetRasterizer 0 2 1 0 0 0 0 0
+     
+    ⍝ Color Targets
+      blend_state←(##.SDL_GPU_BLENDFACTOR_SRC_ALPHA
+          ##.SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
+          ##.SDL_GPU_BLENDOP_ADD)
+    ⍝ 0's - padding, writemask, etc
+    ⍝ Duplicate alpha and color blendfactors and blendops
+      blend_state←(6⍴blend_state),5⍴0
+      ct_desc←⊂default_format blend_state
+     
+      ##.LSE_PipelineSetTargetInfo ct_desc 1 depth_format 1
+      world_pipeline←##.LSE_PipelineCreate device
+      ##.SDL_ReleaseGPUShader device v_shader
+      ##.SDL_ReleaseGPUShader device f_shader
+    ∇
+:EndNamespace

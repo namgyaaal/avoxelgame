@@ -64,7 +64,10 @@
     ∇
 
     ∇ Copy(device pass);wh_tbl;p;colors;hash;update_mask;vbc;ibc;sum
-      update_mask←(table⊃⍨Ti'hash')≠hashes←chksum¨table⊃⍨'color',⍥Ti'str'
+      :If 0=≢⊃table
+        :Return
+      :EndIf
+      update_mask←(table⊃⍨Ti'hash')≠hashes←chksum↓⍉↑⊃∘table¨tnames⍳'color' 'str'
       wh_tbl←⊃⍪⌿{
           (ptr str)←⍵
           _←{##.TTF_SetTextString ptr str(≢str)}⍬
@@ -97,6 +100,9 @@
     ∇
 
     ∇ Draw(cmd_buf pass proj_mat);origin;rotations;rot;trans;scale;models;x;y;w;h;offsets;centered
+      :If 0=≢⊃table
+        :Return
+      :EndIf
       ##.SDL_BindGPUGraphicsPipeline pass pipeline
      
       (x y w h centered)←⊃∘table⍤Ti¨('x' 'y' 'w' 'h' 'center')
@@ -122,13 +128,18 @@
      
     ∇
 
+    ∇ Clear device
+      ##.TTF_DestroyText¨table⊃⍨Ti'ptr'
+      table ← (≢tnames)⍴⊂⍬
+    ∇
+
     ∇ Release device
+      Clear device
       ##.SDL_ReleaseGPUBuffer device vb
       ##.SDL_ReleaseGPUBuffer device ib
       ##.SDL_ReleaseGPUBuffer device tb
       ##.SDL_ReleaseGPUSampler device sampler
       ##.SDL_ReleaseGPUGraphicsPipeline device pipeline
-      ##.TTF_DestroyText¨table⊃⍨Ti'ptr'
       ##.TTF_DestroyGPUTextEngine engine
       ##.TTF_CloseFont font
       ##.TTF_Quit

@@ -122,9 +122,11 @@
       elapsed+←core_data.dt
       (0⊃(##.text.Ti'scale')⊃⍉##.text.table)←0.5+0.025×1○3×elapsed
      
-      (click x y) ← ##.SDL_GetMouseState 0 0
-      y ← core_data.h - y
-
+      (click x y)←##.SDL_GetMouseState 0 0
+      y←core_data.h-y
+     
+      ⍝ wrote this half-asleep after working for 10 hours
+      ⍝ holy %$#@ this is bad -- fix later
       buttons←(⊂1 2)⌷(⍉↑)##.text.table⌷⍨⊂##.text.tnames⍳'xywh'
       buttons←(0.4∘×@2 3)⍤1⊢buttons ⍝ hardcoded scale for now...
       buttons←((2 2)∘⍴⍤1)({(⍵+¯4↑2↑⍵)-0.5×(,⍨2↓⍵)}⍤1)buttons
@@ -132,13 +134,13 @@
       above←(0∘⌷⍤2)(x y)(>⍤1)buttons
       m←∧/below∧above
       ⍝ If add more non-clickable text (like flavor text) should modify methinks
-      ((0,m)/(##.text.Ti'color')⊃##.text.table) ← (4⍴256)⊥212 175 55 255
-      ((0,~m)/(##.text.Ti'color')⊃##.text.table) ← (4⍴256)⊥255 255 255 255
-
+      ((0,m)/(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥212 175 55 255
+      ((0,~m)/(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥255 255 255 255
+     
       :If (click=1)∧(0∊⍸m)
-
+          core_data.next_state←##.world_state
       :ElseIf (click=1)∧(1∊⍸m)
-        core_data.quit←1
+          core_data.quit←1
       :EndIf
     ∇
 
@@ -191,6 +193,7 @@
 
 
     ∇ Release core_data
+      ##.text.Clear core_data.device
       {##.SDL_ReleaseGPUBuffer core_data.device ⍵}¨bg_vb apple_vb ib
       ##.SDL_ReleaseGPUTexture core_data.device apple_texture
      
