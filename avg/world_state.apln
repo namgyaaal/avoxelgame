@@ -29,12 +29,13 @@
     fences←0 2⍴0
 
     ∇ Init core_data;blocks;text_info
-      ##.SDL_SetWindowMouseGrab core_data.window 1
-      ##.SDL_SetWindowRelativeMouseMode core_data.window 1
+      _←##.SDL_SetWindowMouseGrab core_data.window 1
+      _←##.SDL_SetWindowRelativeMouseMode core_data.window 1
      
       ##.world.Init core_data.device
       blocks←##.world.l⍴0
       blocks[;40;]←1
+
       ##.world.Queue_chunk core_data.device blocks(0 0)
       ##.world.Update_range core_data.device 0 0
      
@@ -57,7 +58,7 @@
     ∇ Input core_data
       :If ##.LSE_CheckEvent ##.SDL_EVENT_KEY_DOWN
           key←⊃##.LSE_GetKeyPressed
-          :If key=#.SDLK_I
+          :If key=##.SDLK_I
               toggle_ui←~toggle_ui
           :EndIf
       :EndIf
@@ -105,7 +106,7 @@
       pass←##.SDL_BeginGPUCopyPass cmd_buf
       ##.world.Copy_chunks core_data.device pass
       ##.text.Copy core_data.device pass
-      ##.SDL_EndGPUCopyPass pass
+      _←##.SDL_EndGPUCopyPass pass
       (res swap _ _)←##.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf core_data.window 0 0 0
       'Error acquiring swapchain texture'##.Assert res
      
@@ -115,16 +116,16 @@
           depth_info←⊂depth_texture 1 1 1 0 0 0 0 0 0
      
           pass←##.SDL_BeginGPURenderPass cmd_buf color_info 1 depth_info
-          ##.SDL_BindGPUGraphicsPipeline pass world_pipeline
+          _←##.SDL_BindGPUGraphicsPipeline pass world_pipeline
           ##.world.Draw_chunks cmd_buf pass ##.player.x ##.player.z lx lz proj_view
-          ##.SDL_EndGPURenderPass pass
+          _←##.SDL_EndGPURenderPass pass
      
         ⍝ Text Render Pass
           :If 1=toggle_ui
               color_info←⊂swap 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
               pass←##.LSE_BeginDepthLessRenderPass cmd_buf color_info 1
               ##.text.Draw cmd_buf pass ui_proj
-              ##.SDL_EndGPURenderPass pass
+              _←##.SDL_EndGPURenderPass pass
           :EndIf
       :EndIf
      
@@ -132,8 +133,8 @@
       fence_idx←fence_ctr ⋄ fence_ctr+←1
       ##.world.Push_fence fence_idx
       fences⍪←(fence_idx fence)
-      fence_m←{(_ ptr)←⍵ ⋄ ##.SDL_QueryGPUFence core_data.device ptr}¨↓fences
-      {(_ ptr)←⍵ ⋄ ##.SDL_ReleaseGPUFence core_data.device ptr}¨↓fence_m⌿fences
+      fence_m←{(_ ptr)←⍵ ⋄ _←##.SDL_QueryGPUFence core_data.device ptr}¨↓fences
+      {(_ ptr)←⍵ ⋄ _←##.SDL_ReleaseGPUFence core_data.device ptr}¨↓fence_m⌿fences
       ##.world.Pop_fences 0⌷⍉fence_m⌿fences
       fences⌿⍨←~fence_m
     ∇
@@ -142,8 +143,8 @@
     ∇ Release core_data
       ##.world.Release core_data.device
       ##.text.Clear core_data.device
-      ##.SDL_SetWindowMouseGrab core_data.window 0
-      ##.SDL_SetWindowRelativeMouseMode core_data.window 0
+      _←##.SDL_SetWindowMouseGrab core_data.window 0
+      _←##.SDL_SetWindowRelativeMouseMode core_data.window 0
     ∇
 
     ∇ Create_pipelines(device window);default_format;depth_format;v_shader;f_shader;vb_desc;vb_attr;blend_state;ct_desc
@@ -152,15 +153,15 @@
       depth_format←##.Get_depth_format device
      ⍝ Load shaders
 
-      ##.LSE_PipelineClearParams ⍬
-      ##.LSE_PipelineSetShaders v_shader f_shader
+      _←##.LSE_PipelineClearParams ⍬
+      _←##.LSE_PipelineSetShaders v_shader f_shader
     ⍝ Vertex Buffer Descriptions and Attributes : Vertex Input
       vb_desc←⊂(0 4 0 0)
       vb_attr←⊂(0 0 ##.SDL_GPU_VERTEXELEMENTFORMAT_UBYTE4 0)
      
-      ##.LSE_PipelineSetVertexInput vb_desc 1 vb_attr 1
-      ##.LSE_PipelineSetDepthStencil 2 0 0 1 1 0
-      ##.LSE_PipelineSetRasterizer 0 2 1 0 0 0 0 0
+      _←##.LSE_PipelineSetVertexInput vb_desc 1 vb_attr 1
+      _←##.LSE_PipelineSetDepthStencil 2 0 0 1 1 0
+      _←##.LSE_PipelineSetRasterizer 0 2 1 0 0 0 0 0
      
     ⍝ Color Targets
       blend_state←(##.SDL_GPU_BLENDFACTOR_SRC_ALPHA
@@ -171,9 +172,9 @@
       blend_state←(6⍴blend_state),5⍴0
       ct_desc←⊂default_format blend_state
      
-      ##.LSE_PipelineSetTargetInfo ct_desc 1 depth_format 1
+      _←##.LSE_PipelineSetTargetInfo ct_desc 1 depth_format 1
       world_pipeline←##.LSE_PipelineCreate device
-      ##.SDL_ReleaseGPUShader device v_shader
-      ##.SDL_ReleaseGPUShader device f_shader
+      _←##.SDL_ReleaseGPUShader device v_shader
+      _←##.SDL_ReleaseGPUShader device f_shader
     ∇
 :EndNamespace

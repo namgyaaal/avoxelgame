@@ -131,22 +131,22 @@
       ⍝ Only need isize worth of indices by reasoning
       ⍝ Overhead should be minimal if this is done once
       p←##.SDL_MapGPUTransferBuffer device tb 0
-      ##.LSE_MemcpyU32 p(indices)isize
-      ##.SDL_UnmapGPUTransferBuffer device tb
+      _←##.LSE_MemcpyU32 p(indices)isize
+      _←##.SDL_UnmapGPUTransferBuffer device tb
       cmd←##.SDL_AcquireGPUCommandBuffer device
       pass←##.SDL_BeginGPUCopyPass cmd
      
-      ##.SDL_UploadToGPUBuffer pass(tb 0)(ib 0 isize)0
-      ##.SDL_EndGPUCopyPass pass
-      ##.SDL_SubmitGPUCommandBuffer cmd
+      _←##.SDL_UploadToGPUBuffer pass(tb 0)(ib 0 isize)0
+      _←##.SDL_EndGPUCopyPass pass
+      _←##.SDL_SubmitGPUCommandBuffer cmd
     ∇
 
     ∇ Release device
-      {##.SDL_ReleaseGPUBuffer device ⍵}¨∊vb_pools,(2⌷⍉vb_fenced),Cg'vb'
-      ##.SDL_ReleaseGPUBuffer device ib
-      ##.SDL_ReleaseGPUBuffer device tb
+      {_←##.SDL_ReleaseGPUBuffer device ⍵}¨∊vb_pools,(2⌷⍉vb_fenced),Cg'vb'
+      _←##.SDL_ReleaseGPUBuffer device ib
+      _←##.SDL_ReleaseGPUBuffer device tb
      
-      ##.SDL_ReleaseGPUSampler device sampler
+      _←##.SDL_ReleaseGPUSampler device sampler
     ∇
 
     ∇ Queue_chunk(device blocks trans);x;z;vb
@@ -179,7 +179,7 @@
       buf←∊vert,tex
       vs←≢buf
       ic←6×4÷⍨≢vert
-      ##.LSE_MemcpyU8(ptr+offset)buf vs
+      _←##.LSE_MemcpyU8(ptr+offset)buf vs
       info←vs ic
     ∇
 
@@ -198,7 +198,7 @@
           pos←tb_pos ⋄ tb_pos+←vs
           ⍵⍪(pos vs ic)
       }⍣{(tb_size≤tb_pos+vsize)∨⍺≥⍥≢idxs}⊢0 3⍴0
-      ##.SDL_UnmapGPUTransferBuffer device tb
+      _←##.SDL_UnmapGPUTransferBuffer device tb
      
       ⍝ Add vertex kinds (vb pool index)
       copied_info,←vb_sizes∘⍸¨1⌷⍉copied_info
@@ -218,7 +218,7 @@
       copied_info,←vbs
      
       ⍝ GPU Upload and set loaded chunks as ready with render info
-      {(pos vs _ _ vb)←⍵ ⋄ ##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0}¨↓copied_info
+      {(pos vs _ _ vb)←⍵ ⋄ _←##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0}¨↓copied_info
       (m/(Ci'idx_cnt')⌷⍉chunk_info)←2⌷⍉copied_info
       (m/(Ci'vb')⌷⍉chunk_info)←vbs
       (m/(Ci'vb_kind')⌷⍉chunk_info)←3⌷⍉copied_info
@@ -241,7 +241,7 @@
           blocks←l⍴0
           ⍝ Testing different vb_pool
           :If 0.95<?0
-              {w←⍵+⍳16-2×⍵ ⋄ blocks[w;1+ground+⍵;w]←6 ⋄ ⍵+1}⍣8⊢0
+              _←{w←⍵+⍳16-2×⍵ ⋄ blocks[w;1+ground+⍵;w]←6 ⋄ ⍵+1}⍣8⊢0
           :Else
               blocks[;⍳ground;]←2
               blocks[;ground;]←1
@@ -254,7 +254,7 @@
                   blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←5
               :EndIf
           :EndIf
-     
+
           Queue_chunk device blocks pair
       :EndFor
     ∇
@@ -275,8 +275,8 @@
       inds←m/Cg'idx_cnt'
       ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
       ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
-      ##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
-      ##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
-      ##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
+      _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
+      _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
+      _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
     ∇
 :EndNamespace

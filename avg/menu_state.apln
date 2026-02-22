@@ -67,9 +67,9 @@
           ##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(+/bg_vs apple_vs is texs)0
       )
       ptr←##.SDL_MapGPUTransferBuffer core_data.device tb 0
-      ##.LSE_MemcpyF32(ptr ⋄ bg_vertices ⋄ bg_vs)
-      ##.LSE_MemcpyF32(ptr+bg_vs ⋄ apple_vertices ⋄ apple_vs)
-      ##.LSE_MemcpyU16(ptr+bg_vs+apple_vs ⋄ indices ⋄ is)
+      _←##.LSE_MemcpyF32(ptr ⋄ bg_vertices ⋄ bg_vs)
+      _←##.LSE_MemcpyF32(ptr+bg_vs ⋄ apple_vertices ⋄ apple_vs)
+      _←##.LSE_MemcpyU16(ptr+bg_vs+apple_vs ⋄ indices ⋄ is)
      
       :Section image_load
           ⍝ Magic number for 8 8 8 8 A B G R image encoding
@@ -77,29 +77,29 @@
           img←##.IMG_Load⊂'assets/logo.png'
           img2←##.SDL_ConvertSurface img enc
           'Error loading logo'##.Assert img img2
-          ##.SDL_DestroySurface img
+          _←##.SDL_DestroySurface img
           img←##.SDL_ScaleSurface img2 256 256 0
           addr←##.LSE_GetSurfaceDataAddress img
-          ##.SDL_DestroySurface img2
-          ##.SDL_memcpy(ptr+bg_vs+apple_vs+is ⋄ addr ⋄ texs)
-          ##.SDL_DestroySurface img
+          _←##.SDL_DestroySurface img2
+          _←##.SDL_memcpy(ptr+bg_vs+apple_vs+is ⋄ addr ⋄ texs)
+          _←##.SDL_DestroySurface img
       :EndSection image_load
      
-      ##.SDL_UnmapGPUTransferBuffer core_data.device tb
+      _←##.SDL_UnmapGPUTransferBuffer core_data.device tb
      
       cmd←##.SDL_AcquireGPUCommandBuffer core_data.device
       pass←##.SDL_BeginGPUCopyPass cmd
-      ##.SDL_UploadToGPUBuffer pass(tb 0)(bg_vb 0 bg_vs)0
-      ##.SDL_UploadToGPUBuffer pass(tb bg_vs)(apple_vb 0 apple_vs)0
-      ##.SDL_UploadToGPUBuffer pass(tb ⋄ bg_vs+apple_vs)(ib 0 is)0
-      ##.SDL_UploadToGPUTexture(
+      _←##.SDL_UploadToGPUBuffer pass(tb 0)(bg_vb 0 bg_vs)0
+      _←##.SDL_UploadToGPUBuffer pass(tb bg_vs)(apple_vb 0 apple_vs)0
+      _←##.SDL_UploadToGPUBuffer pass(tb ⋄ bg_vs+apple_vs)(ib 0 is)0
+      _←##.SDL_UploadToGPUTexture(
           pass
           tb(bg_vs+apple_vs+is)256 0
           apple_texture 0 0 0 0 0 256 256 1
           0
       )
-      ##.SDL_EndGPUCopyPass pass
-      ##.SDL_SubmitGPUCommandBuffer cmd
+      _←##.SDL_EndGPUCopyPass pass
+      _←##.SDL_SubmitGPUCommandBuffer cmd
      
      
       txt←'UTF-8'⎕UCS'The Meaning of life',(⎕UCS 10),'⍎⊖⍕⊃⊂|⌊-*+○⌈×÷!⌽⍉⌹~⍴⍋⍒,⍟?⍳0'
@@ -161,7 +161,7 @@
      
       pass←##.SDL_BeginGPUCopyPass cmd_buf
       ##.text.Copy core_data.device pass
-      ##.SDL_EndGPUCopyPass pass
+      _←##.SDL_EndGPUCopyPass pass
      
       (res swap _ _)←##.SDL_WaitAndAcquireGPUSwapchainTexture(
           cmd_buf
@@ -172,51 +172,49 @@
       :If swap≠0
           color_info←⊂swap 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
           pass←##.LSE_BeginDepthLessRenderPass cmd_buf color_info 1
-          ##.SDL_BindGPUGraphicsPipeline pass pipeline
-     
+          _←##.SDL_BindGPUGraphicsPipeline pass pipeline
           ⍝ Background
-          ##.SDL_PushGPUVertexUniformData cmd_buf 0(∊ui_proj)(16×4)
-          ##.SDL_BindGPUVertexBuffers pass 0(⊂bg_vb 0)1
-          ##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_16BIT
-          ##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture bg_sampler)1
-          ##.SDL_DrawGPUIndexedPrimitives pass 6 1 0 0 0
+          _←##.SDL_PushGPUVertexUniformData cmd_buf 0(∊ui_proj)(16×4)
+          _←##.SDL_BindGPUVertexBuffers pass 0(⊂bg_vb 0)1
+          _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_16BIT
+          _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture bg_sampler)1
+          _←##.SDL_DrawGPUIndexedPrimitives pass 6 1 0 0 0
      
           ⍝ Logo
           scale←1@(⊂3 3)⊢1.1×∘.=⍨⍳4
           x←128-⍨1280÷2
           y←350
           mat←ui_proj+.×⍨scale+.×(x ⋄ y ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4
-          ##.SDL_PushGPUVertexUniformData cmd_buf 0(∊mat)(16×4)
-          ##.SDL_BindGPUVertexBuffers pass 0(⊂apple_vb 0)1
-          ##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_16BIT
-          ##.SDL_BindGPUFragmentSamplers pass 0(⊂apple_texture apple_sampler)1
-          ##.SDL_DrawGPUIndexedPrimitives pass 6 1 0 0 0
-     
+          _←##.SDL_PushGPUVertexUniformData cmd_buf 0(∊mat)(16×4)
+          _←##.SDL_BindGPUVertexBuffers pass 0(⊂apple_vb 0)1
+          _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_16BIT
+          _←##.SDL_BindGPUFragmentSamplers pass 0(⊂apple_texture apple_sampler)1
+          _←##.SDL_DrawGPUIndexedPrimitives pass 6 1 0 0 0
      
           ##.text.Draw cmd_buf pass ui_proj
-          ##.SDL_EndGPURenderPass pass
+          _←##.SDL_EndGPURenderPass pass
       :EndIf
      
-      ##.SDL_SubmitGPUCommandBuffer cmd_buf
+      _←##.SDL_SubmitGPUCommandBuffer cmd_buf
     ∇
 
 
     ∇ Release core_data
       ##.text.Clear core_data.device
-      {##.SDL_ReleaseGPUBuffer core_data.device ⍵}¨bg_vb apple_vb ib
-      ##.SDL_ReleaseGPUTexture core_data.device apple_texture
+      {_←##.SDL_ReleaseGPUBuffer core_data.device ⍵}¨bg_vb apple_vb ib
+      _←##.SDL_ReleaseGPUTexture core_data.device apple_texture
     ∇
 
     ∇ Create_pipeline(device window);v_shader;f_shader;format;vb_desc;vb_attr;blend_state;ct_desc
       (v_shader f_shader)←(v_ub: 1 ⋄ f_sp: 1) ##.Create_shaders device 'ui_vert' 'ui_frag'
       format←##.SDL_GetGPUSwapchainTextureFormat device window
-      ##.LSE_PipelineClearParams
-      ##.LSE_PipelineSetShaders v_shader f_shader
+      _←##.LSE_PipelineClearParams
+      _←##.LSE_PipelineSetShaders v_shader f_shader
      ⍝ 20=4×≢ x y u v w
       vb_desc←⊂(0 20 0 0)
       vb_attr←(0 0 ##.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2 0
           1 0 ##.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3(4×2))
-      ##.LSE_PipelineSetVertexInput vb_desc 1 vb_attr 2
+      _←##.LSE_PipelineSetVertexInput vb_desc 1 vb_attr 2
      
       blend_state←(
           ##.SDL_GPU_BLENDFACTOR_SRC_ALPHA
@@ -227,10 +225,10 @@
           ##.SDL_GPU_BLENDOP_ADD
       ),16,1,3⍴0
       ct_desc←⊂format blend_state
-      ##.LSE_PipelineSetTargetInfo ct_desc 1 0 0
+      _←##.LSE_PipelineSetTargetInfo ct_desc 1 0 0
       pipeline←##.LSE_PipelineCreate device
       'Error creating ui pipeline'##.Assert pipeline
-      ##.SDL_ReleaseGPUShader device v_shader
-      ##.SDL_ReleaseGPUShader device f_shader
+      _←##.SDL_ReleaseGPUShader device v_shader
+      _←##.SDL_ReleaseGPUShader device f_shader
     ∇
 :EndNamespace

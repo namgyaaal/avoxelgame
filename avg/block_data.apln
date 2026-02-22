@@ -24,7 +24,7 @@
 
       surface←##.SDL_ConvertSurface img enc
       'Error loading block image'##.Assert img surface
-      ##.SDL_DestroySurface img
+      _←##.SDL_DestroySurface img
       (full_w full_h _ _) ← ##.LSE_GetSurfaceParams surface 0 0 0 0
       (w h)←atlas_len÷⍨(full_w full_h)
 
@@ -54,28 +54,28 @@
           _←##.SDL_DestroySurface section
           'Error loading block images onto the GPU'##.Assert r1 r2
       }¨∘.,⍨⍳atlas_len
-      ##.SDL_DestroySurface surface
-      ##.SDL_UnmapGPUTransferBuffer device tb
+    _←##.SDL_DestroySurface surface
+      _←##.SDL_UnmapGPUTransferBuffer device tb
       cmd←##.SDL_AcquireGPUCommandBuffer device
       pass←##.SDL_BeginGPUCopyPass cmd
       {
           (x y)←⍵
           offset←x+atlas_len×y
-          ##.SDL_UploadToGPUTexture(
+          _←##.SDL_UploadToGPUTexture(
               pass
               tb(size×offset) 0 0
               texture 0(offset)0 0 0 w h 1
               0
           )
       }¨∘.,⍨⍳atlas_len
-      ##.SDL_EndGPUCopyPass pass
-      ##.SDL_GenerateMipmapsForGPUTexture cmd texture
-      ##.SDL_SubmitGPUCommandBuffer cmd
+      _←##.SDL_EndGPUCopyPass pass
+      _←##.SDL_GenerateMipmapsForGPUTexture cmd texture
+      _←##.SDL_SubmitGPUCommandBuffer cmd
 
     ∇ 
 
     ∇ Release device
-      ##.SDL_ReleaseGPUTexture device texture
+      _←##.SDL_ReleaseGPUTexture device texture
       texture←0
     ∇
 :EndNamespace

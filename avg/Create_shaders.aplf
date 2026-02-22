@@ -22,6 +22,6 @@
  f_shader←LSE_CreateGPUShader device f_info entry_point
  ('Error creating shaders ', vname, ' and ', fname)Assert v_shader f_shader
 
- SDL_free v_src
- SDL_free f_src
+ _←SDL_free v_src
+ _←SDL_free f_src
  res←(v_shader f_shader)

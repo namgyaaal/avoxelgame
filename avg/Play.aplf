@@ -1,6 +1,5 @@
  Play;res;window;device;core_data;cur_state;new_state;running;cmd_buf;time;new_time
  ⎕IO←0
-
  res←SDL_Init SDL_INIT_VIDEO
  'Error initializing SDL3'Assert res
 
@@ -13,13 +12,11 @@
      Get_device_backend ⍬
  )
  'Error creating GPU device'Assert device
-
  res←SDL_ClaimWindowForGPUDevice device window
  'Error attaching GPU device to window'Assert res
 
  block_data.Init device
  text.Init device window
-
  core_data←(
      window:window
      device:device
@@ -29,13 +26,10 @@
      quit:0
      next_state:0
  )
-
  cur_state←menu_state
  new_state←0
 
-
  cur_state.Init core_data
-
  time←⊃SDL_GetTicks
  running←1
  :While ~core_data.quit
@@ -70,7 +64,7 @@
  text.Release device
  block_data.Release device
 
- SDL_ReleaseWindowFromGPUDevice device window
- SDL_DestroyGPUDevice device
- SDL_DestroyWindow window
- SDL_Quit
+_←SDL_ReleaseWindowFromGPUDevice device window
+_←SDL_DestroyGPUDevice device
+_←SDL_DestroyWindow window
+_←SDL_Quit

@@ -51,7 +51,7 @@
 
       Break←{
           ⍝ ⍵ ←→ eye position
-          0=e_break:
+          0=e_break:0
           p←⍵##.Ray_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
           m←{0≠⍵⌷##.world.chunks}¨tp
@@ -66,7 +66,7 @@
         ⍝ ⍵ ←→ eye position
         ⍝ ⍺ ←→ block type
           ⍺←##.block_data.Bi'Wood'
-          0=e_place:
+          0=e_place:0
           p←⍵##.Ray_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
           m←{0≠⍵⌷##.world.chunks}¨tp
@@ -145,8 +145,8 @@
       v+←dt×(0 vy 0)
       (_ col_y _)←Bound_check v
      
-      Break(x ⋄ y+cam_offset ⋄ z)
-      Place(x ⋄ y+cam_offset ⋄ z)
+      _←Break(x ⋄ y+cam_offset ⋄ z)
+      _←Place(x ⋄ y+cam_offset ⋄ z)
      
       (e_place e_break e_jump)←0
     ∇
