@@ -1,9 +1,9 @@
  Get_entry_point ← {
-    os←('Mac' ⋄ 'Linux' ⋄ 'Unsupported')
+    os←('Mac' ⋄ 'Linux' ⋄ 'Windows')
      entry_points←(
          'main0'
          'main'
-         'invalid'
+         'main'
      )
      ∊entry_points⌷⍨os⍳⊂'-64'~⍨⊃# ⎕WG'APLVersion'
  }

@@ -22,7 +22,8 @@
     StencilOpState ← i32 i32 i32 i32
     ⍝ Util
     fns ← (
-        ⍝ Util
+        ⍝ Util       
+    'LSE_WrapString' i32 (ptr '=0C1[]')
     'LSE_PrintError' ⍬ ptr
     'LSE_GetSurfaceDataAddress' ptr ptr
     'LSE_GetSurfaceParams' ⍬ (ptr '>' i32 '>' i32 '>' i32 '>' i32)

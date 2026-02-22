@@ -1,9 +1,9 @@
  Get_device_backend←{
-     os←('Mac' ⋄ 'Linux' ⋄ 'Unsupported')
+     os←('Mac' ⋄ 'Linux' ⋄ 'Windows')
      formats←(
          'metal'
          'vulkan'
-         'invalid'
+         'vulkan'
      )
      ∊formats⌷⍨os⍳⊂'-64'~⍨⊃# ⎕WG'APLVersion'
  }

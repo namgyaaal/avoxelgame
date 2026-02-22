@@ -12,6 +12,11 @@ void LSE_PrintError(const char* err_str) {
     }
 }
 
+uint32_t LSE_WrapString(const char* str, const char* out) {
+    strcpy(out, str);
+    return strlen(str);
+}
+
 void* LSE_GetSurfaceDataAddress(SDL_Surface* surface) {
     return surface->pixels;
 }

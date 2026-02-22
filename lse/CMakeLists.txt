@@ -6,11 +6,19 @@ find_package(SDL3_image REQUIRED CONFIG)
 find_package(SDL3_ttf REQUIRED CONFIG)
 
 set(OUTDIR "${CMAKE_CURRENT_SOURCE_DIR}/../libs")
-
 set(CMAKE_INSTALL_PREFIX "${OUTDIR}")
 
 FILE(GLOB SOURCES src/*.c)
-add_library(LSE SHARED ${SOURCES})
+add_library(LSE SHARED src/events.c
+    src/gpu.c
+    src/pipeline.c
+    src/utils.c)
+
+
+IF (WIN32)
+    set_target_properties(LSE PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
+ENDIF()
+
 target_link_libraries(LSE
     PRIVATE
         SDL3::SDL3-shared
