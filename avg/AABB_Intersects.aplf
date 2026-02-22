@@ -1,5 +1,0 @@
- AABB_Intersects←{
-     ⍝ ⍺, ⍵ ←→ (2, d) matrix representing axes-min and axes-max
-     ⎕IO←0
-     ∧/∊0∘⌷¨(⍺<⊖⍵)(⍵<⊖⍺)
- }

@@ -3,7 +3,7 @@
 
     depth_texture←0
     world_pipeline←0
-    
+
     ui_proj←∘.=⍨⍳4
     proj←∘.=⍨⍳4
     view←∘.=⍨⍳4
@@ -12,13 +12,13 @@
 
     toggle_ui←0
     text_base←(
-     'Hello ⌽''dlrow'''
-     'Chunks Loaded: '
-     'Chunks Rendered: '
-     'Average FPS: '
-     'Vertex Pool Sizes: '
-     'Fenced Vertex Buffers: '
-     'Average WS Usage: '
+    'Hello ⌽''dlrow'''
+    'Chunks Loaded: '
+    'Chunks Rendered: '
+    'Average FPS: '
+    'Vertex Pool Sizes: '
+    'Fenced Vertex Buffers: '
+    'Average WS Usage: '
     )
     recent_fps←⍬
     recent_ws_usage←⍬
@@ -49,27 +49,27 @@
       proj_view←view+.×proj
      
       time←⊃##.SDL_GetTicks ⍬
-
+     
       text_info←##.TTF_CreateText ##.text.engine ##.text.font 0 0
       ##.text.table⍪¨←(text_info ⋄ ⊆'UTF-8'⎕UCS'Foobar' ⋄ 800 ⋄ 700 ⋄ 0.4 ⋄ 0 ⋄ (4⍴256)⊥0 0 0 255 ⋄ 0 ⋄ 0 ⋄ 0 ⋄ 0)
     ∇
 
     ∇ Input core_data
       :If ##.LSE_CheckEvent ##.SDL_EVENT_KEY_DOWN
-        key←⊃##.LSE_GetKeyPressed
-        :If key=#.SDLK_I
-            toggle_ui←~toggle_ui
-        :EndIf
+          key←⊃##.LSE_GetKeyPressed
+          :If key=#.SDLK_I
+              toggle_ui←~toggle_ui
+          :EndIf
       :EndIf
-
-      ##.player.Input 1280 720
+     
+      ##.player.Input
     ∇
 
     ∇ Update core_data;new_time;dt;text_copy;ustr
       new_time←⊃##.SDL_GetTicks ⍬
       dt←1000÷⍨new_time-time
       time←new_time
-
+     
       ⍝ Sometimes 0
       ⍝ - (rendering skipped due to swapchain returning null)
       ⍝ - (time from initialization to first frame is small enough)
@@ -84,7 +84,7 @@
      
       ##.world.Update_range core_data.device ##.player.x ##.player.z
      
-
+     
       text_copy←text_base
       text_copy[1 2 3 4 5 6],←⍕¨(≢##.world.chunks
           ##.world.chunks_rendered
@@ -92,10 +92,10 @@
           ≢¨##.world.vb_pools
           ≢##.world.vb_fenced
           (+⌿÷≢)recent_ws_usage÷1024*2)
-
-     ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
-     (⊃(##.text.Ti'str')⊃##.text.table)←ustr
-
+     
+      ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
+      (⊃(##.text.Ti'str')⊃##.text.table)←ustr
+     
     ∇
 
     ∇ Draw core_data;lx;lz;cmd_buf;pass;res;swap;color_info;depth_info;fence;fence_idx;fence_m
@@ -118,7 +118,7 @@
           ##.SDL_BindGPUGraphicsPipeline pass world_pipeline
           ##.world.Draw_chunks cmd_buf pass ##.player.x ##.player.z lx lz proj_view
           ##.SDL_EndGPURenderPass pass
-
+     
         ⍝ Text Render Pass
           :If 1=toggle_ui
               color_info←⊂swap 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
@@ -146,22 +146,12 @@
       ##.SDL_SetWindowRelativeMouseMode core_data.window 0
     ∇
 
-    ∇ Create_pipelines(device window);default_format;shader_format;depth_format;v_src;v_size;f_src;f_size;v_info;f_info;entry_point;v_shader;f_shader;vb_desc;vb_attr;blend_state;ct_desc
+    ∇ Create_pipelines(device window);default_format;depth_format;v_shader;f_shader;vb_desc;vb_attr;blend_state;ct_desc
+      (v_shader f_shader) ← (v_ub: 1 ⋄ f_sp: 1) ##.Create_shaders device 'basic_vert' 'basic_frag'
       default_format←⊃##.SDL_GetGPUSwapchainTextureFormat device window
-      shader_format←##.Get_shader_format ⍬
       depth_format←##.Get_depth_format device
      ⍝ Load shaders
-      (v_src v_size)←##.SDL_LoadFile(##.Get_shader_path'basic_vert')0
-      (f_src f_size)←##.SDL_LoadFile(##.Get_shader_path'basic_frag')0
-     
-      'Error loading shaders'##.Assert v_src f_src
-      v_info←v_size v_src 0 shader_format ##.SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
-      f_info←f_size f_src 0 shader_format ##.SDL_GPU_SHADERSTAGE_FRAGMENT 1 0 0 0 0
-      entry_point←##.Get_entry_point ⍬
-      v_shader←##.LSE_CreateGPUShader device v_info entry_point
-      f_shader←##.LSE_CreateGPUShader device f_info entry_point
-      'Error creating shaders'##.Assert v_shader f_shader
-     
+
       ##.LSE_PipelineClearParams ⍬
       ##.LSE_PipelineSetShaders v_shader f_shader
     ⍝ Vertex Buffer Descriptions and Attributes : Vertex Input

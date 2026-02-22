@@ -21,7 +21,7 @@
 
     vb_sizes ← ⌈0 0.35 0.7 1.0 × vsize
     vb_pools ← ⍬ ⍬ ⍬
-    vb_start_lens ← ⌊1.0 0.25 0.1×max_chunks
+    vb_start_lens ← ⌊1.0 0.1 0.1×max_chunks
 
     ⍝ vbs that aren't done being used by the gpu
     ⍝ (fence counter, index into vb_pools, vb pointer)
@@ -185,7 +185,7 @@
 
     ∇ Copy_chunks(device pass);m;p;vb;vi;vk;idxs;copied_info;dirty_m;vbs;xzs;sort
       :If 0=≢tb_queue
-        :Return
+          :Return
       :EndIf
       tb_pos←0
       ⍝ Copy into transfer buffer until full or queue is empty

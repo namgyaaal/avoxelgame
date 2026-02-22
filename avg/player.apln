@@ -50,10 +50,9 @@
       }
 
       Break←{
-          ⍝ ⍵ ←→ view vector
-          (x y z)←⍵
+          ⍝ ⍵ ←→ eye position
           0=e_break:
-          p←(x y z)##.Ray_hit 5×Get_look ⍬
+          p←⍵##.Ray_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
           m←{0≠⍵⌷##.world.chunks}¨tp
           0=∨/m:0
@@ -64,24 +63,28 @@
       }
 
       Place←{
-        ⍝ ⍵ ←→ view vector
+        ⍝ ⍵ ←→ eye position
         ⍝ ⍺ ←→ block type
-          ⍺←##.block_data.Bi 'Wood'
-          (x y z)←⍵
+          ⍺←##.block_data.Bi'Wood'
           0=e_place:
-          p←(x y z)##.Ray_hit 5×Get_look ⍬
+          p←⍵##.Ray_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
           m←{0≠⍵⌷##.world.chunks}¨tp
           0=∨/m:0
-          i←0⌈¯1+m⍳1
-          blk←tp⊃⍨0⌈¯1+m⍳1
+          blk←tp⊃⍨i←0⌈¯1+m⍳1
+          
+          pbox←[(x-half) y (z-half)⋄(x+half) (y+height) (z+half)]
+          ⍝ while tp≤⍥≢p we know that i<≢p since space inbetween eye and where ray hits is valid
+          bbox←[i⊃p⋄1+i⊃p]  
+          1=∧/∊0∘⌷¨(pbox<⊖bbox)(bbox<⊖pbox):0
+ 
           (blk⌷##.world.chunks)←⍺
           ##.world.tb_queue,←(##.world.Cg'xz')⌷⍨⊃blk
           1
       }
 
 
-    ∇ Input(w h);button
+    ∇ Input;button
       :If ##.LSE_CheckEvent ##.SDL_EVENT_KEY_DOWN
           :Select ⊃##.LSE_GetKeyPressed ⍬
           :Case ##.SDLK_W

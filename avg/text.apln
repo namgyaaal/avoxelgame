@@ -65,7 +65,7 @@
 
     ∇ Copy(device pass);wh_tbl;p;colors;hash;update_mask;vbc;ibc;sum
       :If 0=≢⊃table
-        :Return
+          :Return
       :EndIf
       update_mask←(table⊃⍨Ti'hash')≠hashes←chksum↓⍉↑⊃∘table¨tnames⍳'color' 'str'
       wh_tbl←⊃⍪⌿{
@@ -101,7 +101,7 @@
 
     ∇ Draw(cmd_buf pass proj_mat);origin;rotations;rot;trans;scale;models;x;y;w;h;offsets;centered
       :If 0=≢⊃table
-        :Return
+          :Return
       :EndIf
       ##.SDL_BindGPUGraphicsPipeline pass pipeline
      
@@ -130,7 +130,7 @@
 
     ∇ Clear device
       ##.TTF_DestroyText¨table⊃⍨Ti'ptr'
-      table ← (≢tnames)⍴⊂⍬
+      table←(≢tnames)⍴⊂⍬
     ∇
 
     ∇ Release device
@@ -158,24 +158,8 @@
       table←(≢tnames)⍴⊂⍬
     ∇
 
-    ∇ r←Create_shaders device;v_src;v_size;f_src;f_size;v_info;f_info;entry_point;shader_format;v_shader;f_shader
-      (v_src v_size)←##.SDL_LoadFile(##.Get_shader_path'text_vert')0
-      (f_src f_size)←##.SDL_LoadFile(##.Get_shader_path'text_frag')0
-     
-      'Error loading shaders'##.Assert v_src f_src
-      shader_format←##.Get_shader_format ⍬
-      v_info←v_size v_src 0 shader_format ##.SDL_GPU_SHADERSTAGE_VERTEX 0 0 0 1 0
-      f_info←f_size f_src 0 shader_format ##.SDL_GPU_SHADERSTAGE_FRAGMENT 1 0 0 0 0
-      entry_point←##.Get_entry_point ⍬
-     
-      v_shader←##.LSE_CreateGPUShader device v_info entry_point
-      f_shader←##.LSE_CreateGPUShader device f_info entry_point
-      'Error creating shaders'##.Assert v_shader f_shader
-      r←(v_shader f_shader)
-    ∇
-
     ∇ Create_pipeline(device window);v_shader;format;f_shader;vb_desc;vb_attr;blend_state;ct_desc
-      (v_shader f_shader)←Create_shaders device
+      (v_shader f_shader) ← (v_ub: 1 ⋄ f_sp: 1) ##.Create_shaders device 'text_vert' 'text_frag'
       format←##.SDL_GetGPUSwapchainTextureFormat device window
       ##.LSE_PipelineClearParams ⍬
       ##.LSE_PipelineSetShaders v_shader f_shader

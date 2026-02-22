@@ -1,0 +1,27 @@
+ res←{ns}Create_shaders (device vname fname);vp;fp;shader_format;entry_point;v_src;v_size;f_src;f_size;v_info;f_info;v_shader;f_shader
+ ⍝ Possible ns parameters:
+ ⍝ - sp: [fv]_samplers
+ ⍝ - st: [fv]_storage_textures
+ ⍝ - sb: [fv]_storage_buffers
+ ⍝ - ub: [fv]_uniform_buffers
+ :If 0=⎕NC'ns'
+    ns←()
+ :EndIf
+ vp←ns.⎕VGET(↑'v_sp' 'v_st' 'v_sb' 'v_ub') 0
+ fp←ns.⎕VGET(↑'f_sp' 'f_st' 'f_sb' 'f_ub') 0
+
+ shader_format←Get_shader_format⍬
+ entry_point←Get_entry_point⍬
+ (v_src v_size)←SDL_LoadFile(Get_shader_path vname)0
+ (f_src f_size)←SDL_LoadFile(Get_shader_path fname)0
+ ('Error loading shaders ', vname, ' and ', fname)Assert v_src f_src
+ v_info←∊v_size v_src 0 shader_format SDL_GPU_SHADERSTAGE_VERTEX vp 0
+ f_info←∊f_size f_src 0 shader_format SDL_GPU_SHADERSTAGE_FRAGMENT fp 0
+
+ v_shader←LSE_CreateGPUShader device v_info entry_point
+ f_shader←LSE_CreateGPUShader device f_info entry_point
+ ('Error creating shaders ', vname, ' and ', fname)Assert v_shader f_shader
+
+ SDL_free v_src
+ SDL_free f_src
+ res←(v_shader f_shader)
