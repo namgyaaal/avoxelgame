@@ -1,15 +1,17 @@
  Ray_hit←{
      ⍝ ⍺ ←→ position
      ⍝ ⍵ ←→ velocity
-     ⍝ Conversion of  https://github.com/cgyurgyik/fast-voxel-traversal-algorithm/blob/master/overview/FastVoxelTraversalOverview.md
+     ⍝ Conversion of https://github.com/cgyurgyik/fast-voxel-traversal-algorithm/blob/master/overview/FastVoxelTraversalOverview.md
      ⍝  into a recursive dfn.
+     ⍝ See also: https://math.stackexchange.com/a/4271542
+     ⍝ Currently not happy with this, wondering if can find non-recursive-solution...
 
      ⍝ Where the vector is close to 0 by some eps. round it
      ⍝  Noted that matrix vector projection tends to be off by some precision >⎕CT
      ⍝  This to fix it otherwise it'll not be on the axis and slightly before
      ⍝ Also add epsilon×vector calculation of rp (real position) to prevent
      ⍝  similar issues
-     ⎕IO←0 ⋄ eps←1E¯4 ⋄ p←⍺ ⋄ s←×v←{(⌊0.5+⊢)⍵}@{eps>|⍵-(⌊0.5+⊢)⍵}¨⊢⍵
+     ⎕IO←0 ⋄ eps←0.0001 ⋄ p←⍺ ⋄ s←×v←{(⌊0.5+⊢)⍵}@{eps>|⍵-(⌊0.5+⊢)⍵}¨⊢⍵
      rp←⌊(eps×v)+p
      (∧/1>|v):⊂rp
      m←0⍴⍨,⍨≢v ⋄ (0 0⍉m)←{s×0=⍵}⍛+s×1||(0<s)-p
