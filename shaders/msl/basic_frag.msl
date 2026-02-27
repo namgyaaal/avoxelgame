@@ -17,8 +17,8 @@ struct main0_in
 fragment main0_out main0(main0_in in [[stage_in]], texture2d_array<float> sample_tex [[texture(0)]], sampler sample_texSmplr [[sampler(0)]])
 {
     main0_out out = {};
-    float fog_start = 30.0;
-    float fog_end = 50.0;
+    float fog_start = 80.0;
+    float fog_end = 120.0;
     float4 fog_color = float4(0.4699999988079071044921875, 0.4799999892711639404296875, 0.4900000095367431640625, 1.0);
     float fog_factor = (fog_end - in.z_depth) / (fog_end - fog_start);
     fog_factor = fast::clamp(fog_factor, 0.0, 1.0);

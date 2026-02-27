@@ -5,6 +5,7 @@
     data←(
     (name: 'Air' ⋄ tex: 0 0 0 0 0 0)
     (name: 'Grass' ⋄ tex: 3 3 2 0 3 3)
+    (name: 'Dirt' ⋄ tex: 2 2 2 2 2 2)
     (name: 'Stone' ⋄ tex: 1 1 1 1 1 1)
     (name: 'Wood' ⋄ tex: 4 4 4 4 4 4)
     (name: 'Log' ⋄ tex: 9 9 9 9 9 9)
@@ -21,20 +22,20 @@
       ⍝ Magic number for 8 8 8 8 A B G R image encoding
       enc←376840196
       img←##.IMG_Load⊂'assets/blocks.bmp'
-
+     
       surface←##.SDL_ConvertSurface img enc
       'Error loading block image'##.Assert img surface
       _←##.SDL_DestroySurface img
-      (full_w full_h _ _) ← ##.LSE_GetSurfaceParams surface 0 0 0 0
+      (full_w full_h _ _)←##.LSE_GetSurfaceParams surface 0 0 0 0
       (w h)←atlas_len÷⍨(full_w full_h)
-
+     
       tex_params←⊂1 ##.SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM 3 w h(atlas_len*2)4 0 0
       texture←##.SDL_CreateGPUTexture device tex_params
       'Error creating block texture'##.Assert texture
-
-      tb←##.SDL_CreateGPUTransferBuffer device (
+     
+      tb←##.SDL_CreateGPUTransferBuffer device(
           ##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD
-          (4×full_w×full_h) 
+          (4×full_w×full_h)
           0
       )
       ptr←##.SDL_MapGPUTransferBuffer device tb 0
@@ -44,7 +45,7 @@
           (x y)←(w h)×⍵
           section←##.SDL_CreateSurface w h enc
           r1←##.SDL_UnlockSurface section
-          r2←##.SDL_BlitSurface surface(⊂x y w h) section (⊂0 0 w h)
+          r2←##.SDL_BlitSurface surface(⊂x y w h)section(⊂0 0 w h)
           _←##.SDL_LockSurface section
           (w h pitch _)←##.LSE_GetSurfaceParams section 0 0 0 0
           size⊢←h×pitch
@@ -54,7 +55,7 @@
           _←##.SDL_DestroySurface section
           'Error loading block images onto the GPU'##.Assert r1 r2
       }¨∘.,⍨⍳atlas_len
-    _←##.SDL_DestroySurface surface
+      _←##.SDL_DestroySurface surface
       _←##.SDL_UnmapGPUTransferBuffer device tb
       cmd←##.SDL_AcquireGPUCommandBuffer device
       pass←##.SDL_BeginGPUCopyPass cmd
@@ -63,7 +64,7 @@
           offset←x+atlas_len×y
           _←##.SDL_UploadToGPUTexture(
               pass
-              tb(size×offset) 0 0
+              tb(size×offset)0 0
               texture 0(offset)0 0 0 w h 1
               0
           )
@@ -71,8 +72,8 @@
       _←##.SDL_EndGPUCopyPass pass
       _←##.SDL_GenerateMipmapsForGPUTexture cmd texture
       _←##.SDL_SubmitGPUCommandBuffer cmd
-
-    ∇ 
+     
+    ∇
 
     ∇ Release device
       _←##.SDL_ReleaseGPUTexture device texture

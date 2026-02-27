@@ -3,7 +3,7 @@
     cam_offset ← 1.45
     height ← 1.6
     half ← 0.3
-    (x y z) ← 6 50 6
+    (x y z) ← 6 70 6
     (yaw pitch) ← 0 0
     gravity←¯6.1
     max_gravity←2×gravity
@@ -11,6 +11,7 @@
     vy ← gravity
     col_y←0
     jump_power ← 6
+    noclip ← 1
 
     (e_w e_a e_s e_d e_jump) ← 0
     (e_place e_break) ← 0
@@ -52,7 +53,7 @@
       Break←{
           ⍝ ⍵ ←→ eye position
           0=e_break:0
-          p←⍵##.Ray_hit 5×Get_look ⍬
+          p←⍵ ##.Ray_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
           m←{0≠⍵⌷##.world.chunks}¨tp
           0=∨/m:0
@@ -67,17 +68,17 @@
         ⍝ ⍺ ←→ block type
           ⍺←##.block_data.Bi'Wood'
           0=e_place:0
-          p←⍵##.Ray_hit 5×Get_look ⍬
+          p←⍵ ##.Ray_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
           m←{0≠⍵⌷##.world.chunks}¨tp
           0=∨/m:0
           blk←tp⊃⍨i←0⌈¯1+m⍳1
-          
-          pbox←[(x-half) y (z-half)⋄(x+half) (y+height) (z+half)]
+     
+          pbox←[(x-half)y(z-half) ⋄ (x+half)(y+height)(z+half)]
           ⍝ while tp≤⍥≢p we know that i<≢p since space inbetween eye and where ray hits is valid
-          bbox←[i⊃p⋄1+i⊃p]  
+          bbox←[i⊃p ⋄ 1+i⊃p]
           1=∧/∊0∘⌷¨(pbox<⊖bbox)(bbox<⊖pbox):0
- 
+     
           (blk⌷##.world.chunks)←⍺
           ##.world.tb_queue,←(##.world.Cg'xz')⌷⍨⊃blk
           1
@@ -135,15 +136,21 @@
       ⍝ (3) Touching from jumping, set to 0
       ⍝ (3) Otherwise
       vy←{e_jump∧¯1=col_y:jump_power ⋄ ¯1=col_y:0.3×gravity ⋄ 1=col_y:0 ⋄ ⍵}vy
-     
-      dir←##.math.Norm 0@1⊢Get_look ⍬
+
       m←0≠(forward sideways)←(e_w-e_s ⋄ e_d-e_a)
       (forward sideways)←m×##.math.Norm(forward sideways)
-     
-      v←dt×speed×forward×dir
-      v+←dt×speed×sideways×dir ##.math.Cross 0 1 0
-      v+←dt×(0 vy 0)
+      :If ~noclip
+          dir←##.math.Norm 0@1⊢Get_look ⍬
+          v←dt×speed×forward×dir
+          v+←dt×speed×sideways×dir ##.math.Cross 0 1 0
+          v+←dt×(0 vy 0)
       (_ col_y _)←Bound_check v
+      :Else
+          dir←Get_look⍬
+          v←dt×speed×forward×dir
+          v+←dt×speed×sideways×dir ##.math.Cross 0 1 0
+          (x y z)+←20×v
+      :EndIf
      
       _←Break(x ⋄ y+cam_offset ⋄ z)
       _←Place(x ⋄ y+cam_offset ⋄ z)

@@ -73,6 +73,11 @@
     vertices ← ,[⍳4] faces(+⍤2) v_cnt(⌿⍤2),[2.5] 3 0 1 2⍉l⊤⊢l⍴⍳×/l
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
+
+    lattice←⌊10+25×?129 129⍴0
+    ⍝l←⊃⌽⍴lattice
+⍝t←1(-,[0.5]⊢)1|⍉c⋄+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤2⊢(,lattice)[(l×⍳2)∘.+(⍳2)∘.+l⊥(⍳4)⍸⍤1⍉c]
+
       Transform_points←{
           ⍝ ⍵ ←→ vector of integers 3d space
           ⍝ ⍺ ←→ filter out invalid ones (default true)
@@ -183,14 +188,19 @@
       info←vs ic
     ∇
 
-    ∇ Copy_chunks(device pass);m;p;vb;vi;vk;idxs;copied_info;dirty_m;vbs;xzs;sort
+    ∇ Copy_chunks(device pass);m;p;vb;vi;vk;idxs;copied_info;dirty_m;null_m;vbs;xzs;sort
       :If 0=≢tb_queue
           :Return
       :EndIf
       tb_pos←0
+
+      
       ⍝ Copy into transfer buffer until full or queue is empty
       p←##.SDL_MapGPUTransferBuffer device tb 1
+
+      tb_queue/⍨←tb_queue∊Cg'xz'
       idxs←tb_queue⍳⍨Cg'xz'
+      
       ⍝ Copied info in total will be:
       ⍝.   (position into transfer buffer, vertex size, index count, vertex kind, vertex buffer)
       copied_info←{
@@ -199,6 +209,7 @@
           ⍵⍪(pos vs ic)
       }⍣{(tb_size≤tb_pos+vsize)∨⍺≥⍥≢idxs}⊢0 3⍴0
       _←##.SDL_UnmapGPUTransferBuffer device tb
+
      
       ⍝ Add vertex kinds (vb pool index)
       copied_info,←vb_sizes∘⍸¨1⌷⍉copied_info
@@ -214,50 +225,64 @@
      
       dirty_m←m∧0≠Cg'vb'
       vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨dirty_m}⍥Cg'vb'
+
       vbs←device∘Fetch_buffer¨3⌷⍉copied_info
       copied_info,←vbs
-     
+
       ⍝ GPU Upload and set loaded chunks as ready with render info
-      {(pos vs _ _ vb)←⍵ ⋄ _←##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0}¨↓copied_info
+      {(pos vs _ _ vb)←⍵⋄ _←##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0}¨↓copied_info
       (m/(Ci'idx_cnt')⌷⍉chunk_info)←2⌷⍉copied_info
       (m/(Ci'vb')⌷⍉chunk_info)←vbs
       (m/(Ci'vb_kind')⌷⍉chunk_info)←3⌷⍉copied_info
       (m/(Ci'ready')⌷⍉chunk_info)←1
+
     ∇
 
-    ∇ Update_range(device x z);range;dist;new;old;m;pair;tx;tz;ty;ground;blocks
-      range←(⊂⌊16÷⍨x z)+,∘.,⍨((-view_distance)+⍳1+2×view_distance)
-     
+    ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;idx;set_m
+      range←(⊂⌊16÷⍨x z)+,∘.,⍨(⍳1+2×view_distance)-view_distance
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
-     
+
       chunks⌿⍨←m←~old∊⍨Cg'xz'
       ⍝ unload chunks
-      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨~m}⍥Cg'vb'
-      chunk_info⌿⍨←m
-     
-      ground←40
-      :For pair :In new
-          blocks←l⍴0
-          ⍝ Testing different vb_pool
-          :If 0.95<?0
-              _←{w←⍵+⍳16-2×⍵ ⋄ blocks[w;1+ground+⍵;w]←6 ⋄ ⍵+1}⍣8⊢0
-          :Else
-              blocks[;⍳ground;]←2
-              blocks[;ground;]←1
-              ⍝ Tree :)
-              :If 0.6<?0
-                  tx tz←4+?10 10
-                  ty←3+?3
-                  blocks[tx;ground+⍳ty;tz]←4
-                  blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←5
-                  blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←5
-              :EndIf
-          :EndIf
+      set_m ← (0≠Cg'vb')∧~m
+      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
 
-          Queue_chunk device blocks pair
+      chunk_info⌿⍨←m
+      
+      :For pair :In new
+        c←(16÷⍨0.5+16 16⊤⍳16*2)(+⍤1 0)128||pair
+        t←t←1(-,[0.5]⊢)1|c
+        idx←⌊+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤2⊢(,lattice)[(128×⍳2)∘.+(⍳2)∘.+128⊥⌊c]
+        idx←128-idx
+        blocks←l⍴0
+        blocks[↓(16/⍳16),(⍪idx),(256 1⍴⍳16)] ← 1
+        blocks ← ⊖⍤2∨⍀⍤2⊢blocks
+        Queue_chunk device blocks pair
       :EndFor
-    ∇
+∇
+      ⍝{Queue_chunk device blocks ⍵}¨new
+      ⍝:For pair :In new
+      ⍝    blocks←l⍴0
+      ⍝    ⍝ Testing different vb_pool
+      ⍝    :If 0.95<?0
+      ⍝        _←{w←⍵+⍳16-2×⍵ ⋄ blocks[w;1+ground+⍵;w]←6 ⋄ ⍵+1}⍣8⊢0
+      ⍝    :Else
+      ⍝        blocks[;⍳ground;]←2
+      ⍝        blocks[;ground;]←1
+      ⍝        ⍝ Tree :)
+      ⍝        :If 0.6<?0
+      ⍝            tx tz←4+?10 10
+      ⍝            ty←3+?3
+      ⍝            blocks[tx;ground+⍳ty;tz]←4
+      ⍝            blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←5
+      ⍝            blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←5
+      ⍝        :EndIf
+      ⍝    :EndIf
+      ⍝ 
+      ⍝    Queue_chunk device blocks pair
+      ⍝:EndFor
+   
 
     ∇ Draw_chunks(cmd_buf pass px pz lx lz proj_view);w;m;vbs;inds;xz;ud;frs;n;d;box;h;t;t2;centers;extents;r
       ⍝ Frustum Culling

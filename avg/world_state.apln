@@ -33,11 +33,11 @@
       _←##.SDL_SetWindowRelativeMouseMode core_data.window 1
      
       ##.world.Init core_data.device
-      blocks←##.world.l⍴0
-      blocks[;40;]←1
-
-      ##.world.Queue_chunk core_data.device blocks(0 0)
-      ##.world.Update_range core_data.device 0 0
+      ⍝blocks←##.world.l⍴0
+      ⍝blocks[;40;]←1
+     
+      ⍝##.world.Queue_chunk core_data.device blocks(0 0)
+      ⍝##.world.Update_range core_data.device 0 0
      
       depth_texture←(1280 720)##.Create_depth_texture core_data.device
       'Error creating depth texture'##.Assert depth_texture
@@ -148,11 +148,11 @@
     ∇
 
     ∇ Create_pipelines(device window);default_format;depth_format;v_shader;f_shader;vb_desc;vb_attr;blend_state;ct_desc
-      (v_shader f_shader) ← (v_ub: 1 ⋄ f_sp: 1) ##.Create_shaders device 'basic_vert' 'basic_frag'
+      (v_shader f_shader)←(v_ub:1 ⋄ f_sp:1)##.Create_shaders device'basic_vert' 'basic_frag'
       default_format←⊃##.SDL_GetGPUSwapchainTextureFormat device window
       depth_format←##.Get_depth_format device
      ⍝ Load shaders
-
+     
       _←##.LSE_PipelineClearParams ⍬
       _←##.LSE_PipelineSetShaders v_shader f_shader
     ⍝ Vertex Buffer Descriptions and Attributes : Vertex Input

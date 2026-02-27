@@ -7,8 +7,8 @@ layout (location = 1) in float z_depth;
 
 layout (location = 0) out vec4 o_color;
 
-float fog_start = 30.0;
-float fog_end = 50.0;
+float fog_start = 80.0;
+float fog_end = 120.0;
 vec4 fog_color = vec4(0.47, 0.48, 0.49, 1.0);
 
 void main() {
