@@ -79,11 +79,10 @@
       recent_ws_usage,⍨←#.(2000⌶)1
       (recent_fps recent_ws_usage)←60↑¨(recent_fps recent_ws_usage)
      
+      ##.world.Update_range core_data.device ##.player.x ##.player.z
       ##.player.Update dt
       view←##.player.Get_view ⍬
       proj_view←view+.×proj
-     
-      ##.world.Update_range core_data.device ##.player.x ##.player.z
      
      
       text_copy←text_base

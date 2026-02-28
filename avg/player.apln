@@ -3,7 +3,7 @@
     cam_offset ← 1.45
     height ← 1.6
     half ← 0.3
-    (x y z) ← 6 70 6
+    (x y z) ← 6 60 6
     (yaw pitch) ← 0 0
     gravity←¯6.1
     max_gravity←2×gravity
@@ -11,7 +11,7 @@
     vy ← gravity
     col_y←0
     jump_power ← 6
-    noclip ← 1
+    noclip ← 0
 
     (e_w e_a e_s e_d e_jump) ← 0
     (e_place e_break) ← 0
@@ -136,20 +136,21 @@
       ⍝ (3) Touching from jumping, set to 0
       ⍝ (3) Otherwise
       vy←{e_jump∧¯1=col_y:jump_power ⋄ ¯1=col_y:0.3×gravity ⋄ 1=col_y:0 ⋄ ⍵}vy
-
+     
+      dir←##.math.Norm 0@1⊢Get_look ⍬
       m←0≠(forward sideways)←(e_w-e_s ⋄ e_d-e_a)
       (forward sideways)←m×##.math.Norm(forward sideways)
-      :If ~noclip
+      :If noclip
+          dir←Get_look ⍬
+          v←dt×speed×forward×dir
+          v+←dt×speed×sideways×dir ##.math.Cross 0 1 0
+          (x y z)+←30×v
+      :Else
           dir←##.math.Norm 0@1⊢Get_look ⍬
           v←dt×speed×forward×dir
           v+←dt×speed×sideways×dir ##.math.Cross 0 1 0
           v+←dt×(0 vy 0)
-      (_ col_y _)←Bound_check v
-      :Else
-          dir←Get_look⍬
-          v←dt×speed×forward×dir
-          v+←dt×speed×sideways×dir ##.math.Cross 0 1 0
-          (x y z)+←20×v
+          (_ col_y _)←Bound_check v
       :EndIf
      
       _←Break(x ⋄ y+cam_offset ⋄ z)
