@@ -73,16 +73,16 @@
     vertices ← ,[⍳4] faces(+⍤2) v_cnt(⌿⍤2),[2.5] 3 0 1 2⍉l⊤⊢l⍴⍳×/l
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
-
     ⍝ Terrain Generation Information
-    rand_vec ← ⌊10+25×?256⍴0
+    seed ← 42
+    sns ← (⎕RL:seed)
+    rand_vec ← ⌊10+40×sns.?256⍴0
     ri ← (1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
     rv ← ⍬ ⍝ [0, 256)
     ri,←(,⍨2*16)⊥⊃,/⍪¨(2*15)+,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
-    rv,←?256⍴⍨⍴ri
+    rv,←sns.?256⍴⍨⍴ri
     
     lattice←(,⍨0.5*⍨⍴rv)⍴rv
-    ⍝lattice←⌊10+25×?0⍴⍨,⍨(2+view_distance×2)
     (old_x old_z) ← 0
     ⍝ Don't plant it near edges for now!!
     tree_spots←∊¯2↓2↓⍉12 16⍴¯32↓32↓⍳256
@@ -247,26 +247,23 @@
      
     ∇
 
-    ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;p2
+    ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns
       ll←⊃⍴lattice
       (ax az)←(⌊16÷⍨x z)
       grid←(ax az⋄)+,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
-      p←(,⍨2*16)⊥p2←⊃,/⍪¨(2*15)+grid
-
+      p←(,⍨2*16)⊥⊃,/⍪¨(2*15)+grid
       ri,←p⌿⍨m←(≢ri)=ri⍳p
-      rv,←?256⍴⍨+/m
+      rv,←sns.?256⍴⍨+/m
       lattice←(dz←az-old_z)⌽(dx←ax-old_x)⊖lattice
-     
       ⍝ if 0 - ⍬,
       ⍝ >0 then deincrement cause we want index
       ⍝ <0 then wrap around
       ⍝ probably bit unhinged, need to find better solution
-      ⍝dx dz ← -dx dz
-      (dx dz)←(ll×0>dx dz)+(-0<dx dz)+⍨(⊂⍬)@(0=⊢)⊢dx dz
+      (dx dz)←(ll×0>dx dz)+(-0<dx dz)+⍨(⊂⍬)@(0=⊢)⊢-dx dz
       ⍝ when we rotate lattice we need to find new random values for
       ⍝ what is wrapped around (since those are new chunks)
-      m←(dx∊⍨⍳ll) ∘.∨ (dz∊⍨⍳ll)
-      ((,m)⌿,lattice) ← rv I ri⍳(,m)⌿p
+      m←,(dx∊⍨⍳ll) ∘.∨ (dz∊⍨⍳ll)
+      (m⌿,lattice) ← rv I ri⍳m⌿p
      
       (old_x old_z)←(ax az)
      
@@ -295,8 +292,9 @@
           blocks[surface]←#.block_data.Bi'Grass'
      
           ⍝ Tree :-)
-          (tx ground tz)←(0 ⋄ 1 ⋄ 0)+⊃surface⌷⍨tree_spots⊃⍨?≢tree_spots
-          ty←3+?3
+          rns←(⎕RL:|4192 4192 4192⊥pair, seed)
+          (tx ground tz)←(0 ⋄ 1 ⋄ 0)+⊃surface⌷⍨tree_spots⊃⍨rns.?≢tree_spots
+          ty←3+rns.?3
           blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
           blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
           blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
