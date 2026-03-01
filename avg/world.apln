@@ -44,7 +44,7 @@
     chunks_rendered←0
 
 
-    I←⌷⍨∘⊃⍨⍤0 99
+    I←{⍺[⍵]}
     ⍝ Chunk column index (Only used with one entry)
     Ci ← cnames∘⍳∘⊂
     ⍝ Chunk get
@@ -75,8 +75,14 @@
 
 
     ⍝ Terrain Generation Information
-
-    lattice←⌊10+25×?0⍴⍨,⍨(2+view_distance×2)
+    rand_vec ← ⌊10+25×?256⍴0
+    ri ← (1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
+    rv ← ⍬ ⍝ [0, 256)
+    ri,←(,⍨2*16)⊥⊃,/⍪¨(2*15)+,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
+    rv,←?256⍴⍨⍴ri
+    
+    lattice←(,⍨0.5*⍨⍴rv)⍴rv
+    ⍝lattice←⌊10+25×?0⍴⍨,⍨(2+view_distance×2)
     (old_x old_z) ← 0
     ⍝ Don't plant it near edges for now!!
     tree_spots←∊¯2↓2↓⍉12 16⍴¯32↓32↓⍳256
@@ -198,7 +204,6 @@
       :EndIf
       tb_pos←0
      
-     
       ⍝ Copy into transfer buffer until full or queue is empty
       p←##.SDL_MapGPUTransferBuffer device tb 1
      
@@ -242,26 +247,26 @@
      
     ∇
 
-    ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass
+    ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;p2
       ll←⊃⍴lattice
       (ax az)←(⌊16÷⍨x z)
+      grid←(ax az⋄)+,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
+      p←(,⍨2*16)⊥p2←⊃,/⍪¨(2*15)+grid
+
+      ri,←p⌿⍨m←(≢ri)=ri⍳p
+      rv,←?256⍴⍨+/m
       lattice←(dz←az-old_z)⌽(dx←ax-old_x)⊖lattice
-     
-     
-     
-      ⍝ these four lines probably need a better solution
-      ⍝ wtever, gonna ditch when i map chunk xz to random hashtable
      
       ⍝ if 0 - ⍬,
       ⍝ >0 then deincrement cause we want index
       ⍝ <0 then wrap around
       ⍝ probably bit unhinged, need to find better solution
-      dx←(ll×0>dx)+(-0<dx)+⍨(⊂⍬)@(0=⊢)⊢dx
-      dz←(ll×0>dz)+(-0<dz)+⍨(⊂⍬)@(0=⊢)⊢dz
+      ⍝dx dz ← -dx dz
+      (dx dz)←(ll×0>dx dz)+(-0<dx dz)+⍨(⊂⍬)@(0=⊢)⊢dx dz
       ⍝ when we rotate lattice we need to find new random values for
       ⍝ what is wrapped around (since those are new chunks)
-      lattice←⌊⍤(10+⊢)⍤(25×⊢)⍤(?0⍨¨)@{dx∊⍨ll/⍪⍳ll}⊢lattice
-      lattice←⌊⍤(10+⊢)⍤(25×⊢)⍤(?0⍨¨)@{⍉dz∊⍨ll/⍪⍳ll}⊢lattice
+      m←(dx∊⍨⍳ll) ∘.∨ (dz∊⍨⍳ll)
+      ((,m)⌿,lattice) ← rv I ri⍳(,m)⌿p
      
       (old_x old_z)←(ax az)
      
@@ -281,7 +286,7 @@
       :For pair :In new
           ⍝ Bilinear Interpolation where each chunk is a grid
           c←256/⍪(,⍨view_distance)+pair-(ax az)
-          idx←⌊+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤2⊢(,lattice)[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c]
+          idx←⌊+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤2⊢rand_vec I (,lattice)[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c]
           blocks←l⍴1
      
           surface←↓(16/⍳16),(⍪idx),(256 1⍴⍳16)
