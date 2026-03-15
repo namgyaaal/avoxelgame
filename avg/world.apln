@@ -1,5 +1,7 @@
 :Namespace world
     ⎕IO ← 0
+    'packR'⎕CY'dfns'
+
     l ← 16 128 16
     box ← ⊃∘.∨/1@0¨l-⍛↑¨1
 
@@ -79,53 +81,18 @@
     rand_vec ← ⌊10+40×sns.?256⍴0
     ri ← (1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
     rv ← ⍬ ⍝ [0, 256)
-    ri,←(,⍨2*16)⊥⊃,/⍪¨(2*15)+,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
+    ri,←(,⍨2*16)⊥⊃,/⍪¨,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
     rv,←sns.?256⍴⍨⍴ri
-    
+
     lattice←(,⍨0.5*⍨⍴rv)⍴rv
     (old_x old_z) ← 0
     ⍝ Don't plant it near edges for now!!
     tree_spots←∊¯2↓2↓⍉12 16⍴¯32↓32↓⍳256
 
-
-      Transform_points←{
-          ⍝ ⍵ ←→ vector of integers 3d space
-          ⍝ ⍺ ←→ filter out invalid ones (default true)
-          ⍝ returns them in terms of locations into 4d chunk matrix
-          ⍺←1
-          0=≢⍵:⍬
-          coords←⌊l[0]÷⍨(⊂0 2)∘⌷¨⍵
-          cindices←coords⍳⍨Cg'xz'
-          ⍺∘{(~⍺)∨0≤2⊃⍵}¨⍛/cindices,¨((⊃l)∘|@(0 2)⊢)¨⍵
-      }
-
-      Fetch_buffer←{
-          ⍝ ⍺ ←→ GPU Device
-          ⍝ ⍵ ←→ Pool Index
-          ⍝ Note: either return it back to the vector or destroy it
-          ⍝ Memory leak otherwise
-          0<≢⍵⊃vb_pools:{o←⊃⍵⊃vb_pools ⋄ (⍵⊃vb_pools)↓⍨←1 ⋄ o}⍵
-          vb←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓vb_sizes)0)
-          0=vb:'Error creating vertex buffer'##.Assert vb
-          vb
-      }
-
-      Push_fence←{
-          ⍝ ⍵ ←→ Fence counter
-          0=≢vb_fenced:
-          m←¯1=0⌷⍉vb_fenced
-          (m/0⌷⍉vb_fenced)←⍵
-      }
-
-      Pop_fences←{
-          ⍝ ⍵ ←→ Fence counters
-          0=≢vb_fenced:
-          m←⍵∊⍨0⌷⍉vb_fenced
-          kinds←1⌷⍉vb_fenced
-          vbs←2⌷⍉vb_fenced
-          vb_fenced⌿⍨←~m
-          _←kinds{(⍺⊃vb_pools),←⍵}⌸⍥{m/⍵}vbs
-      }
+    ⍝ File Save Information
+    map←0
+    mapi←(1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
+    empty_rle←(l⋄(×/l⋄)⋄(0⋄))
 
     ∇ Init device;vb_params;tb_params;p;cmd;pass;sam_params;w;h;pitch;addr;size
       vb_pools←{
@@ -154,6 +121,16 @@
       _←##.SDL_UploadToGPUBuffer pass(tb 0)(ib 0 isize)0
       _←##.SDL_EndGPUCopyPass pass
       _←##.SDL_SubmitGPUCommandBuffer cmd
+     
+     
+     
+      :If ⎕NEXISTS'map_data.dcf'
+          map←'map_data.dcf'⎕FTIE 0
+          mapi←(1500⌶)⎕FREAD 1 map
+      :Else
+          map←'map_data.dcf'(⎕FCREATE⍠'Z' 1)0
+          ⍬ ⎕FAPPEND map
+      :EndIf
     ∇
 
     ∇ Release device
@@ -162,6 +139,10 @@
       _←##.SDL_ReleaseGPUBuffer device tb
      
       _←##.SDL_ReleaseGPUSampler device sampler
+      {
+          (packR chunks⌷⍨⊃⍵) ⎕FREPLACE(map⋄2+1⊃⍵)
+      }¨↓⍉↑(⍳≢chunks ⋄ mapi⍳(,⍨2*16)⊥⍉↑Cg'xz')
+      ⎕FUNTIE map
     ∇
 
     ∇ Queue_chunk(device blocks trans);x;z;vb
@@ -250,8 +231,8 @@
     ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns
       ll←⊃⍴lattice
       (ax az)←(⌊16÷⍨x z)
-      grid←(ax az⋄)+,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
-      p←(,⍨2*16)⊥⊃,/⍪¨(2*15)+grid
+      grid←(ax az ⋄ )+,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
+      p←(,⍨2*16)⊥⊃,/⍪¨grid
       ri,←p⌿⍨m←(≢ri)=ri⍳p
       rv,←sns.?256⍴⍨+/m
       lattice←(dz←az-old_z)⌽(dx←ax-old_x)⊖lattice
@@ -262,8 +243,8 @@
       (dx dz)←(ll×0>dx dz)+(-0<dx dz)+⍨(⊂⍬)@(0=⊢)⊢-dx dz
       ⍝ when we rotate lattice we need to find new random values for
       ⍝ what is wrapped around (since those are new chunks)
-      m←,(dx∊⍨⍳ll) ∘.∨ (dz∊⍨⍳ll)
-      (m⌿,lattice) ← rv I ri⍳m⌿p
+      m←,(dx∊⍨⍳ll)∘.∨(dz∊⍨⍳ll)
+      (m⌿,lattice)←rv I ri⍳m⌿p
      
       (old_x old_z)←(ax az)
      
@@ -271,36 +252,60 @@
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
      
-      chunks⌿⍨←m←~old∊⍨Cg'xz'
-      ⍝ unload chunks
+      ⍝ Unload chunks
+      m←~old∊⍨Cg'xz'
+      {
+          0≡1⊃⍵: ⍝ null handle
+          (i ⋄ mi) ← (⊃⍵ ⋄ mapi⍳(,⍨2*16)⊥1⊃⍵)
+          (packR chunks⌷⍨⊃i) ⎕FREPLACE(map⋄2+mi)
+      }¨↓⍉↑(~m)∘⌿¨(⍳≢chunks⋄Cg'xz')
+      chunks⌿⍨←m
+      ⍝ chunks with vertex buffers write to fence buffer to be cycled back to pool
       set_m←(0≠Cg'vb')∧~m
-      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
+      
+      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb' 
       chunk_info⌿⍨←m
+      ⍝ rare case that chunk hasn't been given vertex buffer while being loaded
+      ⍝ (imagine on border of chunk strafing back and forth)
       tb_queue/⍨←tb_queue∊Cg'xz'
      
+      ⍝ access into the lattice grid
+      ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/introduction.html
       t←1(-,[0.5]⊢)(16÷⍨0.5+16 16⊤⍳16*2)
       t←t×t×(3-2×t) ⍝ Smoothstep
+     
       :For pair :In new
-          ⍝ Bilinear Interpolation where each chunk is a grid
-          c←256/⍪(,⍨view_distance)+pair-(ax az)
-          idx←⌊+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤2⊢rand_vec I (,lattice)[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c]
-          blocks←l⍴1
+          idx←(,⍨2*16)⊥pair
+          :If ~mapi∊⍨idx
+              mapi,←idx
      
-          surface←↓(16/⍳16),(⍪idx),(256 1⍴⍳16)
-          blocks[surface]←0
-          blocks←(#.block_data.Bi'Dirt')@(1=⊢)⊢∧⍀⍤2⊢blocks
-          blocks[surface]←#.block_data.Bi'Grass'
+              ⍝{(?16 128 16⍴256) ⎕FAPPEND 1}¨⍳101
      
-          ⍝ Tree :-)
-          rns←(⎕RL:|4192 4192 4192⊥pair, seed)
-          (tx ground tz)←(0 ⋄ 1 ⋄ 0)+⊃surface⌷⍨tree_spots⊃⍨rns.?≢tree_spots
-          ty←3+rns.?3
-          blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
-          blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
-          blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
+              ⍝ Bilinear Interpolation where each chunk is a grid
+              c←256/⍪(,⍨view_distance)+pair-(ax az)
+              idx←⌊+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤2⊢rand_vec I(,lattice)[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c]
+              blocks←l⍴1
+     
+              surface←↓(16/⍳16),(⍪idx),(256 1⍴⍳16)
+              blocks[surface]←0
+              blocks←(#.block_data.Bi'Dirt')@(1=⊢)⊢∧⍀⍤2⊢blocks
+              blocks[surface]←#.block_data.Bi'Grass'
+     
+              ⍝ Tree :-)
+              rns←(⎕RL:|4192 4192 4192⊥pair,seed)
+              (tx ground tz)←(0 ⋄ 1 ⋄ 0)+⊃surface⌷⍨tree_spots⊃⍨rns.?≢tree_spots
+              ty←3+rns.?3
+              blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
+              blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
+              blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
+              (packR blocks) ⎕FAPPEND map
+          :Else
+              blocks←0 packR ⎕FREAD(map ⋄ 2+mapi⍳idx)
+          :EndIf
      
           Queue_chunk device blocks pair
       :EndFor
+      mapi ⎕FREPLACE(map ⋄ 1)
     ∇
 
 
@@ -324,4 +329,44 @@
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
     ∇
+
+    
+      Transform_points←{
+          ⍝ ⍵ ←→ vector of integers 3d space
+          ⍝ ⍺ ←→ filter out invalid ones (default true)
+          ⍝ returns them in terms of locations into 4d chunk matrix
+          ⍺←1
+          0=≢⍵:⍬
+          coords←⌊l[0]÷⍨(⊂0 2)∘⌷¨⍵
+          cindices←coords⍳⍨Cg'xz'
+          ⍺∘{(~⍺)∨0≤2⊃⍵}¨⍛/cindices,¨((⊃l)∘|@(0 2)⊢)¨⍵
+      }
+
+      Fetch_buffer←{
+          ⍝ ⍺ ←→ GPU Device
+          ⍝ ⍵ ←→ Pool Index
+          ⍝ Note: either return it back to the vector or destroy it
+          ⍝ Memory leak otherwise
+          0<≢⍵⊃vb_pools:{o←⊃⍵⊃vb_pools ⋄ (⍵⊃vb_pools)↓⍨←1 ⋄ o}⍵
+          vb←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓vb_sizes)0)
+          0=vb:'Error creating vertex buffer'##.Assert vb
+          vb
+      }
+
+      Push_fence←{
+          ⍝ ⍵ ←→ Fence counter
+          0=≢vb_fenced:
+          m←¯1=0⌷⍉vb_fenced
+          (m/0⌷⍉vb_fenced)←⍵
+      }
+
+      Pop_fences←{
+          ⍝ ⍵ ←→ Fence counters
+          0=≢vb_fenced:
+          m←⍵∊⍨0⌷⍉vb_fenced
+          kinds←1⌷⍉vb_fenced
+          vbs←2⌷⍉vb_fenced
+          vb_fenced⌿⍨←~m
+          _←kinds{(⍺⊃vb_pools),←⍵}⌸⍥{m/⍵}vbs
+      }
 :EndNamespace
