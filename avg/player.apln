@@ -18,36 +18,46 @@
     (e_mx e_my) ← 0
 
       Axis_check←{
-          ⍝ ⍵ ←→ velocity where only one field is set, rest are 0
-          ⍝ Returns vector (collision, velocity)
+        ⍝ ⍵ ←→ velocity where only one field is set, rest are 0
+        ⍝ Returns vector (collision, velocity)
+          s←×+/⍵
           min←(x y z)-(half 0 half) ⋄ max←(x y z)+(half height half)
           old←[min ⋄ max]
-     
-          ⍝ If ⍵>1 there is a chance that it will go through a block
-          ⍝     to solve this: set v to s (sign) and recurse with ⍵-s
-          ⍝     at (1) if it didn't hit anything until the end.
-          ⍝ (there are probably better ways to sweep, but this works,
-          ⍝     maybe look into this if become an issue:
-          ⍝     "continuous collision detection using swept AABB method and Minkowski sum")
-          new←old(+⍤1)v←(s←×+/⍵)×1⌊|⍵
+          new←(1⌷old)⌈@1⊢(0⌷old)⌊@0⊢old(+⍤1)⍵ ⍝ resize AABB to encompass velocity in this direction
           Touch←{(⌊0⌷⍵)(+⍤1)↑,⍳(⌈1⌷⍵)-(⌊0⌷⍵)}
           m←{0≠⍵⌷##.world.chunks}¨##.world.Transform_points blks←new~⍥↓⍥Touch old
-          (1<+/⍵)∧(~1∊m):∇ ⍵-s ⍝ (1)
           (~1∊m):0,⍵
-          ⍝ Arbitrary block it intersects (can be any block!)
-          blk←⊖↑(⊂1 1 1)∘+⍛,0⌷blks
-          cut←new((⌊⍥(1⌷⊢))-(⌈⍥(0⌷⊢)))blk
-          ⍝ Modify vector by intersection distance into the block
-          d←∊-s×cut/⍨0≠v
-          s,(⍵≠0)×d+v+(⎕CT×-s)
+          blks←(≢m)↑blks
+          cntr←(+⌿÷≢)old
+          blks_aabb ← ↑(⊂1 1 1)∘+⍛(,⍨⍥⊂)m/blks
+          blks_cntr←(+⌿÷≢)blks_aabb
+          best←⊃⍋{0.5*⍨+/2*⍨cntr-⍵}¨⊆blks_cntr ⍝ fetch collided block closest to player center
+          ⍝ Minkowski sum + recenter on origin
+          h←0.5×|old(+⍥{-⌿⍵})↑best⌷[1]blks_aabb
+          mkws_box←↑(-h ⋄ h)+best⌷blks_cntr
+          ⍝ we can figure out velocity based off of the box's edges
+          ⍝ sign of velocity: 
+          ⍝     negative: select higher
+          ⍝     positive: select lower
+          ⍝ only need special case in y axis since isn't centered but bottom of box
+          ⍝     (guh should undo this special case!)
+          ⍝ vaguely based on https://emanueleferonato.com/2021/10/21/understanding-physics-continuous-collision-detection-using-swept-aabb-method-and-minkowski-sum/
+          stick←(0≠⍵)/mkws_box⌷⍨s<0
+          cur←(0≠⍵)/(x y z) + (0 ⋄ height÷2 ⋄ 0) ⍝ special case
+          d←cur-stick
+          s, d@(0∘≠⊢)0 0 0
       }
 
       Bound_check←{
         ⍝ ⍵ ←→ velocity
+        ⍝ Returns x,y,z directions with ¯1 or 1 indicating low or up collision
+        ⍝ e.g., 0 ¯1 0 means touching ground.
           v←⍵ ⋄ m←0⍴⍨,⍨≢v ⋄ (0 0⍉m)←v
-          axis←Axis_check¨↓m
-          (x y z)+←1↓⊃+⌿axis
-          0⌷⍉↑axis
+          0⌷⍉↑{
+            axis ← Axis_check ⍵
+            (x y z)+←1↓axis
+            axis
+          }¨↓m
       }
 
       Break←{
@@ -98,6 +108,8 @@
               e_d←1
           :Case ##.SDLK_SPACE
               e_jump←1
+          :Case ##.SDLK_F
+              noclip←~noclip
           :EndSelect
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_KEY_UP
           :Select ⊃##.LSE_GetKeyPressed ⍬

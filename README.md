@@ -13,6 +13,7 @@ This is highly experimental and buggy.
 - Mouse to move the camera
 - Q to quit
 - I to toggle render information
+- F for fast noclip mode
 
 # Requirements
 
