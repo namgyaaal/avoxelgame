@@ -48,4 +48,4 @@ Source code that gets compiled to different shader formats is in `./shaders/glsl
 
 Shaders come bundled with this repo. However, if you want to modify them, edit the glsl shaders and run `./compile_shaders.sh` 
 
-Note that this requires glslc and spirv-cross.
+Note that this requires the DirectX Shader Compiler, glslc and spirv-cross.

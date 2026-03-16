@@ -12,23 +12,32 @@ if ! [ -x "$(command -v spirv-cross)" ]; then
     exit 1
 fi
 
-if [ ! -d "shaders/glsl" ]; then
+if ! [ -d "shaders/glsl" ]; then
     echo "Expect a directory of shaders at 'shaders/glsl'"
     exit 1
 fi
 
+if ! [ -x "$(command -v dxc)" ]; then
+    echo "DirectX Compiler is needed in your environment"
+    exit 1
+fi
 
-mkdir -p shaders/spv shaders/msl
-rm -f shaders/spv/* shaders/msl/*
+mkdir -p shaders/spv shaders/msl shaders/dxil
+rm -f shaders/spv/* shaders/msl/* shaders/dxil/*
 
 # Vertex shaders
 for vertex_file in shaders/glsl/*.vert; do
     stem=$(basename -- $vertex_file .vert)
     spv_file="shaders/spv/${stem}_vert.spv"
     msl_file="shaders/msl/${stem}_vert.msl"
+    hlsl_file="shaders/dxil/${stem}_vert.hlsl"
+    dxil_file="shaders/dxil/${stem}_vert.dxil"
 
-    glslc -fshader-stage=vertex $vertex_file -o $spv_file
+    glslangValidator -V $vertex_file -o $spv_file
     spirv-cross $spv_file --stage vert --msl --output $msl_file
+    spirv-cross $spv_file --stage vert --hlsl --shader-model 60 --output $hlsl_file
+    dxc -T vs_6_0 -Fo $dxil_file $hlsl_file
+    rm $hlsl_file
 done
 
 # Fragment Shaders
@@ -36,9 +45,14 @@ for fragment_file in shaders/glsl/*.frag; do
     stem=$(basename -- $fragment_file .frag)
     spv_file="shaders/spv/${stem}_frag.spv"
     msl_file="shaders/msl/${stem}_frag.msl"
+    hlsl_file="shaders/dxil/${stem}_frag.hlsl"
+    dxil_file="shaders/dxil/${stem}_frag.dxil"
 
-    glslc -fshader-stage=fragment $fragment_file -o $spv_file
+    glslangValidator -V $fragment_file -o $spv_file
     spirv-cross $spv_file --stage frag --msl --output $msl_file
+    spirv-cross $spv_file --stage frag --hlsl --shader-model 60 --output $hlsl_file
+    dxc -T ps_6_0 -Fo $dxil_file $hlsl_file
+    rm $hlsl_file
 done
 
 echo "Compilation completed"
