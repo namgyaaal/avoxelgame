@@ -76,25 +76,23 @@
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
     ⍝ Terrain Generation Information
-    seed ← 42
-    sns ← (⎕RL:seed)
-    rand_vec ← ⌊10+40×sns.?256⍴0
-    ri ← (1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
-    rv ← ⍬ ⍝ [0, 256)
-    ri,←(,⍨2*16)⊥⊃,/⍪¨,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
-    rv,←sns.?256⍴⍨⍴ri
-
-    lattice←(,⍨0.5*⍨⍴rv)⍴rv
+    ⍝ (seed sns rand_vec ri rv lattice⋄) - set in world Init
+    seed←0
+    sns←()
+    rand_vec←⍬
+    ri←⍬
+    rv←⍬
+    lattice←0 0⍴0
     (old_x old_z) ← 0
     ⍝ Don't plant it near edges for now!!
     tree_spots←∊¯2↓2↓⍉12 16⍴¯32↓32↓⍳256
 
     ⍝ File Save Information
-    map←0
+    map←0 ⍝ set in world Init
     mapi←(1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
     empty_rle←(l⋄(×/l⋄)⋄(0⋄))
 
-    ∇ Init device;vb_params;tb_params;p;cmd;pass;sam_params;w;h;pitch;addr;size
+    ∇ Init (device save);vb_params;tb_params;p;cmd;pass;size;state;pxz
       vb_pools←{
           (cnt size)←⍵
           vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX size 0
@@ -122,27 +120,39 @@
       _←##.SDL_EndGPUCopyPass pass
       _←##.SDL_SubmitGPUCommandBuffer cmd
      
-     
-     
-      :If ⎕NEXISTS'map_data.dcf'
-          map←'map_data.dcf'⎕FTIE 0
-          mapi←(1500⌶)⎕FREAD 1 map
+
+      pxz←⌊16÷⍨(⊂0 2)⌷save.⎕VGET⊂'player.position' (0 0 0)
+      seed ← save.⎕VGET ⊂'seed' 42
+      sns ← (⎕RL:seed)
+      rand_vec ← ⌊10+40×sns.?256⍴0
+      ri ← (1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
+      rv ← ⍬ ⍝ [0, 256)
+      ri,←(,⍨2*16)⊥⊃,/⍪¨(⊂pxz)+,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
+      rv,←sns.?256⍴⍨⍴ri
+      lattice←(,⍨0.5*⍨⍴rv)⍴rv
+
+      :If ⎕NEXISTS'saves/HelloWorld/map_data.dcf'
+          map←'saves/HelloWorld/map_data.dcf'⎕FTIE 0
+          mapi←(1500⌶)⎕FREAD map 1
       :Else
-          map←'map_data.dcf'(⎕FCREATE⍠'Z' 1)0
+          map←'saves/HelloWorld/map_data.dcf'(⎕FCREATE⍠'Z' 1)0
           ⍬ ⎕FAPPEND map
       :EndIf
     ∇
 
-    ∇ Release device
+    ∇ Release (device save)
+      save.seed←seed
       {_←##.SDL_ReleaseGPUBuffer device ⍵}¨∊vb_pools,(2⌷⍉vb_fenced),Cg'vb'
       _←##.SDL_ReleaseGPUBuffer device ib
       _←##.SDL_ReleaseGPUBuffer device tb
      
       _←##.SDL_ReleaseGPUSampler device sampler
       {
-          (packR chunks⌷⍨⊃⍵) ⎕FREPLACE(map⋄2+1⊃⍵)
+          (packR chunks⌷⍨⊃⍵)⎕FREPLACE(map ⋄ 2+1⊃⍵)
       }¨↓⍉↑(⍳≢chunks ⋄ mapi⍳(,⍨2*16)⊥⍉↑Cg'xz')
       ⎕FUNTIE map
+
+      ⍝save.seed←seed
     ∇
 
     ∇ Queue_chunk(device blocks trans);x;z;vb
@@ -256,14 +266,14 @@
       m←~old∊⍨Cg'xz'
       {
           0≡1⊃⍵: ⍝ null handle
-          (i ⋄ mi) ← (⊃⍵ ⋄ mapi⍳(,⍨2*16)⊥1⊃⍵)
-          (packR chunks⌷⍨⊃i) ⎕FREPLACE(map⋄2+mi)
-      }¨↓⍉↑(~m)∘⌿¨(⍳≢chunks⋄Cg'xz')
+          (i ⋄ mi)←(⊃⍵ ⋄ mapi⍳(,⍨2*16)⊥1⊃⍵)
+          (packR chunks⌷⍨⊃i)⎕FREPLACE(map ⋄ 2+mi)
+      }¨↓⍉↑(~m)∘⌿¨(⍳≢chunks ⋄ Cg'xz')
       chunks⌿⍨←m
       ⍝ chunks with vertex buffers write to fence buffer to be cycled back to pool
       set_m←(0≠Cg'vb')∧~m
-      
-      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb' 
+     
+      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
       chunk_info⌿⍨←m
       ⍝ rare case that chunk hasn't been given vertex buffer while being loaded
       ⍝ (imagine on border of chunk strafing back and forth)
@@ -278,9 +288,6 @@
           idx←(,⍨2*16)⊥pair
           :If ~mapi∊⍨idx
               mapi,←idx
-     
-              ⍝{(?16 128 16⍴256) ⎕FAPPEND 1}¨⍳101
-     
               ⍝ Bilinear Interpolation where each chunk is a grid
               c←256/⍪(,⍨view_distance)+pair-(ax az)
               idx←⌊+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤2⊢rand_vec I(,lattice)[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c]
@@ -298,7 +305,7 @@
               blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
               blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
               blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
-              (packR blocks) ⎕FAPPEND map
+              (packR blocks)⎕FAPPEND map
           :Else
               blocks←0 packR ⎕FREAD(map ⋄ 2+mapi⍳idx)
           :EndIf
@@ -330,7 +337,7 @@
       _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
     ∇
 
-    
+
       Transform_points←{
           ⍝ ⍵ ←→ vector of integers 3d space
           ⍝ ⍺ ←→ filter out invalid ones (default true)

@@ -1,21 +1,51 @@
 :Namespace player
     ⎕IO ← 0
+    ⍝ Constants
     cam_offset ← 1.45
     height ← 1.6
     half ← 0.3
-    (x y z) ← 6 60 6
-    (yaw pitch) ← 0 0
     gravity←¯6.1
     max_gravity←2×gravity
     speed←5
-    vy ← gravity
-    col_y←0
     jump_power ← 6
+
+
+    ⍝ Saved
+    (x y z) ← 6 60 6
+    (yaw pitch) ← 0 0
+    col_y←0
+    vy ← gravity
     noclip ← 0
 
+    ⍝ Event Handling
     (e_w e_a e_s e_d e_jump) ← 0
     (e_place e_break) ← 0
     (e_mx e_my) ← 0
+
+
+    ∇ Init save
+        (x y z yaw pitch vy noclip)←save.⎕VGET (
+            ('player_x' 6)
+            ('player_y' 60)
+            ('player_z' 6)
+            ('player_yaw' 0)
+            ('player_pitch' 0)
+            ('vy' gravity)
+            ('noclip' 0)
+        )
+    ∇
+
+    ∇ Save save
+        save.⎕VSET (
+            ('player_x' x)
+            ('player_y' y)
+            ('player_z' z)
+            ('player_yaw' yaw)
+            ('player_pitch' pitch)
+            ('vy' vy)
+            ('noclip' noclip)
+        )
+    ∇ 
 
       Axis_check←{
         ⍝ ⍵ ←→ velocity where only one field is set, rest are 0
@@ -29,23 +59,23 @@
           (~1∊m):0,⍵
           blks←(≢m)↑blks
           cntr←(+⌿÷≢)old
-          blks_aabb ← ↑(⊂1 1 1)∘+⍛(,⍨⍥⊂)m/blks
+          blks_aabb←↑(⊂1 1 1)∘+⍛(,⍨⍥⊂)m/blks
           blks_cntr←(+⌿÷≢)blks_aabb
           best←⊃⍋{0.5*⍨+/2*⍨cntr-⍵}¨⊆blks_cntr ⍝ fetch collided block closest to player center
           ⍝ Minkowski sum + recenter on origin
           h←0.5×|old(+⍥{-⌿⍵})↑best⌷[1]blks_aabb
           mkws_box←↑(-h ⋄ h)+best⌷blks_cntr
           ⍝ we can figure out velocity based off of the box's edges
-          ⍝ sign of velocity: 
+          ⍝ sign of velocity:
           ⍝     negative: select higher
           ⍝     positive: select lower
           ⍝ only need special case in y axis since isn't centered but bottom of box
           ⍝     (guh should undo this special case!)
           ⍝ vaguely based on https://emanueleferonato.com/2021/10/21/understanding-physics-continuous-collision-detection-using-swept-aabb-method-and-minkowski-sum/
           stick←(0≠⍵)/mkws_box⌷⍨s<0
-          cur←(0≠⍵)/(x y z) + (0 ⋄ height÷2 ⋄ 0) ⍝ special case
+          cur←(0≠⍵)/(x y z)+(0 ⋄ height÷2 ⋄ 0) ⍝ special case
           d←cur-stick
-          s, d@(0∘≠⊢)0 0 0
+          s,d@(0∘≠⊢)0 0 0
       }
 
       Bound_check←{
@@ -54,9 +84,9 @@
         ⍝ e.g., 0 ¯1 0 means touching ground.
           v←⍵ ⋄ m←0⍴⍨,⍨≢v ⋄ (0 0⍉m)←v
           0⌷⍉↑{
-            axis ← Axis_check ⍵
-            (x y z)+←1↓axis
-            axis
+              axis←Axis_check ⍵
+              (x y z)+←1↓axis
+              axis
           }¨↓m
       }
 

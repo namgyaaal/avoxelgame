@@ -28,16 +28,25 @@
     ⍝ Fence Counter, Fence Ptr (avoid passing pointers)
     fences←0 2⍴0
 
+
+    save_file←0
+    save←()
+
     ∇ Init core_data;blocks;text_info
       _←##.SDL_SetWindowMouseGrab core_data.window 1
       _←##.SDL_SetWindowRelativeMouseMode core_data.window 1
      
-      ##.world.Init core_data.device
-      ⍝blocks←##.world.l⍴0
-      ⍝blocks[;40;]←1
-     
-      ⍝##.world.Queue_chunk core_data.device blocks(0 0)
-      ⍝##.world.Update_range core_data.device 0 0
+      :If ⎕NEXISTS'saves/HelloWorld/state.dcf'
+          save_file←'saves/HelloWorld/state.dcf'⎕FTIE 1
+          save←⎕FREAD save_file 1
+      :Else
+          save_file←'saves/HelloWorld/state.dcf'⎕FCREATE 1
+          save ⎕FAPPEND save_file
+      :EndIf
+
+
+      ##.world.Init core_data.device save
+      ##.player.Init save
      
       depth_texture←(1280 720)##.Create_depth_texture core_data.device
       'Error creating depth texture'##.Assert depth_texture
@@ -140,10 +149,14 @@
 
 
     ∇ Release core_data
-      ##.world.Release core_data.device
+      ##.player.Save save
+
+      ##.world.Release core_data.device save
       ##.text.Clear core_data.device
       _←##.SDL_SetWindowMouseGrab core_data.window 0
       _←##.SDL_SetWindowRelativeMouseMode core_data.window 0
+
+      save ⎕FREPLACE save_file 1
     ∇
 
     ∇ Create_pipelines(device window);default_format;depth_format;v_shader;f_shader;vb_desc;vb_attr;blend_state;ct_desc
