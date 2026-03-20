@@ -42,19 +42,14 @@
 
     chunks ← 0⍴⍨0,l
     cnames ← 'xz' 'vb' 'vb_kind' 'idx_cnt' 'ready'
-    chunk_info ← 0⍴⍨0, ≢cnames
+    chunk_info ← (≢cnames)⍴⊂⍬
     chunks_rendered←0
-
 
     I←{⍺[⍵]}
     ⍝ Chunk column index (Only used with one entry)
     Ci ← cnames∘⍳∘⊂
     ⍝ Chunk get
-    Cg ← {chunk_info⌷[1]⍨Ci⍵}
-    ⍝ Chunk get cell (Where ⍺ = row #, ⍵ = column name)
-    Cgc ← {chunk_info⌷⍨⍺,Ci⍵}
-    ⍝ Chunk column lookup (Where ⍺ = entries, ⍵ = column name)
-    Cl ← {⍺ (≡⍤0) chunk_info⌷[1]⍨Ci⍵}
+    Cg ← {chunk_info⊃⍨Ci⍵}
 
     faces ← [
     0 1 0 ⋄ 0 1 1 ⋄ 0 0 1 ⋄ 0 0 0 ⍝ Left
@@ -66,6 +61,10 @@
     ]
     v_cnt ← ≢faces
 
+
+
+
+
     ⍝ From ⍳-vertex count in shape of l:
     ⍝ - Extend into 3d coordinate space with ⊤
     ⍝ - Transpose into format where position is last and insert rank
@@ -75,6 +74,12 @@
     vertices ← ,[⍳4] faces(+⍤2) v_cnt(⌿⍤2),[2.5] 3 0 1 2⍉l⊤⊢l⍴⍳×/l
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
+
+
+
+
+
+    
     ⍝ Terrain Generation Information
     ⍝ (seed sns rand_vec ri rv lattice⋄) - set in world Init
     seed←0
@@ -92,7 +97,7 @@
     mapi←(1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
     empty_rle←(l⋄(×/l⋄)⋄(0⋄))
 
-    ∇ Init (device save);vb_params;tb_params;p;cmd;pass;size;state;pxz
+    ∇ Init(device save);vb_params;tb_params;p;cmd;pass;size;state;pxz
       vb_pools←{
           (cnt size)←⍵
           vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX size 0
@@ -120,17 +125,17 @@
       _←##.SDL_EndGPUCopyPass pass
       _←##.SDL_SubmitGPUCommandBuffer cmd
      
-
-      pxz←⌊16÷⍨(⊂0 2)⌷save.⎕VGET⊂'player.position' (0 0 0)
-      seed ← save.⎕VGET ⊂'seed' 42
-      sns ← (⎕RL:seed)
-      rand_vec ← ⌊10+40×sns.?256⍴0
-      ri ← (1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
-      rv ← ⍬ ⍝ [0, 256)
+     
+      pxz←⌊16÷⍨(⊂0 2)⌷save.⎕VGET⊂'player.position'(0 0 0)
+      seed←save.⎕VGET⊂'seed' 42
+      sns←(⎕RL:seed)
+      rand_vec←⌊10+40×sns.?256⍴0
+      ri←(1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
+      rv←⍬ ⍝ [0, 256)
       ri,←(,⍨2*16)⊥⊃,/⍪¨(⊂pxz)+,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
       rv,←sns.?256⍴⍨⍴ri
       lattice←(,⍨0.5*⍨⍴rv)⍴rv
-
+     
       :If ⎕NEXISTS'saves/HelloWorld/map_data.dcf'
           map←'saves/HelloWorld/map_data.dcf'⎕FTIE 0
           mapi←(1500⌶)⎕FREAD map 1
@@ -140,7 +145,7 @@
       :EndIf
     ∇
 
-    ∇ Release (device save)
+    ∇ Release(device save)
       save.seed←seed
       {_←##.SDL_ReleaseGPUBuffer device ⍵}¨∊vb_pools,(2⌷⍉vb_fenced),Cg'vb'
       _←##.SDL_ReleaseGPUBuffer device ib
@@ -151,13 +156,11 @@
           (packR chunks⌷⍨⊃⍵)⎕FREPLACE(map ⋄ 2+1⊃⍵)
       }¨↓⍉↑(⍳≢chunks ⋄ mapi⍳(,⍨2*16)⊥⍉↑Cg'xz')
       ⎕FUNTIE map
-
-      ⍝save.seed←seed
     ∇
 
     ∇ Queue_chunk(device blocks trans);x;z;vb
       (x z)←trans
-      chunk_info⍪←(⊂x z),0⍴⍨¯1+≢cnames
+      chunk_info←chunk_info,¨(⊂⊂x z),0⍴⍨¯1+≢cnames
       chunks⍪←blocks
       tb_queue,←⊂x z
     ∇
@@ -197,10 +200,7 @@
      
       ⍝ Copy into transfer buffer until full or queue is empty
       p←##.SDL_MapGPUTransferBuffer device tb 1
-     
-     
       idxs←tb_queue⍳⍨Cg'xz'
-     
       ⍝ Copied info in total will be:
       ⍝.   (position into transfer buffer, vertex size, index count, vertex kind, vertex buffer)
       copied_info←{
@@ -215,7 +215,7 @@
       copied_info,←vb_sizes∘⍸¨1⌷⍉copied_info
      
       idxs↑⍨←≢copied_info
-      m←idxs∊⍨⍳≢chunk_info
+      m←idxs∊⍨⍳≢⊃chunk_info
       ⍝ Since queue and chunk)info are unsorted and might assign in a
       ⍝     different order, need to sort what has been selected from the
       ⍝     queue with what it's being assigned to
@@ -231,11 +231,11 @@
      
       ⍝ GPU Upload and set loaded chunks as ready with render info
       {(pos vs _ _ vb)←⍵ ⋄ _←##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0}¨↓copied_info
-      (m/(Ci'idx_cnt')⌷⍉chunk_info)←2⌷⍉copied_info
-      (m/(Ci'vb')⌷⍉chunk_info)←vbs
-      (m/(Ci'vb_kind')⌷⍉chunk_info)←3⌷⍉copied_info
-      (m/(Ci'ready')⌷⍉chunk_info)←1
-     
+      
+      (m/(Ci'idx_cnt')⊃chunk_info)←2⌷⍉copied_info
+      (m/(Ci'vb')⊃chunk_info)←vbs
+      (m/(Ci'vb_kind')⊃chunk_info)←3⌷⍉copied_info
+      (m/(Ci'ready')⊃chunk_info)←1
     ∇
 
     ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns
@@ -274,7 +274,7 @@
       set_m←(0≠Cg'vb')∧~m
      
       vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
-      chunk_info⌿⍨←m
+      chunk_info ← m∘/¨chunk_info
       ⍝ rare case that chunk hasn't been given vertex buffer while being loaded
       ⍝ (imagine on border of chunk strafing back and forth)
       tb_queue/⍨←tb_queue∊Cg'xz'
