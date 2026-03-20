@@ -41,10 +41,11 @@
           save←⎕FREAD save_file 1
       :Else
           save_file←'saves/HelloWorld/state.dcf'⎕FCREATE 1
+          (1 3⍴0 ¯1 0)⎕FSTAC save_file
           save ⎕FAPPEND save_file
       :EndIf
-
-
+     
+     
       ##.world.Init core_data.device save
       ##.player.Init save
      
@@ -150,12 +151,12 @@
 
     ∇ Release core_data
       ##.player.Save save
-
+     
       ##.world.Release core_data.device save
       ##.text.Clear core_data.device
       _←##.SDL_SetWindowMouseGrab core_data.window 0
       _←##.SDL_SetWindowRelativeMouseMode core_data.window 0
-
+     
       save ⎕FREPLACE save_file 1
     ∇
 
