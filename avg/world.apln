@@ -41,11 +41,7 @@
     (texture sampler) ← ⍬ ⍬
 
     chunks ← 0⍴⍨0,l
-    cnames ← (
-    'cx' ⋄ 'cz'
-    'vb' ⋄ 'vb_kind' ⋄ 'idx_cnt'
-    'ready'
-    )
+    cnames ← 'cx' 'cz' 'vb' 'vb_kind' 'idx_cnt' 'ready'
     chunk_info ← (≢cnames)⍴⊂⍬
     chunks_rendered←0
 
@@ -80,7 +76,8 @@
     ⍝ - Replicate added rank by number of vertices in a cube
     ⍝ - Add cube vertices to extend each position
     ⍝ - Join in the form (Vertices, 3) so that color/uv/etc can be cated
-    vertices ← ,[⍳4] faces(+⍤2) v_cnt(⌿⍤2),[2.5] 3 0 1 2⍉l⊤⊢l⍴⍳×/l
+    ⍝vertices ← ,[⍳4] faces(+⍤2) v_cnt(⌿⍤2),[2.5] 3 0 1 2⍉l⊤⊢l⍴⍳×/l
+    vertices ← ,[⍳2]faces(+⍤2)v_cnt(⌿⍤2),[0.5]⍉l⊤⍳×/l
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
     ⍝ Terrain Generation Information
@@ -140,7 +137,7 @@
       lattice←(,⍨0.5*⍨⍴rv)⍴rv
      
       :If ⎕NEXISTS'saves/HelloWorld/map_data.dcf'
-          map←'saves/HelloWorld/map_data.dcf'⎕FTIE 0
+          map←'saves/HelloWorld/map_data.dcf'⎕FSTIE 0
           mapi←(1500⌶)⎕FREAD map 1
       :Else
           map←'saves/HelloWorld/map_data.dcf'(⎕FCREATE⍠'Z' 1)0
@@ -268,10 +265,9 @@
      
       ⍝ Unload chunks
       m←~old∊⍨Cg'xz' ⍝ Kept
-     
-      {⍵≡⍬: ⋄ (i mi)←∊⍺
-          (packR chunks⌷⍨⊃i)⎕FREPLACE(map ⋄ 2+mi)
-      }⌸↓⍉(~m)/[⍳≢chunks ⋄ mapi⍳Cg'enc_xz']
+      { ⍝ (major cell index ⋄ index into chunk hash array)
+          (packR chunks⌷⍨⊃⍵)⎕FREPLACE(map ⋄ 2+1⊃⍵)
+      }{⍺⍺¨∘↓⍣(~0∊⍴⍵)⊢⍵}(~m)⌿⍉[⍳≢chunks ⋄ mapi⍳Cg'enc_xz']
       chunks⌿⍨←m
       ⍝ chunks with vertex buffers write to fence buffer to be cycled back to pool
       set_m←(0≠Cg'vb')∧~m
@@ -287,19 +283,21 @@
       t←1(-,[0.5]⊢)(16÷⍨0.5+16 16⊤⍳16*2)
       t←t×t×(3-2×t) ⍝ Smoothstep
       t←2/,[2.5]t
- 
+     
       :For pair :In new
           idx←(,⍨2*16)⊥pair
           :If ~mapi∊⍨idx
               mapi,←idx
-
+     
               c←256/⍪(,⍨view_distance)+pair-(ax az)
-              idx←⌊40+10×+/+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤3⊢rand_vec Im (,lattice)[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c]
+              idx←⌊40+20×2÷⍨+/+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤3⊢rand_vec Im(,lattice)[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c]
               blocks←l⍴1
      
               surface←↓(16/⍳16),(⍪idx),(256 1⍴⍳16)
-              blocks[surface]←0
-              blocks←(#.block_data.Bi'Dirt')@(1=⊢)⊢∧⍀⍤2⊢blocks
+              blocks[surface-(0 2 0 ⋄ )]←0
+              blocks←(#.block_data.Bi'Stone')@(1=⊢)⊢∧⍀⍤2⊢blocks
+              blocks[surface-(0 1 0 ⋄ )]←#.block_data.Bi'Dirt'
+              blocks[surface-(0 2 0 ⋄ )]←#.block_data.Bi'Dirt'
               blocks[surface]←#.block_data.Bi'Grass'
      
               ⍝ Tree :-)

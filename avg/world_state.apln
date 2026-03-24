@@ -37,7 +37,7 @@
       _←##.SDL_SetWindowRelativeMouseMode core_data.window 1
      
       :If ⎕NEXISTS'saves/HelloWorld/state.dcf'
-          save_file←'saves/HelloWorld/state.dcf'⎕FTIE 1
+          save_file←'saves/HelloWorld/state.dcf'⎕FSTIE 1
           save←⎕FREAD save_file 1
       :Else
           save_file←'saves/HelloWorld/state.dcf'⎕FCREATE 1
