@@ -35,7 +35,7 @@
     ib ← 0
     tb ← 0
     tb_pos ← 0
-    tb_size ← 2×vsize
+    tb_size ← ⌊2×vsize
     ⍝ Vector of x and z positions corresponding to xz column
     tb_queue ← ⍬
     (texture sampler) ← ⍬ ⍬
@@ -85,10 +85,9 @@
     seed←0
     sns←()
     rand_vec←⍬
-    ri←⍬
-    rv←⍬
-    lattice←0 0⍴0
-    (old_x old_z) ← 0
+    lattice_range←⍬
+    lattice_seeds←⎕NS¨(2*⍨2+2×view_distance)⍴⊂⍬
+    lattice←⍬
     ⍝ Don't plant it near edges for now!!
     tree_spots←∊¯2↓2↓⍉12 16⍴¯32↓32↓⍳256
 
@@ -125,17 +124,9 @@
       _←##.SDL_EndGPUCopyPass pass
       _←##.SDL_SubmitGPUCommandBuffer cmd
      
-     
-      pxz←⌊16÷⍨(⊂0 2)⌷save.⎕VGET⊂'player.position'(0 0 0)
       seed←save.⎕VGET⊂'seed' 42
       sns←(⎕RL:seed)
       rand_vec←1 2○⍤1⊢⍪○2×sns.?256⍴0
-      ri←(1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
-      rv←⍬ ⍝ [0, 256)
-      ri,←(,⍨2*16)⊥⊃,/⍪¨(⊂pxz)+,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
-      rv,←sns.?256⍴⍨⍴ri
-      lattice←(,⍨0.5*⍨⍴rv)⍴rv
-     
       :If ⎕NEXISTS'saves/HelloWorld/map_data.dcf'
           map←'saves/HelloWorld/map_data.dcf'⎕FSTIE 0
           mapi←(1500⌶)⎕FREAD map 1
@@ -240,26 +231,15 @@
     ∇
 
     ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns
-      ll←⊃⍴lattice
-      (ax az)←(⌊16÷⍨x z)
-      grid←(ax az ⋄ )+,∘.,⍨(view_distance+1)-⍨⍳(2+view_distance×2)
-      p←(,⍨2*16)⊥⊃,/⍪¨grid
-      ri,←p⌿⍨m←(≢ri)=ri⍳p
-      rv,←sns.?256⍴⍨+/m
-      lattice←(dz←az-old_z)⌽(dx←ax-old_x)⊖lattice
-      ⍝ if 0 - ⍬,
-      ⍝ >0 then deincrement cause we want index
-      ⍝ <0 then wrap around
-      ⍝ probably bit unhinged, need to find better solution
-      (dx dz)←(ll×0>dx dz)+(-0<dx dz)+⍨(⊂⍬)@(0=⊢)⊢-dx dz
-      ⍝ when we rotate lattice we need to find new random values for
-      ⍝ what is wrapped around (since those are new chunks)
-      m←,(dx∊⍨⍳ll)∘.∨(dz∊⍨⍳ll)
-      (m⌿,lattice)←rv I ri⍳m⌿p
-     
+      ll←2+2×view_distance
+      (ax az)←(⌊16÷⍨x z)   
       (old_x old_z)←(ax az)
      
-      range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance
+      range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance 
+      lattice_range←(ax az ⋄ )+,∘.,⍨(⍳2+2×view_distance)-view_distance
+      lattice_seeds.⎕RL←4192 4192 4192⊥⍉↑seed,¨lattice_range
+      lattice←lattice_seeds.?256
+
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
      

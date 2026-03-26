@@ -19,6 +19,7 @@
     'Vertex Pool Sizes: '
     'Fenced Vertex Buffers: '
     'Average WS Usage: '
+    'Chunk WS Size: '
     )
     recent_fps←⍬
     recent_ws_usage←⍬
@@ -96,12 +97,13 @@
      
      
       text_copy←text_base
-      text_copy[1 2 3 4 5 6],←⍕¨(≢##.world.chunks
+      text_copy[1 2 3 4 5 6 7],←⍕¨(≢##.world.chunks
           ##.world.chunks_rendered
           (+⌿÷≢)recent_fps
           ≢¨##.world.vb_pools
           ≢##.world.vb_fenced
-          (+⌿÷≢)recent_ws_usage÷1024*2)
+          (+⌿÷≢)recent_ws_usage÷1024*2
+          (1024*2)÷⍨⎕SIZE '##.world.chunks')
      
       ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
       (⊃(##.text.Ti'str')⊃##.text.table)←ustr
