@@ -1,6 +1,6 @@
 :Namespace world
     ⎕IO ← 0
-    'packR'⎕CY'dfns'
+    'foldl' 'packR'⎕CY'dfns'
 
     l ← 16 128 16
     box ← ⊃∘.∨/1@0¨l-⍛↑¨1
@@ -59,7 +59,6 @@
           chunk_info⊃⍨Ci ⍵
       }
 
-    ⍝(,⍨2*16)⊥1⊃⍵)
     faces ← [
     0 1 0 ⋄ 0 1 1 ⋄ 0 0 1 ⋄ 0 0 0 ⍝ Left
     1 1 1 ⋄ 1 1 0 ⋄ 1 0 0 ⋄ 1 0 1 ⍝ Right
@@ -70,24 +69,27 @@
     ]
     v_cnt ← ≢faces
 
-    ⍝ From ⍳-vertex count in shape of l:
-    ⍝ - Extend into 3d coordinate space with ⊤
-    ⍝ - Transpose into format where position is last and insert rank
-    ⍝ - Replicate added rank by number of vertices in a cube
-    ⍝ - Add cube vertices to extend each position
-    ⍝ - Join in the form (Vertices, 3) so that color/uv/etc can be cated
-    ⍝vertices ← ,[⍳4] faces(+⍤2) v_cnt(⌿⍤2),[2.5] 3 0 1 2⍉l⊤⊢l⍴⍳×/l
+    ⍝ With ⍳ of total amount of blocks:
+    ⍝   Encode into chunk size and flip so each row is a possible block position
+    ⍝   Insert rank and replicate by 24 (possible vertices of a cube)
+    ⍝   For each sub-(24 ⋄ 3) matrix add faces
+    ⍝   Ravel into (vertices ⋄ 3)  
     vertices ← ,[⍳2]faces(+⍤2)v_cnt(⌿⍤2),[0.5]⍉l⊤⍳×/l
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
-    ⍝ Terrain Generation Information
-    ⍝ (seed sns rand_vec ri rv lattice⋄) - set in world Init
     seed←0
     sns←()
     rand_vec←⍬
+    ptable←⍬
     lattice_range←⍬
-    lattice_seeds←⎕NS¨(2*⍨2+2×view_distance)⍴⊂⍬
     lattice←⍬
+
+    ⍝ FNV Hash Function based off of Hsu's implementation (?) in MicroUI-APL
+    ⍝ https://github.com/Co-dfns/MicroUI-APL/blob/cc6d5bc15ec6aee36fdf8f348e138a0bfd210706/mu.apln#L246
+    ⍝ Modified to work rowwise on a 2d array (can it be extended up? dunno)
+    ⍝ Primes are ≤2*8 because I only care about [0, 256)
+    Hash_byte ← {256| 137 (147×(32⍴2)⊥≠⍥((32⍴2)∘⊤)) foldl 83⎕DR ⍵}
+
     ⍝ Don't plant it near edges for now!!
     tree_spots←∊¯2↓2↓⍉12 16⍴¯32↓32↓⍳256
 
@@ -127,6 +129,7 @@
       seed←save.⎕VGET⊂'seed' 42
       sns←(⎕RL:seed)
       rand_vec←1 2○⍤1⊢⍪○2×sns.?256⍴0
+      ptable←256 sns.?256
       :If ⎕NEXISTS'saves/HelloWorld/map_data.dcf'
           map←'saves/HelloWorld/map_data.dcf'⎕FSTIE 0
           mapi←(1500⌶)⎕FREAD map 1
@@ -142,7 +145,6 @@
       {_←##.SDL_ReleaseGPUBuffer device ⍵}¨∊vb_pools,(2⌷⍉vb_fenced),Cg'vb'
       _←##.SDL_ReleaseGPUBuffer device ib
       _←##.SDL_ReleaseGPUBuffer device tb
-     
       _←##.SDL_ReleaseGPUSampler device sampler
       {
           (packR chunks⌷⍨⊃⍵)⎕FREPLACE(map ⋄ 2+1⊃⍵)
@@ -202,7 +204,6 @@
       }⍣{(tb_size≤tb_pos+vsize)∨⍺≥⍥≢idxs}⊢0 3⍴0
       _←##.SDL_UnmapGPUTransferBuffer device tb
      
-     
       ⍝ Add vertex kinds (vb pool index)
       copied_info,←vb_sizes∘⍸¨1⌷⍉copied_info
      
@@ -232,13 +233,14 @@
 
     ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns
       ll←2+2×view_distance
-      (ax az)←(⌊16÷⍨x z)   
+      (ax az)←(⌊16÷⍨x z)
       (old_x old_z)←(ax az)
      
-      range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance 
-      lattice_range←(ax az ⋄ )+,∘.,⍨(⍳2+2×view_distance)-view_distance
-      lattice_seeds.⎕RL←4192 4192 4192⊥⍉↑seed,¨lattice_range
-      lattice←lattice_seeds.?256
+      range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance
+      ⍝ Extra padding to account for bottom/right access
+      ⍝ Lattice is just [0, 256) since we index into gradient vectors
+      lattice_range←(ax az ⋄ )+,∘.,⍨(⍳2+2×view_distance)-view_distance-1
+      lattice←Hash_byte seed,↑lattice_range
 
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
@@ -268,9 +270,11 @@
           idx←(,⍨2*16)⊥pair
           :If ~mapi∊⍨idx
               mapi,←idx
-     
+              ⍝ Total of 256 points (16*2) that are spread out on XZ chunks. 
+              ⍝ Twicefold Outer Product to get 4 points on the lattice each uses for bilinear interpolation
+              ⍝ For now hardcode terrain size (40+20×)
               c←256/⍪(,⍨view_distance)+pair-(ax az)
-              idx←⌊40+20×2÷⍨+/+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤3⊢rand_vec Im(,lattice)[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c]
+              idx←⌊40+20×2÷⍨+/+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤3⊢rand_vec Im lattice[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c]
               blocks←l⍴1
      
               surface←↓(16/⍳16),(⍪idx),(256 1⍴⍳16)
