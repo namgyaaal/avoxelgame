@@ -73,7 +73,7 @@
     ⍝   Encode into chunk size and flip so each row is a possible block position
     ⍝   Insert rank and replicate by 24 (possible vertices of a cube)
     ⍝   For each sub-(24 ⋄ 3) matrix add faces
-    ⍝   Ravel into (vertices ⋄ 3)  
+    ⍝   Ravel into (vertices ⋄ 3)
     vertices ← ,[⍳2]faces(+⍤2)v_cnt(⌿⍤2),[0.5]⍉l⊤⍳×/l
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
@@ -83,6 +83,9 @@
     ptable←⍬
     lattice_range←⍬
     lattice←⍬
+    ⍝ Limit amount of terrain generations per frame until I can figure out isolates...
+    ⍝ Only triggered once majority of chunks are already loaded in...
+    max_generations←3
 
     ⍝ FNV Hash Function based off of Hsu's implementation (?) in MicroUI-APL
     ⍝ https://github.com/Co-dfns/MicroUI-APL/blob/cc6d5bc15ec6aee36fdf8f348e138a0bfd210706/mu.apln#L246
@@ -231,7 +234,7 @@
       (m/(Ci'ready')⊃chunk_info)←1
     ∇
 
-    ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns
+    ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns;i
       ll←2+2×view_distance
       (ax az)←(⌊16÷⍨x z)
       (old_x old_z)←(ax az)
@@ -241,7 +244,7 @@
       ⍝ Lattice is just [0, 256) since we index into gradient vectors
       lattice_range←(ax az ⋄ )+,∘.,⍨(⍳2+2×view_distance)-view_distance-1
       lattice←Hash_byte seed,↑lattice_range
-
+     
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
      
@@ -266,11 +269,18 @@
       t←t×t×(3-2×t) ⍝ Smoothstep
       t←2/,[2.5]t
      
+      i←0
       :For pair :In new
+          ⍝ Prevent lag spike since chunk generation happens on main thread.
+          ⍝ Should be modified once isolates are figured out/I optimize chunk generation
+          :If (i=max_generations)∧((max_chunks×0.8)<≢chunks)
+              :Leave
+          :Endif
+
           idx←(,⍨2*16)⊥pair
           :If ~mapi∊⍨idx
               mapi,←idx
-              ⍝ Total of 256 points (16*2) that are spread out on XZ chunks. 
+              ⍝ Total of 256 points (16*2) that are spread out on XZ chunks.
               ⍝ Twicefold Outer Product to get 4 points on the lattice each uses for bilinear interpolation
               ⍝ For now hardcode terrain size (40+20×)
               c←256/⍪(,⍨view_distance)+pair-(ax az)
@@ -297,6 +307,7 @@
           :EndIf
      
           Queue_chunk device blocks pair
+          i+←1
       :EndFor
       mapi ⎕FREPLACE(map ⋄ 1)
     ∇

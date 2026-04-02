@@ -24,28 +24,28 @@
 
 
     ∇ Init save
-        (x y z yaw pitch vy noclip)←save.⎕VGET (
-            ('player_x' 6)
-            ('player_y' 60)
-            ('player_z' 6)
-            ('player_yaw' 0)
-            ('player_pitch' 0)
-            ('vy' gravity)
-            ('noclip' 0)
-        )
+      (x y z yaw pitch vy noclip)←save.⎕VGET(
+          ('player_x' 6)
+          ('player_y' 60)
+          ('player_z' 6)
+          ('player_yaw' 0)
+          ('player_pitch' 0)
+          ('vy'gravity)
+          ('noclip' 0)
+      )
     ∇
 
     ∇ Save save
-        save.⎕VSET (
-            ('player_x' x)
-            ('player_y' y)
-            ('player_z' z)
-            ('player_yaw' yaw)
-            ('player_pitch' pitch)
-            ('vy' vy)
-            ('noclip' noclip)
-        )
-    ∇ 
+      save.⎕VSET(
+          ('player_x'x)
+          ('player_y'y)
+          ('player_z'z)
+          ('player_yaw'yaw)
+          ('player_pitch'pitch)
+          ('vy'vy)
+          ('noclip'noclip)
+      )
+    ∇
 
       Axis_check←{
         ⍝ ⍵ ←→ velocity where only one field is set, rest are 0
