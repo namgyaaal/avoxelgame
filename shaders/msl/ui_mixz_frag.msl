@@ -1,0 +1,36 @@
+#include <metal_stdlib>
+#include <simd/simd.h>
+
+using namespace metal;
+
+struct MixInfo
+{
+    packed_float3 color;
+    float id;
+};
+
+struct main0_out
+{
+    float4 o_color [[color(0)]];
+};
+
+struct main0_in
+{
+    float3 uv [[user(locn1)]];
+};
+
+fragment main0_out main0(main0_in in [[stage_in]], constant MixInfo& _27 [[buffer(0)]], texture2d_array<float> sample_tex [[texture(0)]], sampler sample_texSmplr [[sampler(0)]])
+{
+    main0_out out = {};
+    float4 t_color = sample_tex.sample(sample_texSmplr, in.uv.xy, uint(rint(in.uv.z)));
+    if (abs(in.uv.z - _27.id) < 0.001000000047497451305389404296875)
+    {
+        out.o_color = mix(t_color, float4(_27.color[0], _27.color[1], _27.color[2], 1.0), float4(0.5));
+    }
+    else
+    {
+        out.o_color = t_color;
+    }
+    return out;
+}
+

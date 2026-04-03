@@ -21,6 +21,10 @@
     (e_w e_a e_s e_d e_jump) ← 0
     (e_place e_break) ← 0
     (e_mx e_my) ← 0
+    
+    ⍝ Other
+    block_choices←##.block_data.Bi 'Grass' 'Dirt' 'Stone' 'Log' 'Leaf'
+    block_select←⊃block_choices
 
 
     ∇ Init save
@@ -106,7 +110,7 @@
       Place←{
         ⍝ ⍵ ←→ eye position
         ⍝ ⍺ ←→ block type
-          ⍺←##.block_data.Bi'Wood'
+          ⍺←block_select
           0=e_place:0
           p←⍵ ##.Ray_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
@@ -140,6 +144,16 @@
               e_jump←1
           :Case ##.SDLK_F
               noclip←~noclip
+          :Case ##.SDLK_1
+              block_select ← 0⊃block_choices
+          :Case ##.SDLK_2
+              block_select ← 1⊃block_choices
+          :Case ##.SDLK_3
+              block_select ← 2⊃block_choices
+          :Case ##.SDLK_4
+              block_select ← 3⊃block_choices
+          :Case ##.SDLK_5
+              block_select ← 4⊃block_choices
           :EndSelect
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_KEY_UP
           :Select ⊃##.LSE_GetKeyPressed ⍬

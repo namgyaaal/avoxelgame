@@ -48,6 +48,7 @@
      
      
       ##.world.Init core_data.device save
+      ##.world_ui.Init core_data
       ##.player.Init save
      
       depth_texture←(1280 720)##.Create_depth_texture core_data.device
@@ -103,7 +104,7 @@
           ≢¨##.world.vb_pools
           ≢##.world.vb_fenced
           (+⌿÷≢)recent_ws_usage÷1024*2
-          (1024*2)÷⍨⎕SIZE '##.world.chunks')
+          (1024*2)÷⍨⎕SIZE'##.world.chunks')
      
       ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
       (⊃(##.text.Ti'str')⊃##.text.table)←ustr
@@ -131,13 +132,17 @@
           ##.world.Draw_chunks cmd_buf pass ##.player.x ##.player.z lx lz proj_view
           _←##.SDL_EndGPURenderPass pass
      
-        ⍝ Text Render Pass
+          ⍝ UI Render pass
+          color_info←⊂swap 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
+          pass←##.LSE_BeginDepthLessRenderPass cmd_buf color_info 1
+          ⍝ Text Render Pass
           :If 1=toggle_ui
-              color_info←⊂swap 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
-              pass←##.LSE_BeginDepthLessRenderPass cmd_buf color_info 1
               ##.text.Draw cmd_buf pass ui_proj
-              _←##.SDL_EndGPURenderPass pass
           :EndIf
+          ##.world_ui.Draw cmd_buf pass
+          _←##.SDL_EndGPURenderPass pass
+     
+     
       :EndIf
      
       fence←##.SDL_SubmitGPUCommandBufferAndAcquireFence cmd_buf
@@ -155,6 +160,7 @@
       ##.player.Save save
      
       ##.world.Release core_data.device save
+      ##.world_ui.Release core_data
       ##.text.Clear core_data.device
       _←##.SDL_SetWindowMouseGrab core_data.window 0
       _←##.SDL_SetWindowRelativeMouseMode core_data.window 0

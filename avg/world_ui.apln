@@ -1,0 +1,134 @@
+:Namespace world_ui
+    ⎕IO←0
+
+    pipeline←0
+    (block_sampler block_vb)←0
+    ib←0
+
+
+    block_vs←5×4×4×5
+    is←5×2×6
+
+    elapsed←0
+    blockbar←3 2 1 9 10
+
+    ∇ Init core_data;sam_params;ptr;tb;cmd;pass;block_vertices;indices
+
+      block_vb←##.SDL_CreateGPUBuffer core_data.device(
+          ##.SDL_GPU_BUFFERUSAGE_VERTEX ⋄ block_vs ⋄ 0
+      )
+      ib←##.SDL_CreateGPUBuffer core_data.device(
+          ##.SDL_GPU_BUFFERUSAGE_INDEX ⋄ is ⋄ 0
+      )
+     
+      'Error creating world ui buffers'##.Assert block_vb ib
+     
+      sam_params←⊂0 0 0 2 2 2 0 4 0 0 200 1 0 0 0 0
+      block_sampler←##.SDL_CreateGPUSampler core_data.device sam_params
+      'Error creating world ui sampler'##.Assert block_sampler
+     
+      Create_pipeline(
+          core_data.device
+          core_data.window
+      )
+     
+      block_vertices←∊[
+          ⍝ Grass
+          ¯360 ¯280 0 1 3
+          ¯296 ¯280 1 1 3
+          ¯296 ¯214 1 0 3
+          ¯360 ¯214 0 0 3
+          ⍝ Dirt
+          ¯360 ¯280 0 1 2 + 100 0 0 0 0
+          ¯296 ¯280 1 1 2 + 100 0 0 0 0
+          ¯296 ¯214 1 0 2 + 100 0 0 0 0
+          ¯360 ¯214 0 0 2 + 100 0 0 0 0
+          ⍝ Stone
+          ¯360 ¯280 0 1 1 + 200 0 0 0 0
+          ¯296 ¯280 1 1 1 + 200 0 0 0 0
+          ¯296 ¯214 1 0 1 + 200 0 0 0 0
+          ¯360 ¯214 0 0 1 + 200 0 0 0 0
+          ⍝ Log
+          ¯360 ¯280 0 1 9 + 300 0 0 0 0
+          ¯296 ¯280 1 1 9 + 300 0 0 0 0
+          ¯296 ¯214 1 0 9 + 300 0 0 0 0
+          ¯360 ¯214 0 0 9 + 300 0 0 0 0
+          ⍝ Leaf
+          ¯360 ¯280 0 1 10 + 400 0 0 0 0
+          ¯296 ¯280 1 1 10 + 400 0 0 0 0
+          ¯296 ¯214 1 0 10 + 400 0 0 0 0
+          ¯360 ¯214 0 0 10 + 400 0 0 0 0
+      ]
+      indices← ∊(4×⍳5) ∘.+ 0 1 2 0 2 3
+
+      tb←##.SDL_CreateGPUTransferBuffer(
+          core_data.device
+          ##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(+/block_vs is)0
+      )
+      ptr←##.SDL_MapGPUTransferBuffer core_data.device tb 0
+      _←##.LSE_MemcpyF32(ptr ⋄ block_vertices ⋄ block_vs)
+      _←##.LSE_MemcpyU16(ptr+block_vs ⋄ indices ⋄ is)
+     
+      _←##.SDL_UnmapGPUTransferBuffer core_data.device tb
+     
+      cmd←##.SDL_AcquireGPUCommandBuffer core_data.device
+      pass←##.SDL_BeginGPUCopyPass cmd
+      _←##.SDL_UploadToGPUBuffer pass(tb 0)(block_vb 0 block_vs)0
+      _←##.SDL_UploadToGPUBuffer pass(tb ⋄ block_vs)(ib 0 is)0
+      _←##.SDL_EndGPUCopyPass pass
+      _←##.SDL_SubmitGPUCommandBuffer cmd
+     
+    ∇
+
+    ∇ Draw(cmd_buf pass);ui_proj;mat;x;y;scale;chosen
+     
+      ui_proj←##.math.Ortho(0 0 720 1280 0.1 100)
+      ⍝ Logo
+      scale←1@(⊂3 3)⊢1.1×∘.=⍨⍳4
+      x←128-⍨1280÷2
+      y←350
+      mat←ui_proj+.×⍨scale+.×(x ⋄ y ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4
+      _←##.SDL_BindGPUGraphicsPipeline pass pipeline
+      _←##.SDL_PushGPUVertexUniformData cmd_buf 0(∊mat)(16×4)
+
+      ⍝ Block player selects as id
+      chosen←blockbar ⊃⍨#.player.block_choices ⍳ ##.player.block_select
+      _←##.SDL_PushGPUFragmentUniformData cmd_buf 0(∊1.0 0.0 0.0 chosen)(4×4)
+      _←##.SDL_BindGPUVertexBuffers pass 0(⊂block_vb 0)1
+      _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_16BIT
+      _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture block_sampler)1
+      _←##.SDL_DrawGPUIndexedPrimitives pass(5×6)1 0 0 0
+    ∇
+
+
+    ∇ Release core_data
+      {_←##.SDL_ReleaseGPUBuffer core_data.device ⍵}¨block_vb ib
+    ∇
+
+    ∇ Create_pipeline(device window);v_shader;f_shader;format;vb_desc;vb_attr;blend_state;ct_desc
+      (v_shader f_shader)←(v_ub:1 ⋄ f_sp:1 ⋄ f_ub:1)##.Create_shaders device'ui_vert' 'ui_mixz_frag'
+      format←##.SDL_GetGPUSwapchainTextureFormat device window
+      _←##.LSE_PipelineClearParams
+      _←##.LSE_PipelineSetShaders v_shader f_shader
+     ⍝ 20=4×≢ x y u v w
+      vb_desc←⊂(0 20 0 0)
+      vb_attr←(0 0 ##.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2 0
+          1 0 ##.SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3(4×2))
+      _←##.LSE_PipelineSetVertexInput vb_desc 1 vb_attr 2
+     
+      blend_state←(
+          ##.SDL_GPU_BLENDFACTOR_SRC_ALPHA
+          ##.SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA
+          ##.SDL_GPU_BLENDOP_ADD
+          ##.SDL_GPU_BLENDFACTOR_SRC_ALPHA
+          ##.SDL_GPU_BLENDFACTOR_DST_ALPHA
+          ##.SDL_GPU_BLENDOP_ADD
+      ),16,1,3⍴0
+      ct_desc←⊂format blend_state
+      _←##.LSE_PipelineSetTargetInfo ct_desc 1 0 0
+      pipeline←##.LSE_PipelineCreate device
+      'Error creating ui pipeline'##.Assert pipeline
+      _←##.SDL_ReleaseGPUShader device v_shader
+      _←##.SDL_ReleaseGPUShader device f_shader
+    ∇
+:EndNamespace

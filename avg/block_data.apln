@@ -14,7 +14,7 @@
     )
     names←⎕VGET∘'name'¨data
     tex_z←∊⎕VGET∘'tex'¨data
-    Bi←names∘⍳∘⊂
+    Bi←names∘⍳∘⊆
 
     texture←0
 
