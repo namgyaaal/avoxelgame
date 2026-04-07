@@ -37,11 +37,10 @@
     tb_pos ← 0
     tb_size ← ⌊2×vsize
     ⍝ Vector of x and z positions corresponding to xz column
-    tb_queue ← ⍬
     (texture sampler) ← ⍬ ⍬
 
     chunks ← 0⍴⍨0,l
-    cnames ← 'cx' 'cz' 'vb' 'vb_kind' 'idx_cnt' 'ready'
+    cnames ← 'cx' 'cz' 'vb' 'vb_kind' 'idx_cnt' 'dirty'
     chunk_info ← (≢cnames)⍴⊂⍬
     chunks_rendered←0
 
@@ -80,7 +79,6 @@
     seed←0
     sns←()
     rand_vec←⍬
-    ptable←⍬
     lattice_range←⍬
     lattice←⍬
     ⍝ Limit amount of terrain generations per frame until I can figure out isolates...
@@ -132,7 +130,6 @@
       seed←save.⎕VGET⊂'seed' 42
       sns←(⎕RL:seed)
       rand_vec←1 2○⍤1⊢⍪○2×sns.?256⍴0
-      ptable←256 sns.?256
       :If ⎕NEXISTS'saves/HelloWorld/map_data.dcf'
           map←'saves/HelloWorld/map_data.dcf'⎕FSTIE 0
           mapi←(1500⌶)⎕FREAD map 1
@@ -157,9 +154,8 @@
 
     ∇ Queue_chunk(device blocks trans);x;z;vb
       (x z)←trans
-      chunk_info←chunk_info,¨x,z,0⍴⍨¯2+≢cnames
+      chunk_info←chunk_info,¨x,z,⌽1@0⊢0⍴⍨¯2+≢cnames ⍝ dirty starts at 1, set and flip
       chunks⍪←blocks
-      tb_queue,←⊂x z
     ∇
 
     ∇ info←Copy_chunk(chunk ptr offset);flat;solid;edges;exposed;m;vert;tex;buf;vs;ic
@@ -189,15 +185,15 @@
       info←vs ic
     ∇
 
-    ∇ Copy_chunks(device pass);m;p;vb;vi;vk;idxs;copied_info;dirty_m;null_m;vbs;xzs;sort
-      :If 0=≢tb_queue
-          :Return
+    ∇ Copy_chunks(device pass);m;p;vb;vi;vk;idxs;copied_info;has_vb;vbs;sort
+      :If 0=+/Cg'dirty'
+        :Return
       :EndIf
       tb_pos←0
      
-      ⍝ Copy into transfer buffer until full or queue is empty
+      ⍝ Copy into transfer buffer until it's full for this frame or no more dirty chunks
       p←##.SDL_MapGPUTransferBuffer device tb 1
-      idxs←tb_queue⍳⍨Cg'xz'
+      idxs←⍸Cg'dirty'
       ⍝ Copied info in total will be:
       ⍝.   (position into transfer buffer, vertex size, index count, vertex kind, vertex buffer)
       copied_info←{
@@ -212,15 +208,23 @@
      
       idxs↑⍨←≢copied_info
       m←idxs∊⍨⍳≢⊃chunk_info
-      ⍝ Since queue and chunk)info are unsorted and might assign in a
-      ⍝     different order, need to sort what has been selected from the
-      ⍝     queue with what it's being assigned to
-      sort←(⊂⍋⍋m/Cg'xz')⌷⍋tb_queue↑⍨≢copied_info
-      copied_info←(⊂sort)⌷copied_info
-      tb_queue↓⍨←≢copied_info
+
+
+      ⍝ April 6 2026
+      ⍝ MUSEUM: Keeping this here because I really love this usage of grade I discovered.
+      ⍝ Previous kept a queue of what chunks to load with tb_queue, instead of dirty flag
+      ⍝ Since we work through the queue as an array, possible that chunks loaded are in a 
+      ⍝ different order. 
+      ⍝ 
+      ⍝ So we do this to arrange permutation of queue selected to the permutation of chunks
+      ⍝ by major cell.
+
+      ⍝sort←(⊂⍋⍋m/Cg'xz')⌷⍋tb_queue↑⍨≢copied_info
+      ⍝copied_info←(⊂sort)⌷copied_info
+      ⍝tb_queue↓⍨←≢copied_info
      
-      dirty_m←m∧0≠Cg'vb'
-      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨dirty_m}⍥Cg'vb'
+      has_vb←m∧0≠Cg'vb'
+      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨has_vb}⍥Cg'vb'
      
       vbs←device∘Fetch_buffer¨3⌷⍉copied_info
       copied_info,←vbs
@@ -231,13 +235,12 @@
       (m/(Ci'idx_cnt')⊃chunk_info)←2⌷⍉copied_info
       (m/(Ci'vb')⊃chunk_info)←vbs
       (m/(Ci'vb_kind')⊃chunk_info)←3⌷⍉copied_info
-      (m/(Ci'ready')⊃chunk_info)←1
+      (m/(Ci'dirty')⊃chunk_info)←0
     ∇
 
     ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns;i
       ll←2+2×view_distance
       (ax az)←(⌊16÷⍨x z)
-      (old_x old_z)←(ax az)
      
       range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance
       ⍝ Extra padding to account for bottom/right access
@@ -257,11 +260,7 @@
       ⍝ chunks with vertex buffers write to fence buffer to be cycled back to pool
       set_m←(0≠Cg'vb')∧~m
       vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
-      chunk_info←m∘/¨chunk_info
-      ⍝ rare case that chunk hasn't been given vertex buffer while being loaded
-      ⍝ (imagine on border of chunk strafing back and forth)
-      tb_queue/⍨←tb_queue∊Cg'xz'
-     
+      chunk_info←m∘/¨chunk_info     
       ⍝ access into the lattice grid
       ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/introduction.html
       ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/perlin-noise-part-2/perlin-noise.html
@@ -271,12 +270,12 @@
      
       i←0
       :For pair :In new
-          ⍝ Prevent lag spike since chunk generation happens on main thread.
+          ⍝ Prevent lag spikes as chunk generation and loading from disk happens on main thread.
           ⍝ Should be modified once isolates are figured out/I optimize chunk generation
           :If (i=max_generations)∧((max_chunks×0.8)<≢chunks)
               :Leave
-          :Endif
-
+          :EndIf
+     
           idx←(,⍨2*16)⊥pair
           :If ~mapi∊⍨idx
               mapi,←idx
@@ -322,7 +321,7 @@
       ⍝ https://web.archive.org/web/20220115111822/https://gdbooks.gitbooks.io/3dcollisions/content/Chapter2/static_aabb_plane.html
       centers←(w÷2 ⋄ 2÷⍨h←1⊃l ⋄ w÷2)(+⍤1)⌽2⌽0,(w←⊃l)×↑Cg'xz'
       r←+/(|n)(×⍤1)(w ⋄ h ⋄ w)÷2
-      m←(Cg'ready')∧∧/(-r)(≤⍤1)d(-⍤1)⍨n(+.×⍤2 1)centers
+      m←(~Cg'dirty')∧∧/(-r)(≤⍤1)d(-⍤1)⍨n(+.×⍤2 1)centers
      
       chunks_rendered←+/m
       vbs←m/Cg'vb'

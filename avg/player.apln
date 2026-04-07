@@ -21,7 +21,7 @@
     (e_w e_a e_s e_d e_jump) ← 0
     (e_place e_break) ← 0
     (e_mx e_my) ← 0
-    
+
     ⍝ Other
     block_choices←##.block_data.Bi 'Grass' 'Dirt' 'Stone' 'Log' 'Leaf'
     block_select←⊃block_choices
@@ -103,7 +103,7 @@
           0=∨/m:0
           blk←⊃m/tp
           (blk⌷##.world.chunks)←0
-          ##.world.tb_queue,←(##.world.Cg'xz')⌷⍨⊃blk
+          ((⊃blk)⊃(##.world.Ci'dirty')⊃##.world.chunk_info)←1
           1
       }
 
@@ -122,9 +122,8 @@
           ⍝ while tp≤⍥≢p we know that i<≢p since space inbetween eye and where ray hits is valid
           bbox←[i⊃p ⋄ 1+i⊃p]
           1=∧/∊0∘⌷¨(pbox<⊖bbox)(bbox<⊖pbox):0
-     
           (blk⌷##.world.chunks)←⍺
-          ##.world.tb_queue,←(##.world.Cg'xz')⌷⍨⊃blk
+          ((⊃blk)⊃(##.world.Ci'dirty')⊃##.world.chunk_info)←1
           1
       }
 
@@ -145,15 +144,15 @@
           :Case ##.SDLK_F
               noclip←~noclip
           :Case ##.SDLK_1
-              block_select ← 0⊃block_choices
+              block_select←0⊃block_choices
           :Case ##.SDLK_2
-              block_select ← 1⊃block_choices
+              block_select←1⊃block_choices
           :Case ##.SDLK_3
-              block_select ← 2⊃block_choices
+              block_select←2⊃block_choices
           :Case ##.SDLK_4
-              block_select ← 3⊃block_choices
+              block_select←3⊃block_choices
           :Case ##.SDLK_5
-              block_select ← 4⊃block_choices
+              block_select←4⊃block_choices
           :EndSelect
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_KEY_UP
           :Select ⊃##.LSE_GetKeyPressed ⍬
