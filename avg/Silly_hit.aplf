@@ -1,0 +1,8 @@
+ Silly_hit←{
+     ⍝ ⍺ ←→ position
+     ⍝ ⍵ ←→ translation
+     ⍝ Simple variant of Ray_hit that is less brittle but should
+     ⍝ only be used for short distances since it's less performant!
+     ⎕IO←0
+     ∪⌊(⊂⍺)+(⊂⍵)×100÷⍨⍳100
+ }

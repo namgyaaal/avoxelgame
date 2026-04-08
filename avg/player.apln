@@ -97,7 +97,7 @@
       Break←{
           ⍝ ⍵ ←→ eye position
           0=e_break:0
-          p←⍵ ##.Ray_hit 5×Get_look ⍬
+          p←⍵ ##.Silly_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
           m←{0≠⍵⌷##.world.chunks}¨tp
           0=∨/m:0
@@ -112,7 +112,7 @@
         ⍝ ⍺ ←→ block type
           ⍺←block_select
           0=e_place:0
-          p←⍵ ##.Ray_hit 5×Get_look ⍬
+          p←⍵ ##.Silly_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
           m←{0≠⍵⌷##.world.chunks}¨tp
           0=∨/m:0
