@@ -15,21 +15,19 @@
     sequences ← ⍬
     counts ← 0 2⍴0
 
-    ⍝ Table Format
-    ⍝ - Text Pointer
-    ⍝ - Text Data : 'UTF-8'⎕UCS
-    ⍝ - Translation
-    ⍝ - Scale
-    ⍝ - Rotation
-    ⍝ - Color : rgba with (4⍴256)⊥
-    ⍝ - Width
-    ⍝ - Height
-    ⍝ - Centered : translate by size, usful for rotation around center
-    ⍝ - Hash : for updating if it changed
 
-    tnames ← 'ptr' 'str' 'x' 'y' 'scale' 'rotation' 'color' 'w' 'h' 'center' 'hash'
-    table ← (≢tnames)⍴⊂⍬
-    Ti ← tnames∘⍳∘⊆
+
+    ⍝ Table of all loaded text
+    tnames←'ptr' 'str' 'color' 'w_' 'h_' 'hash'
+    table←(≢tnames)⍴⊂⍬
+    Ti←tnames∘⍳∘⊆
+    ⍝ Shorthand: given list of pointers return indices into table
+    Pi←{(table⊃⍨Ti'ptr')⍳⍵}
+
+    ⍝ Table of scoped text (whatever is rendered)
+    snames ← 'ptr' 'x_' 'y_' 'center' 'scale' 'rotation'
+    scope←(≢snames)⍴⊂⍬
+    Si←snames∘⍳∘⊆
 
     ∇ Init(device window);res;sam_params
       res←##.TTF_Init
@@ -61,11 +59,11 @@
       'Error creating font sampler'##.Assert sampler
     ∇
 
-    ∇ Copy(device pass);wh_tbl;p;colors;hash;update_mask;vbc;ibc;sum
+    ∇ Copy(device pass);wh_tbl;p;colors;hash;update_mask;vbc;ibc;sum;si
       :If 0=≢⊃table
           :Return
       :EndIf
-      update_mask←(table⊃⍨Ti'hash')≠hashes←chksum↓⍉↑⊃∘table¨tnames⍳'color' 'str'
+      update_mask←(table⊃⍨Ti'hash')≠hashes←chksum↓⍉↑⊃∘table¨Ti'color' 'str'
       wh_tbl←⊃⍪⌿{
           (ptr str)←⍵
           _←{##.TTF_SetTextString ptr str(≢str)}⍬
@@ -73,12 +71,12 @@
           [w h ⋄ ]
       }¨↓⍉↑'ptr'{⍺ ⍵}⍥{update_mask/⍵⊃table}⍥Ti'str'
       ((Ti'hash')⊃table)←hashes
-      (update_mask/(Ti'w')⊃table)←0⌷⍉wh_tbl
-      (update_mask/(Ti'h')⊃table)←1⌷⍉wh_tbl
+      (update_mask/(Ti'w_')⊃table)←0⌷⍉wh_tbl
+      (update_mask/(Ti'h_')⊃table)←1⌷⍉wh_tbl
      
-      sequences←##.TTF_GetGPUTextDrawData¨table⊃⍨Ti'ptr'
+      sequences←##.TTF_GetGPUTextDrawData¨si←scope⊃⍨Si'ptr'
       p←##.SDL_MapGPUTransferBuffer device tb 1
-      colors←↓⍉255÷⍨(4⍴256)⊤table⊃⍨Ti'color'
+      colors←↓⍉255÷⍨(4⍴256)⊤(⊂Pi si)⌷table⊃⍨Ti'color'
      
       ⍝ Need to accumulate offsets into the vertex and index buffers
       ⍝     through this since all texts are packed, hence why we do power.
@@ -96,22 +94,31 @@
       _←##.SDL_UploadToGPUBuffer pass(tb(36×max_vertices))(ib 0(4×ibc))1
     ∇
 
-    ∇ Draw(cmd_buf pass proj_mat);origin;rotations;rot;trans;scale;models;x;y;w;h;offsets;centered
+    ∇ {ptr}←{ns}Make_text str;color
+      :If 0=⎕NC'ns'
+          ns←()
+      :EndIf
+      color←(4⍴256)⊥ns.⎕VGET⊂'color'(255 255 255 255)
+      ptr←##.TTF_CreateText ##.text.engine ##.text.font 0 0
+      table⍪¨←(ptr ⋄ ⊂str ⋄ color ⋄ 0 ⋄ 0 ⋄ 0)
+    ∇
+
+    ∇ Draw(cmd_buf pass proj_mat);ptr;origin;rotations;rot;trans;scale;models;x;y;w;h;offsets;center
       :If 0=≢⊃table
           :Return
       :EndIf
       _←##.SDL_BindGPUGraphicsPipeline pass pipeline
      
-      (x y w h centered)←⊃∘table⍤Ti¨('x' 'y' 'w' 'h' 'center')
+      (ptr x y center)←scope⌷⍨⊂Si'ptr' 'x_' 'y_' 'center'
+      (w h)←(⊂ptr⍳⍨table⊃⍨Ti'ptr')∘⌷¨table⌷⍨⊂Ti'w_' 'h_'
       origin←↑{(-⊃⍵ ⋄ 1⊃⍵ ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4}¨↓⍉↑2÷⍨w h
-      ((~centered)⌿origin)←(+/~centered)⌿,[¯0.5]∘.=⍨⍳4
+      ((~center)⌿origin)←(+/~center)⌿,[¯0.5]∘.=⍨⍳4
       rot←↑{
           ul←1 ¯1 1 1×2 1 1 2○⍵ ⍝ Rotate on XY plane
           4 4⍴(ul,1,1)@(0 1 4 5 10 15)⊢16⍴0
-      }¨table⊃⍨Ti'rotation'
-     
+      }¨scope⊃⍨Si'rotation'
       trans←↑{(⊃⍵ ⋄ 1⊃⍵ ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4}¨↓⍉↑x y
-      scale←↑{1@(⊂3 3)⊢⍵×∘.=⍨⍳4}¨table⊃⍨Ti'scale'
+      scale←↑{1@(⊂3 3)⊢⍵×∘.=⍨⍳4}¨scope⊃⍨Si'scale'
       models←proj_mat+.×⍨⊃(+.×⍤2 2)/origin rot scale trans
       offsets←¯1↓0 0⍪+⍀counts
       _←##.SDL_BindGPUVertexBuffers pass 0(⊂vb 0)1
@@ -120,14 +127,13 @@
           (seq ⋄ mat ⋄ (v i))←⍵
           _←{##.SDL_PushGPUVertexUniformData cmd_buf 0 mat(16×4) ⋄ 0}⍬
           _←##.LSE_FontGPUDraw pass sampler seq v i
-     
       }¨↓⍉↑(sequences ⋄ ↓,[1+⍳2]models ⋄ ↓offsets)
-     
     ∇
 
     ∇ Clear device
       _←##.TTF_DestroyText¨table⊃⍨Ti'ptr'
       table←(≢tnames)⍴⊂⍬
+      scope←(≢scope)⍴⊂⍬
     ∇
 
     ∇ Release device

@@ -2,9 +2,15 @@
     ⎕IO←0
 
     pipeline←0
+
+    ⍝ General tb for everything at start then background vertices each frame
+    tb←0
+
     (apple_texture apple_sampler apple_vb)←0
     (bg_sampler bg_vb)←0
     ib←0
+
+    bg_vertices←16⍴0
 
 
     apple_vs←4×4×5
@@ -13,8 +19,19 @@
 
     elapsed←0
 
-    ∇ Init core_data;sam_params;bg_vertices;ptr;tb;cmd;pass;dirt;u;v;txt;text_render;img;img2;enc;texs;apple_vertices;indices;addr
-      dirt←2
+    dirt←0
+
+
+    states ← 'menu' 'saves'
+    cur_state ← states⍳⊂'menu'
+
+
+    menu_scope ← ⍬
+    save_scope ← ⍬
+
+
+    ∇ Init core_data;sam_params;ptr;cmd;pass;u;v;txt;text_render;img;img2;enc;texs;apple_vertices;indices;addr
+      dirt←##.block_data.Bi'Dirt'
      
       apple_texture←##.SDL_CreateGPUTexture core_data.device(
           1 ⋄ ##.SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM ⋄ 3 ⋄ 256 ⋄ 256
@@ -66,7 +83,7 @@
           core_data.device
           ##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(+/bg_vs apple_vs is texs)0
       )
-      ptr←##.SDL_MapGPUTransferBuffer core_data.device tb 0
+      ptr←##.SDL_MapGPUTransferBuffer core_data.device tb 1
       _←##.LSE_MemcpyF32(ptr ⋄ bg_vertices ⋄ bg_vs)
       _←##.LSE_MemcpyF32(ptr+bg_vs ⋄ apple_vertices ⋄ apple_vs)
       _←##.LSE_MemcpyU16(ptr+bg_vs+apple_vs ⋄ indices ⋄ is)
@@ -89,7 +106,7 @@
      
       cmd←##.SDL_AcquireGPUCommandBuffer core_data.device
       pass←##.SDL_BeginGPUCopyPass cmd
-      _←##.SDL_UploadToGPUBuffer pass(tb 0)(bg_vb 0 bg_vs)0
+      _←##.SDL_UploadToGPUBuffer pass(tb 0)(bg_vb 0 bg_vs)1
       _←##.SDL_UploadToGPUBuffer pass(tb bg_vs)(apple_vb 0 apple_vs)0
       _←##.SDL_UploadToGPUBuffer pass(tb ⋄ bg_vs+apple_vs)(ib 0 is)0
       _←##.SDL_UploadToGPUTexture(
@@ -102,65 +119,111 @@
       _←##.SDL_SubmitGPUCommandBuffer cmd
      
      
+      ⍝ Menu
+      menu_scope←(≢##.text.snames)⍴⊂⍬
+      save_scope←(≢##.text.snames)⍴⊂⍬
+
       txt←'UTF-8'⎕UCS'The Meaning of life',(⎕UCS 10),'⍎⊖⍕⊃⊂|⌊-*+○⌈×÷!⌽⍉⌹~⍴⍋⍒,⍟?⍳0'
-      text_render←##.TTF_CreateText ##.text.engine ##.text.font 0 0
-      ##.text.table⍪¨←(text_render ⋄ ⊆txt ⋄ 920 ⋄ 565 ⋄ 0.4 ⋄ 0.3 ⋄ (4⍴256)⊥212 175 55 255 ⋄ 0 ⋄ 0 ⋄ 1 ⋄ 0)
+      ptr←(color: 212 175 55 255) ##.text.Make_text txt
+      menu_scope⍪¨←(ptr ⋄ 280+core_data.w÷2 ⋄ core_data.h-155 ⋄ 1 ⋄ 0.4 ⋄ 0.3)
+
+      ptr←##.text.Make_text 'UTF-8'⎕UCS'Play'
+      menu_scope⍪¨←(ptr ⋄ core_data.w÷2 ⋄ core_data.h-470 ⋄ 1 ⋄ 0.4 ⋄ 0)
+      
+      ptr←##.text.Make_text 'UTF-8'⎕UCS'Quit'
+      menu_scope⍪¨←(ptr ⋄ core_data.w÷2 ⋄ core_data.h-540 ⋄ 1 ⋄ 0.4 ⋄ 0)
+
+      ⍝ Saves
+      ptr←##.text.Make_text 'UTF-8'⎕UCS'<EMPTY SAVE>'
+      save_scope⍪¨←(ptr ⋄ 30 ⋄ core_data.h-100 ⋄ 0 ⋄ 0.4 ⋄ 0)
+
+      ptr←##.text.Make_text 'UTF-8'⎕UCS'<EMPTY SAVE>'
+      save_scope⍪¨←(ptr ⋄ 30 ⋄ core_data.h-170 ⋄ 0 ⋄ 0.4 ⋄ 0)
+
+      ptr←##.text.Make_text 'UTF-8'⎕UCS'<EMPTY SAVE>'
+      save_scope⍪¨←(ptr ⋄ 30 ⋄ core_data.h-240 ⋄ 0 ⋄ 0.4 ⋄ 0)
+
+      ptr←##.text.Make_text 'UTF-8'⎕UCS'<EMPTY SAVE>'
+      save_scope⍪¨←(ptr ⋄ 30 ⋄ core_data.h-310 ⋄ 0 ⋄ 0.4 ⋄ 0)
+
+      ptr←##.text.Make_text 'UTF-8'⎕UCS'Back'
+      save_scope⍪¨←(ptr ⋄ 20 ⋄ core_data.h-380 ⋄ 0 ⋄ 0.4 ⋄ 0)
+      ##.text.scope ← menu_scope
+    ∇
+
+    ∇ Input core_data;x;y;u;v
+      :If ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
      
-      text_render←##.TTF_CreateText ##.text.engine ##.text.font 0 0
-      ##.text.table⍪¨←(text_render ⋄ ⊆'UTF-8'⎕UCS'Play' ⋄ 1280÷2 ⋄ 250 ⋄ 0.4 ⋄ 0 ⋄ (4⍴256)⊥255 255 255 255 ⋄ 0 ⋄ 0 ⋄ 1 ⋄ 0)
-     
-      text_render←##.TTF_CreateText ##.text.engine ##.text.font 0 0
-      ##.text.table⍪¨←(text_render ⋄ ⊆'UTF-8'⎕UCS'Quit' ⋄ 1280÷2 ⋄ 180 ⋄ 0.4 ⋄ 0 ⋄ (4⍴256)⊥255 255 255 255 ⋄ 0 ⋄ 0 ⋄ 1 ⋄ 0)
+          x←##.text.Si'x_'
+          y←##.text.Si'y_'
+          (x⊃menu_scope)←(280+core_data.w÷2 ⋄ core_data.w÷2 ⋄ core_data.w÷2)
+          (y⊃menu_scope)←(core_data.h-155 ⋄ core_data.h-470 ⋄ core_data.h-540)
+
+          (u v)←(core_data.w core_data.h)÷64
+          bg_vertices←∊[
+              0 0 0 v dirt
+              core_data.w 0 u v dirt
+              core_data.w core_data.h u 0 dirt
+              0 core_data.h 0 0 dirt
+          ]
+      :EndIf
      
     ∇
 
-    ∇ Input core_data
-     
-    ∇
-
-    ∇ Update core_data;click;x;y;m;xy;wh;bl;tr
+    ∇ Update core_data;click;x;y;m;xy;wh;bl;tr;w;h;pi
       elapsed+←core_data.dt
-      (0⊃(##.text.Ti'scale')⊃⍉##.text.table)←0.5+0.025×1○3×elapsed
      
+     
+
       (click x y)←##.SDL_GetMouseState 0 0
       y←core_data.h-y
-     
-      ⍝ Only select buttons (after flavortext in table)
-      xy←(⊂1 2)⌷(⍉↑)##.text.table⌷⍨⊂##.text.tnames⍳'xy'
-      tr←wh+bl←xy-0.5×wh←0.4×(⊂1 2)⌷(⍉↑)##.text.table⌷⍨⊂##.text.tnames⍳'wh'
-      m←∧/(bl∘(<⍤1)∧tr∘(>⍤1)) x y
-      
+      :If cur_state=states⍳⊂'menu'
+          (0⊃(##.text.Si'scale')⊃menu_scope)←0.5+0.025×1○3×elapsed
 
-      ⍝ Note on Saturday Feb. 21 11:28 PM
-      ⍝ Leaving this commented out block as an example of why it's important to have
-      ⍝   proper sleep and exercise when coding. Was able to get it down to three lines
-      ⍝   (see above) that are significantly easier to grok at. 
+          xy←(⊂1 2)⌷(⍉↑)menu_scope⌷⍨⊂##.text.Si'x_' 'y_'
+          (w h)←(⊂pi←##.text.Pi menu_scope⊃⍨⊂##.text.Si'ptr')∘⌷¨##.text.table⌷⍨⊂##.text.Ti'w_' 'h_'
+          tr←wh+bl←xy-0.5×wh←0.4×(⊂1 2)⌷(⍉↑)w h
+          m←∧/(bl∘(<⍤1)∧tr∘(>⍤1))x y
 
-      ⍝ wrote this half-asleep after working for 10 hours
-      ⍝ holy %$#@ this is bad -- fix later
-      ⍝buttons←(⊂1 2)⌷(⍉↑)##.text.table⌷⍨⊂##.text.tnames⍳'xywh'
-      ⍝buttons←(0.4∘×@2 3)⍤1⊢buttons ⍝ hardcoded scale for now...
-      ⍝buttons←((2 2)∘⍴⍤1)({(⍵+¯4↑2↑⍵)-0.5×(,⍨2↓⍵)}⍤1)buttons
-      ⍝below←(0∘⌷⍤⊖⍤2)(x y)(<⍤1)buttons
-      ⍝above←(0∘⌷⍤2)(x y)(>⍤1)buttons
-      ⍝m←∧/below∧above
+          ((⊂m/1↓pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥212 175 55 255
+          ((⊂(~m)/1↓pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥255 255 255 255
 
-      ⍝ If add more non-clickable text (like flavor text) should modify methinks
-      ((0,m)/(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥212 175 55 255
-      ((0,~m)/(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥255 255 255 255
-     
-      :If (click=1)∧(0∊⍸m)
-          core_data.next_state←##.world_state
-      :ElseIf (click=1)∧(1∊⍸m)
-          core_data.quit←1
+          :If (click=1)∧(0∊⍸m)
+              cur_state←states⍳⊂'saves'     
+          :ElseIf (click=1)∧(1∊⍸m)
+              core_data.quit←1
+          :EndIf
+
+          ##.text.scope←menu_scope
+      :ElseIf cur_state=states⍳⊂'saves'
+          xy←(⍉↑)save_scope⌷⍨⊂##.text.Si'x_' 'y_'
+          (w h)←(⊂pi←##.text.Pi save_scope⊃⍨⊂##.text.Si'ptr')∘⌷¨##.text.table⌷⍨⊂##.text.Ti'w_' 'h_'
+          wh←0.4×(⍉↑)w h
+          (1⌷⍉xy)-←(1⌷⍉wh)
+          tr←wh+bl←xy
+          m←∧/(bl∘(<⍤1)∧tr∘(>⍤1))x y 
+          
+          ((⊂m/pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥212 175 55 255
+          ((⊂(~m)/pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥255 255 255 255
+
+          :If (click=1)∧(4∊⍸m)
+              cur_state←states⍳⊂'menu'
+          :ElseIf (click=1)∧(∨/4>⍸m)
+              core_data.next_state←##.world_state
+          :EndIf
+          ##.text.scope←save_scope
       :EndIf
     ∇
 
-    ∇ Draw core_data;cmd_buf;res;swap;pass;color_info;ui_proj;mat;x;y;scale
+    ∇ Draw core_data;cmd_buf;res;swap;pass;color_info;ui_proj;mat;x;y;scale;ptr
       cmd_buf←##.SDL_AcquireGPUCommandBuffer core_data.device
-     
       pass←##.SDL_BeginGPUCopyPass cmd_buf
       ##.text.Copy core_data.device pass
+      ⍝ kinda lazy just copy background every frame to handle resizes
+      ptr←##.SDL_MapGPUTransferBuffer core_data.device tb 1
+      _←##.LSE_MemcpyF32(ptr ⋄ bg_vertices ⋄ bg_vs)
+      _←##.SDL_UnmapGPUTransferBuffer core_data.device tb
+      _←##.SDL_UploadToGPUBuffer pass(tb 0)(bg_vb 0 bg_vs)1
       _←##.SDL_EndGPUCopyPass pass
      
       (res swap _ _)←##.SDL_WaitAndAcquireGPUSwapchainTexture(
@@ -168,7 +231,7 @@
           core_data.window
           0 ⋄ 0 ⋄ 0
       )
-      ui_proj←##.math.Ortho(0 0 720 1280 0.1 100)
+      ui_proj←##.math.Ortho(0 0 core_data.h core_data.w 0.1 100)
       :If swap≠0
           color_info←⊂swap 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
           pass←##.LSE_BeginDepthLessRenderPass cmd_buf color_info 1
@@ -180,16 +243,18 @@
           _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture bg_sampler)1
           _←##.SDL_DrawGPUIndexedPrimitives pass 6 1 0 0 0
      
+          :If cur_state≡states⍳⊂'menu'
           ⍝ Logo
-          scale←1@(⊂3 3)⊢1.1×∘.=⍨⍳4
-          x←128-⍨1280÷2
-          y←350
-          mat←ui_proj+.×⍨scale+.×(x ⋄ y ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4
-          _←##.SDL_PushGPUVertexUniformData cmd_buf 0(∊mat)(16×4)
-          _←##.SDL_BindGPUVertexBuffers pass 0(⊂apple_vb 0)1
-          _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_16BIT
-          _←##.SDL_BindGPUFragmentSamplers pass 0(⊂apple_texture apple_sampler)1
-          _←##.SDL_DrawGPUIndexedPrimitives pass 6 1 0 0 0
+              scale←1@(⊂3 3)⊢1.1×∘.=⍨⍳4
+              x←128-⍨core_data.w÷2
+              y←core_data.h-370
+              mat←ui_proj+.×⍨scale+.×(x ⋄ y ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4
+              _←##.SDL_PushGPUVertexUniformData cmd_buf 0(∊mat)(16×4)
+              _←##.SDL_BindGPUVertexBuffers pass 0(⊂apple_vb 0)1
+              _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_16BIT
+              _←##.SDL_BindGPUFragmentSamplers pass 0(⊂apple_texture apple_sampler)1
+              _←##.SDL_DrawGPUIndexedPrimitives pass 6 1 0 0 0
+          :EndIf
      
           ##.text.Draw cmd_buf pass ui_proj
           _←##.SDL_EndGPURenderPass pass
@@ -201,12 +266,16 @@
 
     ∇ Release core_data
       ##.text.Clear core_data.device
+      menu_scope←(≢##.text.snames)⍴⊂⍬
+      save_scope←(≢##.text.snames)⍴⊂⍬
+
+      _←##.SDL_ReleaseGPUTransferBuffer core_data.device tb
       {_←##.SDL_ReleaseGPUBuffer core_data.device ⍵}¨bg_vb apple_vb ib
       _←##.SDL_ReleaseGPUTexture core_data.device apple_texture
     ∇
 
     ∇ Create_pipeline(device window);v_shader;f_shader;format;vb_desc;vb_attr;blend_state;ct_desc
-      (v_shader f_shader)←(v_ub: 1 ⋄ f_sp: 1) ##.Create_shaders device 'ui_vert' 'ui_frag'
+      (v_shader f_shader)←(v_ub:1 ⋄ f_sp:1)##.Create_shaders device'ui_vert' 'ui_frag'
       format←##.SDL_GetGPUSwapchainTextureFormat device window
       _←##.LSE_PipelineClearParams
       _←##.LSE_PipelineSetShaders v_shader f_shader

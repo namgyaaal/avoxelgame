@@ -11,6 +11,7 @@
     time←0
 
     toggle_ui←0
+    info_scope←⍬
     text_base←(
     'Hello ⌽''dlrow'''
     'Chunks Loaded: '
@@ -33,7 +34,9 @@
     save_file←0
     save←()
 
-    ∇ Init core_data;blocks;text_info
+
+
+    ∇ Init core_data;blocks;ptr
       _←##.SDL_SetWindowMouseGrab core_data.window 1
       _←##.SDL_SetWindowRelativeMouseMode core_data.window 1
      
@@ -62,9 +65,12 @@
       proj_view←view+.×proj
      
       time←⊃##.SDL_GetTicks ⍬
-     
-      text_info←##.TTF_CreateText ##.text.engine ##.text.font 0 0
-      ##.text.table⍪¨←(text_info ⋄ ⊆'UTF-8'⎕UCS'Foobar' ⋄ core_data.w-480 ⋄ core_data.h-20 ⋄ 0.4 ⋄ 0 ⋄ (4⍴256)⊥0 0 0 255 ⋄ 0 ⋄ 0 ⋄ 0 ⋄ 0)
+      info_scope←(≢##.text.snames)⍴⊂⍬
+
+      ptr←(color: 0 0 0 255) ##.text.Make_text 'UTF-8'⎕UCS'Foobar'
+      info_scope⍪¨←(ptr ⋄ core_data.w-480 ⋄ core_data.h-20 ⋄ 0 ⋄ 0.4 ⋄ 0)
+
+      ##.text.scope←info_scope
     ∇
 
     ∇ Input core_data;x;y
@@ -73,19 +79,18 @@
           :If key=##.SDLK_I
               toggle_ui←~toggle_ui
           :EndIf
-      :Elseif ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
+      :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
           proj←##.math.Proj(○70÷180 ⋄ core_data.w÷core_data.h ⋄ 0.1 ⋄ 500)
           proj_view←view+.×proj
           ui_proj←##.math.Ortho(0 0 core_data.h core_data.w 0.1 100)
-
+     
           _←##.SDL_ReleaseGPUTexture core_data.device depth_texture
           depth_texture←(core_data.w core_data.h)##.Create_depth_texture core_data.device
           'Error creating depth texture'##.Assert depth_texture
-
-          x←##.text.Ti'x'
-          y←##.text.Ti'y'
-          (x⊃##.text.table)←core_data.w-480
-          (y⊃##.text.table)←core_data.h-20
+     
+          (x y)←##.text.Si'x_' 'y_'
+          (x⊃info_scope)←core_data.w-480
+          (y⊃info_scope)←core_data.h-20
       :EndIf
      
       ##.player.Input
@@ -122,6 +127,7 @@
       ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
       (⊃(##.text.Ti'str')⊃##.text.table)←ustr
      
+      ##.text.scope←info_scope
     ∇
 
     ∇ Draw core_data;lx;lz;cmd_buf;pass;res;swap;color_info;depth_info;fence;fence_idx;fence_m
