@@ -26,3 +26,8 @@ void LSE_GetMouseMoveRel(int32_t* xrel, int32_t* yrel) {
 }
 
 uint8_t LSE_GetButton() { return global_event.button.button; }
+
+void LSE_GetWindowResize(int32_t* w, int32_t* h) {
+    *w = global_event.window.data1;
+    *h = global_event.window.data2;
+}

@@ -51,28 +51,41 @@
       ##.world_ui.Init core_data
       ##.player.Init save
      
-      depth_texture←(1280 720)##.Create_depth_texture core_data.device
+      depth_texture←(core_data.w core_data.h)##.Create_depth_texture core_data.device
       'Error creating depth texture'##.Assert depth_texture
      
       Create_pipelines core_data.device core_data.window
      
       view←##.player.Get_view ⍬
-      proj←##.math.Proj(○70÷180 ⋄ 1280÷720 ⋄ 0.1 ⋄ 500)
-      ui_proj←##.math.Ortho(0 0 720 1280 0.1 100)
+      proj←##.math.Proj(○70÷180 ⋄ core_data.w÷core_data.h ⋄ 0.1 ⋄ 500)
+      ui_proj←##.math.Ortho(0 0 core_data.h core_data.w 0.1 100)
       proj_view←view+.×proj
      
       time←⊃##.SDL_GetTicks ⍬
      
       text_info←##.TTF_CreateText ##.text.engine ##.text.font 0 0
-      ##.text.table⍪¨←(text_info ⋄ ⊆'UTF-8'⎕UCS'Foobar' ⋄ 800 ⋄ 700 ⋄ 0.4 ⋄ 0 ⋄ (4⍴256)⊥0 0 0 255 ⋄ 0 ⋄ 0 ⋄ 0 ⋄ 0)
+      ##.text.table⍪¨←(text_info ⋄ ⊆'UTF-8'⎕UCS'Foobar' ⋄ core_data.w-480 ⋄ core_data.h-20 ⋄ 0.4 ⋄ 0 ⋄ (4⍴256)⊥0 0 0 255 ⋄ 0 ⋄ 0 ⋄ 0 ⋄ 0)
     ∇
 
-    ∇ Input core_data
+    ∇ Input core_data;x;y
       :If ##.LSE_CheckEvent ##.SDL_EVENT_KEY_DOWN
           key←⊃##.LSE_GetKeyPressed
           :If key=##.SDLK_I
               toggle_ui←~toggle_ui
           :EndIf
+      :Elseif ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
+          proj←##.math.Proj(○70÷180 ⋄ core_data.w÷core_data.h ⋄ 0.1 ⋄ 500)
+          proj_view←view+.×proj
+          ui_proj←##.math.Ortho(0 0 core_data.h core_data.w 0.1 100)
+
+          _←##.SDL_ReleaseGPUTexture core_data.device depth_texture
+          depth_texture←(core_data.w core_data.h)##.Create_depth_texture core_data.device
+          'Error creating depth texture'##.Assert depth_texture
+
+          x←##.text.Ti'x'
+          y←##.text.Ti'y'
+          (x⊃##.text.table)←core_data.w-480
+          (y⊃##.text.table)←core_data.h-20
       :EndIf
      
       ##.player.Input
@@ -129,7 +142,7 @@
      
           pass←##.SDL_BeginGPURenderPass cmd_buf color_info 1 depth_info
           _←##.SDL_BindGPUGraphicsPipeline pass world_pipeline
-          ##.world.Draw_chunks cmd_buf pass ##.player.x ##.player.z lx lz proj_view
+          ##.world.Draw_chunks core_data cmd_buf pass ##.player.x ##.player.z lx lz proj_view
           _←##.SDL_EndGPURenderPass pass
      
           ⍝ UI Render pass
@@ -139,10 +152,8 @@
           :If 1=toggle_ui
               ##.text.Draw cmd_buf pass ui_proj
           :EndIf
-          ##.world_ui.Draw cmd_buf pass
+          ##.world_ui.Draw core_data cmd_buf pass
           _←##.SDL_EndGPURenderPass pass
-     
-     
       :EndIf
      
       fence←##.SDL_SubmitGPUCommandBufferAndAcquireFence cmd_buf

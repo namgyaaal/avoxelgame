@@ -13,7 +13,7 @@
     blockbar←3 2 1 9 10
 
     ∇ Init core_data;sam_params;ptr;tb;cmd;pass;block_vertices;indices
-
+     
       block_vb←##.SDL_CreateGPUBuffer core_data.device(
           ##.SDL_GPU_BUFFERUSAGE_VERTEX ⋄ block_vs ⋄ 0
       )
@@ -39,28 +39,28 @@
           ¯296 ¯214 1 0 3
           ¯360 ¯214 0 0 3
           ⍝ Dirt
-          ¯360 ¯280 0 1 2 + 100 0 0 0 0
-          ¯296 ¯280 1 1 2 + 100 0 0 0 0
-          ¯296 ¯214 1 0 2 + 100 0 0 0 0
-          ¯360 ¯214 0 0 2 + 100 0 0 0 0
+          ¯360 ¯280 0 1 2+100 0 0 0 0
+          ¯296 ¯280 1 1 2+100 0 0 0 0
+          ¯296 ¯214 1 0 2+100 0 0 0 0
+          ¯360 ¯214 0 0 2+100 0 0 0 0
           ⍝ Stone
-          ¯360 ¯280 0 1 1 + 200 0 0 0 0
-          ¯296 ¯280 1 1 1 + 200 0 0 0 0
-          ¯296 ¯214 1 0 1 + 200 0 0 0 0
-          ¯360 ¯214 0 0 1 + 200 0 0 0 0
+          ¯360 ¯280 0 1 1+200 0 0 0 0
+          ¯296 ¯280 1 1 1+200 0 0 0 0
+          ¯296 ¯214 1 0 1+200 0 0 0 0
+          ¯360 ¯214 0 0 1+200 0 0 0 0
           ⍝ Log
-          ¯360 ¯280 0 1 9 + 300 0 0 0 0
-          ¯296 ¯280 1 1 9 + 300 0 0 0 0
-          ¯296 ¯214 1 0 9 + 300 0 0 0 0
-          ¯360 ¯214 0 0 9 + 300 0 0 0 0
+          ¯360 ¯280 0 1 9+300 0 0 0 0
+          ¯296 ¯280 1 1 9+300 0 0 0 0
+          ¯296 ¯214 1 0 9+300 0 0 0 0
+          ¯360 ¯214 0 0 9+300 0 0 0 0
           ⍝ Leaf
-          ¯360 ¯280 0 1 10 + 400 0 0 0 0
-          ¯296 ¯280 1 1 10 + 400 0 0 0 0
-          ¯296 ¯214 1 0 10 + 400 0 0 0 0
-          ¯360 ¯214 0 0 10 + 400 0 0 0 0
+          ¯360 ¯280 0 1 10+400 0 0 0 0
+          ¯296 ¯280 1 1 10+400 0 0 0 0
+          ¯296 ¯214 1 0 10+400 0 0 0 0
+          ¯360 ¯214 0 0 10+400 0 0 0 0
       ]
-      indices← ∊(4×⍳5) ∘.+ 0 1 2 0 2 3
-
+      indices←∊(4×⍳5)∘.+0 1 2 0 2 3
+     
       tb←##.SDL_CreateGPUTransferBuffer(
           core_data.device
           ##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(+/block_vs is)0
@@ -80,20 +80,20 @@
      
     ∇
 
-    ∇ Draw(cmd_buf pass);ui_proj;mat;x;y;scale;chosen
+    ∇ Draw(core_data cmd_buf pass);ui_proj;mat;x;y;scale;chosen
      
-      ui_proj←##.math.Ortho(0 0 720 1280 0.1 100)
+      ui_proj←##.math.Ortho(0 0 core_data.h core_data.w 0.1 100)
       ⍝ Logo
       scale←1@(⊂3 3)⊢1.1×∘.=⍨⍳4
-      x←128-⍨1280÷2
+      x←128-⍨core_data.w÷2
       y←350
       mat←ui_proj+.×⍨scale+.×(x ⋄ y ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4
       _←##.SDL_BindGPUGraphicsPipeline pass pipeline
       _←##.SDL_PushGPUVertexUniformData cmd_buf 0(∊mat)(16×4)
-
+     
       ⍝ Block player selects as id
-      chosen←blockbar ⊃⍨#.player.block_choices ⍳ ##.player.block_select
-      _←##.SDL_PushGPUFragmentUniformData cmd_buf 0(∊1.0 0.0 0.0 chosen)(4×4)
+      chosen←blockbar⊃⍨#.player.block_choices⍳##.player.block_select
+      _←##.SDL_PushGPUFragmentUniformData cmd_buf 0(∊1 0 0 chosen)(4×4)
       _←##.SDL_BindGPUVertexBuffers pass 0(⊂block_vb 0)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_16BIT
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture block_sampler)1

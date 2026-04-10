@@ -3,7 +3,9 @@
  res←SDL_Init SDL_INIT_VIDEO
  'Error initializing SDL3'Assert res
 
- window←SDL_CreateWindow'A Voxel Game' 1280 720 0
+
+ ⍝ SDL_WINDOW_RESIZABLE : 32|0x20
+ window←SDL_CreateWindow'A Voxel Game' 1280 720 32
  'Error creating window'Assert window
 
  device←SDL_CreateGPUDevice(
@@ -44,6 +46,8 @@
      :While ⊃LSE_PollEvent
          :If LSE_CheckEvent SDL_EVENT_QUIT
              core_data.quit←1
+         :ElseIf LSE_CheckEvent SDL_EVENT_WINDOW_RESIZED
+            (core_data.w core_data.h)←LSE_GetWindowResize 0 0
          :ElseIf LSE_CheckEvent SDL_EVENT_KEY_DOWN
              :If SDLK_Q=⊃LSE_GetKeyPressed
                  core_data.quit←1
@@ -64,7 +68,7 @@
  text.Release device
  block_data.Release device
 
-_←SDL_ReleaseWindowFromGPUDevice device window
-_←SDL_DestroyGPUDevice device
-_←SDL_DestroyWindow window
-_←SDL_Quit
+ _←SDL_ReleaseWindowFromGPUDevice device window
+ _←SDL_DestroyGPUDevice device
+ _←SDL_DestroyWindow window
+ _←SDL_Quit

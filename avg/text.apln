@@ -29,7 +29,7 @@
 
     tnames ← 'ptr' 'str' 'x' 'y' 'scale' 'rotation' 'color' 'w' 'h' 'center' 'hash'
     table ← (≢tnames)⍴⊂⍬
-    Ti ← tnames∘⍳∘⊂
+    Ti ← tnames∘⍳∘⊆
 
     ∇ Init(device window);res;sam_params
       res←##.TTF_Init
@@ -156,7 +156,7 @@
     ∇
 
     ∇ Create_pipeline(device window);v_shader;format;f_shader;vb_desc;vb_attr;blend_state;ct_desc
-      (v_shader f_shader) ← (v_ub: 1 ⋄ f_sp: 1) ##.Create_shaders device 'text_vert' 'text_frag'
+      (v_shader f_shader)←(v_ub:1 ⋄ f_sp:1)##.Create_shaders device'text_vert' 'text_frag'
       format←##.SDL_GetGPUSwapchainTextureFormat device window
       _←##.LSE_PipelineClearParams ⍬
       _←##.LSE_PipelineSetShaders v_shader f_shader
@@ -175,8 +175,8 @@
           ##.SDL_GPU_BLENDFACTOR_DST_ALPHA
           ##.SDL_GPU_BLENDOP_ADD
       ),16,1,3⍴0
-
-
+     
+     
       ct_desc←⊂format blend_state
       _←##.LSE_PipelineSetTargetInfo ct_desc 1 0 0
       pipeline←##.LSE_PipelineCreate device

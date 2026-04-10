@@ -187,7 +187,7 @@
 
     ∇ Copy_chunks(device pass);m;p;vb;vi;vk;idxs;copied_info;has_vb;vbs;sort
       :If 0=+/Cg'dirty'
-        :Return
+          :Return
       :EndIf
       tb_pos←0
      
@@ -208,17 +208,17 @@
      
       idxs↑⍨←≢copied_info
       m←idxs∊⍨⍳≢⊃chunk_info
-
-
+     
+     
       ⍝ April 6 2026
       ⍝ MUSEUM: Keeping this here because I really love this usage of grade I discovered.
       ⍝ Previous kept a queue of what chunks to load with tb_queue, instead of dirty flag
-      ⍝ Since we work through the queue as an array, possible that chunks loaded are in a 
-      ⍝ different order. 
-      ⍝ 
+      ⍝ Since we work through the queue as an array, possible that chunks loaded are in a
+      ⍝ different order.
+      ⍝
       ⍝ So we do this to arrange permutation of queue selected to the permutation of chunks
       ⍝ by major cell.
-
+     
       ⍝sort←(⊂⍋⍋m/Cg'xz')⌷⍋tb_queue↑⍨≢copied_info
       ⍝copied_info←(⊂sort)⌷copied_info
       ⍝tb_queue↓⍨←≢copied_info
@@ -260,7 +260,7 @@
       ⍝ chunks with vertex buffers write to fence buffer to be cycled back to pool
       set_m←(0≠Cg'vb')∧~m
       vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
-      chunk_info←m∘/¨chunk_info     
+      chunk_info←m∘/¨chunk_info
       ⍝ access into the lattice grid
       ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/introduction.html
       ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/perlin-noise-part-2/perlin-noise.html
@@ -300,6 +300,7 @@
               blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
               blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
               blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
+     
               (packR blocks)⎕FAPPEND map
           :Else
               blocks←0 packR ⎕FREAD(map ⋄ 2+mapi⍳idx)
@@ -312,9 +313,9 @@
     ∇
 
 
-    ∇ Draw_chunks(cmd_buf pass px pz lx lz proj_view);w;m;vbs;inds;xz;ud;frs;n;d;box;h;t;t2;centers;extents;r
+    ∇ Draw_chunks(core_data cmd_buf pass px pz lx lz proj_view);w;m;vbs;inds;xz;ud;frs;n;d;box;h;t;t2;centers;extents;r
       ⍝ Frustum Culling
-      frs←##.player.Get_frustum(○70÷180 ⋄ 1280÷720 ⋄ 0.1 ⋄ 500)
+      frs←##.player.Get_frustum(○70÷180 ⋄ core_data.w÷core_data.h ⋄ 0.1 ⋄ 500)
       n←3↑[1]frs
       d←,3↓[1]frs
      
