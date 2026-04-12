@@ -27,6 +27,7 @@
      dt:÷60
      quit:0
      next_state:0
+     save:''
  )
  cur_state←menu_state
  new_state←0
@@ -47,7 +48,7 @@
          :If LSE_CheckEvent SDL_EVENT_QUIT
              core_data.quit←1
          :ElseIf LSE_CheckEvent SDL_EVENT_WINDOW_RESIZED
-            (core_data.w core_data.h)←LSE_GetWindowResize 0 0
+             (core_data.w core_data.h)←LSE_GetWindowResize 0 0
          :ElseIf LSE_CheckEvent SDL_EVENT_KEY_DOWN
              :If SDLK_Q=⊃LSE_GetKeyPressed
                  core_data.quit←1

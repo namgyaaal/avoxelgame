@@ -29,8 +29,10 @@
     menu_scope ← ⍬
     save_scope ← ⍬
 
+    max_saves←4
+    saves ← ⍬
 
-    ∇ Init core_data;sam_params;ptr;cmd;pass;u;v;txt;text_render;img;img2;enc;texs;apple_vertices;indices;addr
+    ∇ Init core_data;sam_params;ptr;cmd;pass;u;v;txt;text_render;img;img2;enc;texs;apple_vertices;indices;addr;m;offsets;names
       dirt←##.block_data.Bi'Dirt'
      
       apple_texture←##.SDL_CreateGPUTexture core_data.device(
@@ -122,33 +124,51 @@
       ⍝ Menu
       menu_scope←(≢##.text.snames)⍴⊂⍬
       save_scope←(≢##.text.snames)⍴⊂⍬
-
+     
       txt←'UTF-8'⎕UCS'The Meaning of life',(⎕UCS 10),'⍎⊖⍕⊃⊂|⌊-*+○⌈×÷!⌽⍉⌹~⍴⍋⍒,⍟?⍳0'
-      ptr←(color: 212 175 55 255) ##.text.Make_text txt
+      ptr←(color:212 175 55 255)##.text.Make_text txt
       menu_scope⍪¨←(ptr ⋄ 280+core_data.w÷2 ⋄ core_data.h-155 ⋄ 1 ⋄ 0.4 ⋄ 0.3)
-
-      ptr←##.text.Make_text 'UTF-8'⎕UCS'Play'
+     
+      ptr←##.text.Make_text'UTF-8'⎕UCS'Play'
       menu_scope⍪¨←(ptr ⋄ core_data.w÷2 ⋄ core_data.h-470 ⋄ 1 ⋄ 0.4 ⋄ 0)
-      
-      ptr←##.text.Make_text 'UTF-8'⎕UCS'Quit'
+     
+      ptr←##.text.Make_text'UTF-8'⎕UCS'Quit'
       menu_scope⍪¨←(ptr ⋄ core_data.w÷2 ⋄ core_data.h-540 ⋄ 1 ⋄ 0.4 ⋄ 0)
-
-      ⍝ Saves
-      ptr←##.text.Make_text 'UTF-8'⎕UCS'<EMPTY SAVE>'
-      save_scope⍪¨←(ptr ⋄ 30 ⋄ core_data.h-100 ⋄ 0 ⋄ 0.4 ⋄ 0)
-
-      ptr←##.text.Make_text 'UTF-8'⎕UCS'<EMPTY SAVE>'
-      save_scope⍪¨←(ptr ⋄ 30 ⋄ core_data.h-170 ⋄ 0 ⋄ 0.4 ⋄ 0)
-
-      ptr←##.text.Make_text 'UTF-8'⎕UCS'<EMPTY SAVE>'
-      save_scope⍪¨←(ptr ⋄ 30 ⋄ core_data.h-240 ⋄ 0 ⋄ 0.4 ⋄ 0)
-
-      ptr←##.text.Make_text 'UTF-8'⎕UCS'<EMPTY SAVE>'
-      save_scope⍪¨←(ptr ⋄ 30 ⋄ core_data.h-310 ⋄ 0 ⋄ 0.4 ⋄ 0)
-
-      ptr←##.text.Make_text 'UTF-8'⎕UCS'Back'
+     
+      names←{
+        (∧/' '=1⊃⍵): '<EMPTY SAVE>'
+        1⊃⍵
+      }¨↓max_saves↑saves←Get_saves
+ 
+      offsets←core_data.h-100 170 240 310
+      offsets {
+          ptr←##.text.Make_text'UTF-8'⎕UCS ⍵
+          save_scope⍪¨←(ptr ⋄ 30 ⋄ ⍺ ⋄ 0 ⋄ 0.4 ⋄ 0)
+      }¨names
+          
+      ptr←##.text.Make_text'UTF-8'⎕UCS'Back'
       save_scope⍪¨←(ptr ⋄ 20 ⋄ core_data.h-380 ⋄ 0 ⋄ 0.4 ⋄ 0)
-      ##.text.scope ← menu_scope
+      ##.text.scope←menu_scope
+    ∇
+
+    ∇ tbl←Get_saves;prefix;saves;m;has;dt;fmt;dt_fmt
+      has←'state.dcf' 'map_data.dcf'
+      ⍝ get valid save directories
+      ⍝ -- Check if has state.dcf and map_data.dcf
+      prefix←'saves/'
+      saves←(⍉↑1↓saves)⌿⍨1=⊃saves←1 0 10 (⎕NINFO⍠1) prefix,'*'
+      saves⌿⍨←{∧/∨/has∘.(∨/⍷)⊃⍵}¨(⎕NINFO⍠1),∘'/*'¨0⌷⍉saves
+      saves←saves[⍋1⌷⍉saves;]
+
+      :If 0=≢saves
+        tbl←saves
+        :Return
+      :EndIf
+      ⍝ Turn second column into the name
+      fmt←'Dddd, DDoo Mmmm YYYY'
+      dt_fmt←{fmt(1200⌶)1⎕DT⊂⍵}¨1⌷⍉saves
+      (1⌷⍉saves)←∊¨(,∘' -- '¨(≢prefix)↓¨0⌷⍉saves),¨dt_fmt
+      tbl←saves
     ∇
 
     ∇ Input core_data;x;y;u;v
@@ -158,7 +178,7 @@
           y←##.text.Si'y_'
           (x⊃menu_scope)←(280+core_data.w÷2 ⋄ core_data.w÷2 ⋄ core_data.w÷2)
           (y⊃menu_scope)←(core_data.h-155 ⋄ core_data.h-470 ⋄ core_data.h-540)
-
+     
           (u v)←(core_data.w core_data.h)÷64
           bg_vertices←∊[
               0 0 0 v dirt
@@ -170,30 +190,30 @@
      
     ∇
 
-    ∇ Update core_data;click;x;y;m;xy;wh;bl;tr;w;h;pi
+    ∇ Update core_data;click;x;y;m;xy;wh;bl;tr;w;h;pi;i;new
       elapsed+←core_data.dt
      
      
-
+     
       (click x y)←##.SDL_GetMouseState 0 0
       y←core_data.h-y
       :If cur_state=states⍳⊂'menu'
           (0⊃(##.text.Si'scale')⊃menu_scope)←0.5+0.025×1○3×elapsed
-
+     
           xy←(⊂1 2)⌷(⍉↑)menu_scope⌷⍨⊂##.text.Si'x_' 'y_'
           (w h)←(⊂pi←##.text.Pi menu_scope⊃⍨⊂##.text.Si'ptr')∘⌷¨##.text.table⌷⍨⊂##.text.Ti'w_' 'h_'
           tr←wh+bl←xy-0.5×wh←0.4×(⊂1 2)⌷(⍉↑)w h
           m←∧/(bl∘(<⍤1)∧tr∘(>⍤1))x y
-
+     
           ((⊂m/1↓pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥212 175 55 255
           ((⊂(~m)/1↓pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥255 255 255 255
-
+     
           :If (click=1)∧(0∊⍸m)
-              cur_state←states⍳⊂'saves'     
+              cur_state←states⍳⊂'saves'
           :ElseIf (click=1)∧(1∊⍸m)
               core_data.quit←1
           :EndIf
-
+     
           ##.text.scope←menu_scope
       :ElseIf cur_state=states⍳⊂'saves'
           xy←(⍉↑)save_scope⌷⍨⊂##.text.Si'x_' 'y_'
@@ -201,14 +221,21 @@
           wh←0.4×(⍉↑)w h
           (1⌷⍉xy)-←(1⌷⍉wh)
           tr←wh+bl←xy
-          m←∧/(bl∘(<⍤1)∧tr∘(>⍤1))x y 
-          
+          m←∧/(bl∘(<⍤1)∧tr∘(>⍤1))x y
+     
           ((⊂m/pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥212 175 55 255
           ((⊂(~m)/pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥255 255 255 255
-
+     
           :If (click=1)∧(4∊⍸m)
               cur_state←states⍳⊂'menu'
           :ElseIf (click=1)∧(∨/4>⍸m)
+              i←⊃⍸m
+              :If i<≢saves
+                core_data.save←i⊃0⌷⍉saves
+              :Else
+                new←'saves/World',(⍕i+1),'_'
+                core_data.save←new
+              :EndIf
               core_data.next_state←##.world_state
           :EndIf
           ##.text.scope←save_scope
@@ -268,7 +295,7 @@
       ##.text.Clear core_data.device
       menu_scope←(≢##.text.snames)⍴⊂⍬
       save_scope←(≢##.text.snames)⍴⊂⍬
-
+     
       _←##.SDL_ReleaseGPUTransferBuffer core_data.device tb
       {_←##.SDL_ReleaseGPUBuffer core_data.device ⍵}¨bg_vb apple_vb ib
       _←##.SDL_ReleaseGPUTexture core_data.device apple_texture

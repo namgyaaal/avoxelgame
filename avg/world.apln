@@ -76,7 +76,7 @@
     vertices ← ,[⍳2]faces(+⍤2)v_cnt(⌿⍤2),[0.5]⍉l⊤⍳×/l
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
-    seed←0
+    seed←?2*32
     sns←()
     rand_vec←⍬
     lattice_range←⍬
@@ -99,7 +99,7 @@
     mapi←(1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
     empty_rle←(l⋄(×/l⋄)⋄(0⋄))
 
-    ∇ Init(device save);vb_params;tb_params;p;cmd;pass;size;state;pxz
+    ∇ Init(core_data device save);vb_params;tb_params;p;cmd;pass;size;state;pxz;map_file
       vb_pools←{
           (cnt size)←⍵
           vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX size 0
@@ -127,14 +127,16 @@
       _←##.SDL_EndGPUCopyPass pass
       _←##.SDL_SubmitGPUCommandBuffer cmd
      
-      seed←save.⎕VGET⊂'seed' 42
+      seed←save.⎕VGET⊂'seed' seed
       sns←(⎕RL:seed)
       rand_vec←1 2○⍤1⊢⍪○2×sns.?256⍴0
-      :If ⎕NEXISTS'saves/HelloWorld/map_data.dcf'
-          map←'saves/HelloWorld/map_data.dcf'⎕FSTIE 0
+
+      map_file←core_data.save,'/map_data.dcf'
+      :If ⎕NEXISTS map_file
+          map←map_file ⎕FSTIE 0
           mapi←(1500⌶)⎕FREAD map 1
       :Else
-          map←'saves/HelloWorld/map_data.dcf'(⎕FCREATE⍠'Z' 1)0
+          map←map_file(⎕FCREATE⍠'Z' 1)0
           (1 3⍴0 ¯1 0)⎕FSTAC map
           ⍬ ⎕FAPPEND map
       :EndIf
@@ -328,6 +330,7 @@
       vbs←m/Cg'vb'
       inds←m/Cg'idx_cnt'
       ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
+     
       ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
