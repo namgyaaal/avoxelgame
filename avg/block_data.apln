@@ -11,6 +11,7 @@
     (name: 'Log' ⋄ tex: 9 9 9 9 9 9)
     (name: 'Leaf' ⋄ tex: 10 10 10 10 10 10)
     (name: 'Brick' ⋄ tex: 5 5 5 5 5 5)
+    (name: 'Sand' ⋄ tex: 7 7 7 7 7 7)
     )
     names←⎕VGET∘'name'¨data
     tex_z←∊⎕VGET∘'tex'¨data

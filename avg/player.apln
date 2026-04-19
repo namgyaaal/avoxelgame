@@ -59,7 +59,7 @@
           old←[min ⋄ max]
           new←(1⌷old)⌈@1⊢(0⌷old)⌊@0⊢old(+⍤1)⍵ ⍝ resize AABB to encompass velocity in this direction
           Touch←{(⌊0⌷⍵)(+⍤1)↑,⍳(⌈1⌷⍵)-(⌊0⌷⍵)}
-          m←{0≠⍵⌷##.world.chunks}¨##.world.Transform_points blks←new~⍥↓⍥Touch old
+          m←{0<⍵⌷##.world.chunks}¨##.world.Transform_points blks←new~⍥↓⍥Touch old
           (~1∊m):0,⍵
           blks←(≢m)↑blks
           cntr←(+⌿÷≢)old
@@ -99,7 +99,7 @@
           0=e_break:0
           p←⍵ ##.Silly_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
-          m←{0≠⍵⌷##.world.chunks}¨tp
+          m←{0<⍵⌷##.world.chunks}¨tp
           0=∨/m:0
           blk←⊃m/tp
           (blk⌷##.world.chunks)←0
@@ -114,7 +114,7 @@
           0=e_place:0
           p←⍵ ##.Silly_hit 5×Get_look ⍬
           tp←##.world.Transform_points p
-          m←{0≠⍵⌷##.world.chunks}¨tp
+          m←{0<⍵⌷##.world.chunks}¨tp
           0=∨/m:0
           blk←tp⊃⍨i←0⌈¯1+m⍳1
      

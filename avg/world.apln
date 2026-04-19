@@ -17,13 +17,22 @@
     max_faces ← 6×⌈2÷⍨×/¯2+l
     max_faces +← 6×(×/-×/⍤-∘2) l
 
+
+    ⍝ w-water
+    wmax_faces ← (2÷⍨1⊃l)×(2*⍨⊃l)
+
     ⍝ For each face we need 4 vertices and 6 indices
     ⍝ Furthermore, we need the amount of info per vertex and size of indices
     (vsize isize) ← (4×4×max_faces ⋄ 4×6×max_faces)
+    (wvsize wisize) ← (4×4×wmax_faces ⋄ 4×6×wmax_faces)
 
     vb_sizes ← ⌈0 0.35 0.7 1.0 × vsize
     vb_pools ← ⍬ ⍬ ⍬
-    vb_start_lens ← ⌊1.0 0.1 0.1×max_chunks
+    vb_start_lens ← ⌊1.0 0.0 0.0×max_chunks
+
+    wvb_sizes ← ⌈0 0.2 1.0 × vsize
+    wvb_pools ← ⍬ ⍬
+    wvb_start_lens ← ⌊1.0 0.0 0.0×max_chunks
 
     ⍝ vbs that aren't done being used by the gpu
     ⍝ (fence counter, index into vb_pools, vb pointer)
@@ -31,6 +40,7 @@
     ⍝   retrieved, they're set with func Push_fence.
     ⍝ Released with Pop_fence
     vb_fenced ← 0 3⍴0
+    wvb_fenced ← 0 3⍴0
 
     ib ← 0
     tb ← 0
@@ -40,7 +50,7 @@
     (texture sampler) ← ⍬ ⍬
 
     chunks ← 0⍴⍨0,l
-    cnames ← 'cx' 'cz' 'vb' 'vb_kind' 'idx_cnt' 'dirty'
+    cnames ← 'cx' 'cz' 'vb' 'wvb' 'vb_kind' 'wvb_kind' 'idx_cnt' 'widx_cnt' 'dirty'
     chunk_info ← (≢cnames)⍴⊂⍬
     chunks_rendered←0
 
@@ -127,10 +137,10 @@
       _←##.SDL_EndGPUCopyPass pass
       _←##.SDL_SubmitGPUCommandBuffer cmd
      
-      seed←save.⎕VGET⊂'seed' seed
+      seed←save.⎕VGET⊂'seed'seed
       sns←(⎕RL:seed)
       rand_vec←1 2○⍤1⊢⍪○2×sns.?256⍴0
-
+     
       map_file←core_data.save,'/map_data.dcf'
       :If ⎕NEXISTS map_file
           map←map_file ⎕FSTIE 0
@@ -160,84 +170,99 @@
       chunks⍪←blocks
     ∇
 
-    ∇ info←Copy_chunk(chunk ptr offset);flat;solid;edges;exposed;m;vert;tex;buf;vs;ic
-      ⍝ Collapse chunk @ x z and write it to ptr
-      ⍝ Return vertex size in bytes and number of indices
-      ⍝ IMPORTANT: Assumes that where data is being written to has enough space
-      flat←∊chunk
-      solid←chunk≠0
-      edges←solid∧box
-      ⍝ (1) Returns format (16 32 16 3 2) where (3 2) are rotations
-      ⍝ (2) collapse into (vertex_num 6) multiply by index where not 0
-      ⍝ (3) index into box and 6wise multiply+⍳add for texture index
-      ⍝ (4) index into texture and select exposed faces, duplicate 4 for faces
-      ⍝ (5) do some bitpacking here. Since we know x z ∊ [0, 16], they only take 5 bits
-      ⍝     use the leading bit for uv coordinate into 4 corners (hence adding 128)
-      ⍝     with this we only need 4 bytes for a vertex
-      exposed←↑[0]{edges∨solid>⍵}¨0 1 2∘.{⍵⌽[⍺]solid}¯1 1  ⍝ (1)
-      vert←vertices⌿⍨4/m←∊exposed
-      tex←(⍳×/l)(×⍤¯1),[1+⍳2],[⍳3]exposed                  ⍝ (2)
-      tex←∊(⍳6)(+⍤1)6×flat[tex]                            ⍝ (3)
-      tex←4/m/,##.block_data.tex_z[tex]                    ⍝ (4)
-      vert+←(3,⍨≢vert)⍴128×[0 0 0 ⋄ 0 0 1 ⋄ 1 0 1 ⋄ 1 0 0] ⍝ (5)
-      buf←∊vert,tex
-      vs←≢buf
-      ic←6×4÷⍨≢vert
-      _←##.LSE_MemcpyU8(ptr+offset)buf vs
-      info←vs ic
-    ∇
+      Copy_chunk←{
+          (chunk ptr offset)←⍵
+          ⍝ Collapse chunk @ x z and write it to ptr
+          ⍝ Return vertex size in bytes and number of indices
+          ⍝ IMPORTANT: Assumes that where data is being written to has enough space
+          flat←∊chunk
+          solid←chunk>0
+          edges←solid∧box
+          ⍝ (1) Returns format (16 32 16 3 2) where (3 2) are rotations
+          ⍝ (2) collapse into (vertex_num 6) multiply by index where not 0
+          ⍝ (3) index into box and 6wise multiply+⍳add for texture index
+          ⍝ (4) index into texture and select exposed faces, duplicate 4 for faces
+          ⍝ (5) do some bitpacking here. Since we know x z ∊ [0, 16], they only take 5 bits
+          ⍝     use the leading bit for uv coordinate into 4 corners (hence adding 128)
+          ⍝     with this we only need 4 bytes for a vertex
+          exposed←↑[0]{edges∨solid>⍵}¨0 1 2∘.{⍵⌽[⍺]solid}¯1 1  ⍝ (1)
+          vert←vertices⌿⍨4/m←∊exposed
+          tex←(⍳×/l)(×⍤¯1),[1+⍳2],[⍳3]exposed                  ⍝ (2)
+          tex←∊(⍳6)(+⍤1)6×flat[tex]                            ⍝ (3)
+          tex←4/m/,##.block_data.tex_z[tex]                    ⍝ (4)
+          vert+←(3,⍨≢vert)⍴128×[0 0 0 ⋄ 0 0 1 ⋄ 1 0 1 ⋄ 1 0 0] ⍝ (5)
+          buf←∊vert,tex
+          vs←≢buf
+          ic←6×4÷⍨≢vert
+          _←##.LSE_MemcpyU8(ptr+offset)buf vs
+     
+          ⍝ Water
+          w_p←⍉l⊤⍸∊(chunk=¯1)(2>⌿⍤2⍪⍤2)⊢⍴⍨⊃l
+          vert←,[⍳2][0 0 0 ⋄ 1 0 0 ⋄ 1 0 1 ⋄ 0 0 1](+⍤2)4(⌿⍤2),[0.5]w_p
+          vert+←(3,⍨≢vert)⍴128×[0 0 0 ⋄ 0 0 1 ⋄ 1 0 1 ⋄ 1 0 0]
+          buf←∊vert,6
+          wvs←≢buf
+          wic←6×4÷⍨≢vert
+          _←##.LSE_MemcpyU8(ptr+offset+vs)buf wvs
+     
+          (vs ic wvs wic)
+      }
 
-    ∇ Copy_chunks(device pass);m;p;vb;vi;vk;idxs;copied_info;has_vb;vbs;sort
+    ∇ Copy_chunks(device pass);m;m2;p;vb;vi;vk;idxs;copy_table;has_vb;vbs;sort;copy_name;Cpi;Cpg
       :If 0=+/Cg'dirty'
           :Return
       :EndIf
       tb_pos←0
      
       ⍝ Copy into transfer buffer until it's full for this frame or no more dirty chunks
-      p←##.SDL_MapGPUTransferBuffer device tb 1
       idxs←⍸Cg'dirty'
-      ⍝ Copied info in total will be:
-      ⍝.   (position into transfer buffer, vertex size, index count, vertex kind, vertex buffer)
-      copied_info←{
-          (vs ic)←Copy_chunk(chunks⌷⍨idxs⊃⍨≢⍵ ⋄ p ⋄ tb_pos)
-          pos←tb_pos ⋄ tb_pos+←vs
-          ⍵⍪(pos vs ic)
-      }⍣{(tb_size≤tb_pos+vsize)∨⍺≥⍥≢idxs}⊢0 3⍴0
+     
+      copy_name←'offset' 'vs' 'ic' 'wvs' 'wic' 'vb_kind' 'wvb_kind' 'vb' 'wvb'
+      p←##.SDL_MapGPUTransferBuffer device tb 1
+      copy_table←{
+          (vs ic wvs wic)←Copy_chunk(chunks⌷⍨idxs⊃⍨≢⊃⍵ ⋄ p ⋄ tb_pos)
+          pos←tb_pos ⋄ tb_pos+←vs+wvs
+          ⍵,¨(≢copy_name)↑pos vs ic wvs wic
+      }⍣{(tb_size≤tb_pos+vsize)∨(⊃⍺)≥⍥≢idxs}⊢(≢copy_name)⍴⊂⍬
       _←##.SDL_UnmapGPUTransferBuffer device tb
+      Cpi←copy_name∘⍳∘⊆ ⍝ Copy Index
+      Cpg←{copy_table⊃⍨Cpi ⍵} ⍝ Copy Get
+
+      ⍝ ------------- ⍝
+      ⍝ Solid Related ⍝
+      ⍝ ------------- ⍝
      
-      ⍝ Add vertex kinds (vb pool index)
-      copied_info,←vb_sizes∘⍸¨1⌷⍉copied_info
-     
-      idxs↑⍨←≢copied_info
-      m←idxs∊⍨⍳≢⊃chunk_info
-     
-     
-      ⍝ April 6 2026
-      ⍝ MUSEUM: Keeping this here because I really love this usage of grade I discovered.
-      ⍝ Previous kept a queue of what chunks to load with tb_queue, instead of dirty flag
-      ⍝ Since we work through the queue as an array, possible that chunks loaded are in a
-      ⍝ different order.
-      ⍝
-      ⍝ So we do this to arrange permutation of queue selected to the permutation of chunks
-      ⍝ by major cell.
-     
-      ⍝sort←(⊂⍋⍋m/Cg'xz')⌷⍋tb_queue↑⍨≢copied_info
-      ⍝copied_info←(⊂sort)⌷copied_info
-      ⍝tb_queue↓⍨←≢copied_info
-     
+      ((Cpi'vb_kind')⊃copy_table)←vb_sizes∘⍸¨Cpg'vs'
+      idxs↑⍨←≢⊃copy_table
+      m←idxs∊⍨⍳≢⊃chunk_info 
       has_vb←m∧0≠Cg'vb'
       vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨has_vb}⍥Cg'vb'
      
-      vbs←device∘Fetch_buffer¨3⌷⍉copied_info
-      copied_info,←vbs
+      ((Cpi'vb')⊃copy_table)←device∘Fetch_buffer¨Cpg'vb_kind'
      
       ⍝ GPU Upload and set loaded chunks as ready with render info
-      {(pos vs _ _ vb)←⍵ ⋄ _←##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0}¨↓copied_info
-     
-      (m/(Ci'idx_cnt')⊃chunk_info)←2⌷⍉copied_info
-      (m/(Ci'vb')⊃chunk_info)←vbs
-      (m/(Ci'vb_kind')⊃chunk_info)←3⌷⍉copied_info
+      {(pos vs vb)←⍵ ⋄ _←##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0}¨↓⍉↑Cpg¨'offset' 'vs' 'vb'
+      (m/(Ci'idx_cnt')⊃chunk_info)←Cpg'ic'
+      (m/(Ci'vb')⊃chunk_info)←Cpg'vb'
+      (m/(Ci'vb_kind')⊃chunk_info)←Cpg'vb_kind'
       (m/(Ci'dirty')⊃chunk_info)←0
+
+      ⍝ ------------- ⍝
+      ⍝ Water Related ⍝
+      ⍝ ------------- ⍝
+
+      ((Cpi'wvb_kind')⊃copy_table)←vb_sizes∘⍸¨Cpg'wvs'
+      idxs←idxs/⍨m2←0≠Cpg'wic'
+      m←idxs∊⍨⍳≢⊃chunk_info
+      has_vb←m∧0≠Cg'wvb'
+      wvb_fenced⍪←¯1,'wvb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨has_vb}⍥Cg'wvb'
+
+      ((Cpi'wvb')⊃copy_table)←device∘Fetch_wbuffer¨Cpg'wvb_kind'
+      {(pos vs wvs wvb)←⍵ ⋄ _←##.SDL_UploadToGPUBuffer pass(tb⋄pos+vs)(wvb 0 wvs)0}¨↓⍉↑Cpg¨'offset' 'vs' 'wvs' 'wvb'
+      (m/(Ci'widx_cnt')⊃chunk_info)←m2/Cpg'wic'
+      (m/(Ci'wvb')⊃chunk_info)←m2/Cpg'wvb'
+      (m/(Ci'wvb_kind')⊃chunk_info)←m2/Cpg'wvb_kind'
+
     ∇
 
     ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns;i
@@ -298,11 +323,20 @@
               ⍝ Tree :-)
               rns←(⎕RL:|4192 4192 4192⊥pair,seed)
               (tx ground tz)←(0 ⋄ 1 ⋄ 0)+⊃surface⌷⍨tree_spots⊃⍨rns.?≢tree_spots
-              ty←3+rns.?3
-              blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
-              blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
-              blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
-     
+                  :If ground>45
+                  ty←3+rns.?3
+                  blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
+                  blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
+                  blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
+              :EndIf
+
+
+
+              
+              blocks[;⍳40;]←(#.block_data.Bi'Sand')@(∊∘(#.block_data.Bi'Grass' 'Dirt'))⊢blocks[;⍳40;]
+              blocks[;⍳34;]←(#.block_data.Bi'Stone')@(∊∘(#.block_data.Bi'Sand'))⊢blocks[;⍳34;]
+
+              blocks[;⍳40;]←¯1@(1∘>)⊢blocks[;⍳40;]
               (packR blocks)⎕FAPPEND map
           :Else
               blocks←0 packR ⎕FREAD(map ⋄ 2+mapi⍳idx)
@@ -335,6 +369,18 @@
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
+
+      m ← m∧0≠Cg'wvb'
+      vbs←m/Cg'wvb'
+      inds←m/Cg'widx_cnt'
+      ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
+     
+      ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x ¯0.16 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
+      _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
+      _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
+      _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
+
+
     ∇
 
       Transform_points←{
@@ -354,7 +400,15 @@
           ⍝ Note: either return it back to the vector or destroy it
           ⍝ Memory leak otherwise
           0<≢⍵⊃vb_pools:{o←⊃⍵⊃vb_pools ⋄ (⍵⊃vb_pools)↓⍨←1 ⋄ o}⍵
-          vb←##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓vb_sizes)0)
+          vb←##.SDL_CreateGPUBuffer ⍺(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓vb_sizes)0)
+          0=vb:'Error creating vertex buffer'##.Assert vb
+          vb
+      }
+      Fetch_wbuffer←{
+          ⍝ ⍺ ←→ GPU Device
+          ⍝ ⍵ ←→ Pool Index
+          0<≢⍵⊃wvb_pools:{o←⊃⍵⊃wvb_pools ⋄ (⍵⊃wvb_pools)↓⍨←1 ⋄ o}⍵
+          vb←##.SDL_CreateGPUBuffer ⍺(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓wvb_sizes)0)
           0=vb:'Error creating vertex buffer'##.Assert vb
           vb
       }
@@ -364,6 +418,10 @@
           0=≢vb_fenced:
           m←¯1=0⌷⍉vb_fenced
           (m/0⌷⍉vb_fenced)←⍵
+          ⍝ Water
+          0=≢wvb_fenced:
+          m←¯1=0⌷⍉wvb_fenced
+          (m/0⌷⍉wvb_fenced)←⍵
       }
 
       Pop_fences←{
@@ -374,5 +432,12 @@
           vbs←2⌷⍉vb_fenced
           vb_fenced⌿⍨←~m
           _←kinds{(⍺⊃vb_pools),←⍵}⌸⍥{m/⍵}vbs
+          ⍝ Water
+          0=≢wvb_fenced:
+          m←⍵∊⍨0⌷⍉wvb_fenced
+          kinds←1⌷⍉wvb_fenced
+          vbs←2⌷⍉wvb_fenced
+          wvb_fenced⌿⍨←~m
+          _←kinds{(⍺⊃wvb_pools),←⍵}⌸⍥{m/⍵}vbs
       }
 :EndNamespace
