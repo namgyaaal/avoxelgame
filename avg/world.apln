@@ -26,21 +26,22 @@
     (vsize isize) ← (4×4×max_faces ⋄ 4×6×max_faces)
     (wvsize wisize) ← (4×4×wmax_faces ⋄ 4×6×wmax_faces)
 
-    vb_sizes ← ⌈0 0.35 0.7 1.0 × vsize
+    vb_sizes ← ⌈0 0.18 0.7 1.0 × vsize
     vb_pools ← ⍬ ⍬ ⍬
     vb_start_lens ← ⌊1.0 0.0 0.0×max_chunks
 
-    wvb_sizes ← ⌈0 0.2 1.0 × vsize
+    wvb_sizes ← ⌈0 0.025 1.0 × wvsize
     wvb_pools ← ⍬ ⍬
-    wvb_start_lens ← ⌊1.0 0.0 0.0×max_chunks
+    wvb_start_lens ← ⌊1.2 0.0 × max_chunks
 
     ⍝ vbs that aren't done being used by the gpu
     ⍝ (fence counter, index into vb_pools, vb pointer)
     ⍝ freed vbs are added with fence pointer 0 and when fence is
     ⍝   retrieved, they're set with func Push_fence.
     ⍝ Released with Pop_fence
+    ⍝ Put both water and chunk buffers in here 
+    ⍝   (negate vb_kind starting with ¯1 instead of 0)
     vb_fenced ← 0 3⍴0
-    wvb_fenced ← 0 3⍴0
 
     ib ← 0
     tb ← 0
@@ -115,6 +116,12 @@
           vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX size 0
           ({⍵,##.SDL_CreateGPUBuffer device vb_params}⍣cnt)⍬
       }¨↓⍉[vb_start_lens ⋄ 1↓vb_sizes]
+
+      wvb_pools←{
+          (cnt size)←⍵
+          vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX size 0
+          ({⍵,##.SDL_CreateGPUBuffer device vb_params}⍣cnt)⍬
+      }¨↓⍉[wvb_start_lens ⋄ 1↓wvb_sizes]
      
       tb_params←⊂##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(tb_size)0
       tb←##.SDL_CreateGPUTransferBuffer device tb_params
@@ -154,7 +161,12 @@
 
     ∇ Release(device save)
       save.seed←seed
-      {_←##.SDL_ReleaseGPUBuffer device ⍵}¨∊vb_pools,(2⌷⍉vb_fenced),Cg'vb'
+      {_←##.SDL_ReleaseGPUBuffer device ⍵}¨∊(
+          vb_pools
+          (2⌷⍉vb_fenced)
+          Cg'vb'
+          (0≠Cg'wvb')/Cg'wvb'
+      )
       _←##.SDL_ReleaseGPUBuffer device ib
       _←##.SDL_ReleaseGPUBuffer device tb
       _←##.SDL_ReleaseGPUSampler device sampler
@@ -227,14 +239,14 @@
       _←##.SDL_UnmapGPUTransferBuffer device tb
       Cpi←copy_name∘⍳∘⊆ ⍝ Copy Index
       Cpg←{copy_table⊃⍨Cpi ⍵} ⍝ Copy Get
-
+     
       ⍝ ------------- ⍝
       ⍝ Solid Related ⍝
       ⍝ ------------- ⍝
      
       ((Cpi'vb_kind')⊃copy_table)←vb_sizes∘⍸¨Cpg'vs'
       idxs↑⍨←≢⊃copy_table
-      m←idxs∊⍨⍳≢⊃chunk_info 
+      m←idxs∊⍨⍳≢⊃chunk_info
       has_vb←m∧0≠Cg'vb'
       vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨has_vb}⍥Cg'vb'
      
@@ -246,23 +258,24 @@
       (m/(Ci'vb')⊃chunk_info)←Cpg'vb'
       (m/(Ci'vb_kind')⊃chunk_info)←Cpg'vb_kind'
       (m/(Ci'dirty')⊃chunk_info)←0
-
+     
       ⍝ ------------- ⍝
       ⍝ Water Related ⍝
       ⍝ ------------- ⍝
+     
+      ((Cpi'wvb_kind')⊃copy_table)←wvb_sizes∘⍸¨Cpg'wvs'
 
-      ((Cpi'wvb_kind')⊃copy_table)←vb_sizes∘⍸¨Cpg'wvs'
       idxs←idxs/⍨m2←0≠Cpg'wic'
       m←idxs∊⍨⍳≢⊃chunk_info
       has_vb←m∧0≠Cg'wvb'
-      wvb_fenced⍪←¯1,'wvb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨has_vb}⍥Cg'wvb'
-
-      ((Cpi'wvb')⊃copy_table)←device∘Fetch_wbuffer¨Cpg'wvb_kind'
-      {(pos vs wvs wvb)←⍵ ⋄ _←##.SDL_UploadToGPUBuffer pass(tb⋄pos+vs)(wvb 0 wvs)0}¨↓⍉↑Cpg¨'offset' 'vs' 'wvs' 'wvb'
+      vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺) ⍵}⍥{⍵/⍨has_vb}⍥Cg'wvb'
+      (m2/(Cpi'wvb')⊃copy_table)←device∘Fetch_wbuffer¨m2/Cpg'wvb_kind'
+      ⍝ 0=wvb to prevent side effect call (if empty it does fill)
+      {(pos vs wvs wvb)←⍵ ⋄ 0=wvb: ⋄ _←##.SDL_UploadToGPUBuffer pass(tb ⋄ pos+vs)(wvb 0 wvs)0}¨m2/↓⍉↑Cpg¨'offset' 'vs' 'wvs' 'wvb'
       (m/(Ci'widx_cnt')⊃chunk_info)←m2/Cpg'wic'
       (m/(Ci'wvb')⊃chunk_info)←m2/Cpg'wvb'
       (m/(Ci'wvb_kind')⊃chunk_info)←m2/Cpg'wvb_kind'
-
+     
     ∇
 
     ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns;i
@@ -287,6 +300,7 @@
       ⍝ chunks with vertex buffers write to fence buffer to be cycled back to pool
       set_m←(0≠Cg'vb')∧~m
       vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
+      vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺) ⍵}⍥{⍵/⍨set_m∧0≠Cg'wvb'}⍥Cg'wvb'
       chunk_info←m∘/¨chunk_info
       ⍝ access into the lattice grid
       ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/introduction.html
@@ -323,19 +337,16 @@
               ⍝ Tree :-)
               rns←(⎕RL:|4192 4192 4192⊥pair,seed)
               (tx ground tz)←(0 ⋄ 1 ⋄ 0)+⊃surface⌷⍨tree_spots⊃⍨rns.?≢tree_spots
-                  :If ground>45
+              :If ground>45
                   ty←3+rns.?3
                   blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
                   blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
                   blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
               :EndIf
-
-
-
-              
+     
               blocks[;⍳40;]←(#.block_data.Bi'Sand')@(∊∘(#.block_data.Bi'Grass' 'Dirt'))⊢blocks[;⍳40;]
               blocks[;⍳34;]←(#.block_data.Bi'Stone')@(∊∘(#.block_data.Bi'Sand'))⊢blocks[;⍳34;]
-
+     
               blocks[;⍳40;]←¯1@(1∘>)⊢blocks[;⍳40;]
               (packR blocks)⎕FAPPEND map
           :Else
@@ -369,8 +380,8 @@
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
-
-      m ← m∧0≠Cg'wvb'
+     
+      m←m∧0≠Cg'wvb'
       vbs←m/Cg'wvb'
       inds←m/Cg'widx_cnt'
       ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
@@ -379,8 +390,6 @@
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
-
-
     ∇
 
       Transform_points←{
@@ -404,10 +413,12 @@
           0=vb:'Error creating vertex buffer'##.Assert vb
           vb
       }
+
       Fetch_wbuffer←{
           ⍝ ⍺ ←→ GPU Device
           ⍝ ⍵ ←→ Pool Index
           0<≢⍵⊃wvb_pools:{o←⊃⍵⊃wvb_pools ⋄ (⍵⊃wvb_pools)↓⍨←1 ⋄ o}⍵
+          
           vb←##.SDL_CreateGPUBuffer ⍺(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓wvb_sizes)0)
           0=vb:'Error creating vertex buffer'##.Assert vb
           vb
@@ -418,26 +429,24 @@
           0=≢vb_fenced:
           m←¯1=0⌷⍉vb_fenced
           (m/0⌷⍉vb_fenced)←⍵
-          ⍝ Water
-          0=≢wvb_fenced:
-          m←¯1=0⌷⍉wvb_fenced
-          (m/0⌷⍉wvb_fenced)←⍵
       }
 
       Pop_fences←{
           ⍝ ⍵ ←→ Fence counters
+          ⍝ ≥0: Chunk Vertex Buffers
+          ⍝ <0: Water Vertex Buffers
           0=≢vb_fenced:
           m←⍵∊⍨0⌷⍉vb_fenced
+
           kinds←1⌷⍉vb_fenced
+          mc←m∧kinds≥0
+          mw←m∧kinds<0
+
           vbs←2⌷⍉vb_fenced
           vb_fenced⌿⍨←~m
-          _←kinds{(⍺⊃vb_pools),←⍵}⌸⍥{m/⍵}vbs
+          ⍝ Solid
+          _←kinds{(⍺⊃vb_pools),←⍵}⌸⍥{mc/⍵}vbs
           ⍝ Water
-          0=≢wvb_fenced:
-          m←⍵∊⍨0⌷⍉wvb_fenced
-          kinds←1⌷⍉wvb_fenced
-          vbs←2⌷⍉wvb_fenced
-          wvb_fenced⌿⍨←~m
-          _←kinds{(⍺⊃wvb_pools),←⍵}⌸⍥{m/⍵}vbs
+          _←(¯1+-kinds){(⍺⊃wvb_pools),←⍵}⌸⍥{mw/⍵}vbs
       }
 :EndNamespace
