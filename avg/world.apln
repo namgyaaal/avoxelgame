@@ -39,7 +39,7 @@
     ⍝ freed vbs are added with fence pointer 0 and when fence is
     ⍝   retrieved, they're set with func Push_fence.
     ⍝ Released with Pop_fence
-    ⍝ Put both water and chunk buffers in here 
+    ⍝ Put both water and chunk buffers in here
     ⍝   (negate vb_kind starting with ¯1 instead of 0)
     vb_fenced ← 0 3⍴0
 
@@ -116,7 +116,7 @@
           vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX size 0
           ({⍵,##.SDL_CreateGPUBuffer device vb_params}⍣cnt)⍬
       }¨↓⍉[vb_start_lens ⋄ 1↓vb_sizes]
-
+     
       wvb_pools←{
           (cnt size)←⍵
           vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX size 0
@@ -264,11 +264,11 @@
       ⍝ ------------- ⍝
      
       ((Cpi'wvb_kind')⊃copy_table)←wvb_sizes∘⍸¨Cpg'wvs'
-
+     
       idxs←idxs/⍨m2←0≠Cpg'wic'
       m←idxs∊⍨⍳≢⊃chunk_info
       has_vb←m∧0≠Cg'wvb'
-      vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺) ⍵}⍥{⍵/⍨has_vb}⍥Cg'wvb'
+      vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺)⍵}⍥{⍵/⍨has_vb}⍥Cg'wvb'
       (m2/(Cpi'wvb')⊃copy_table)←device∘Fetch_wbuffer¨m2/Cpg'wvb_kind'
       ⍝ 0=wvb to prevent side effect call (if empty it does fill)
       {(pos vs wvs wvb)←⍵ ⋄ 0=wvb: ⋄ _←##.SDL_UploadToGPUBuffer pass(tb ⋄ pos+vs)(wvb 0 wvs)0}¨m2/↓⍉↑Cpg¨'offset' 'vs' 'wvs' 'wvb'
@@ -278,15 +278,24 @@
      
     ∇
 
-    ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns;i
-      ll←2+2×view_distance
+    ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns;i;lw
+      lw←2+view_distance
+      ll←2+2×lw
       (ax az)←(⌊16÷⍨x z)
      
       range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance
       ⍝ Extra padding to account for bottom/right access
       ⍝ Lattice is just [0, 256) since we index into gradient vectors
-      lattice_range←(ax az ⋄ )+,∘.,⍨(⍳2+2×view_distance)-view_distance-1
+      lattice_range←(ax az ⋄ )+,∘.,⍨(⍳2+2×lw)-lw-1
       lattice←Hash_byte seed,↑lattice_range
+      coords←(ax az ⋄)+∘.,⍨(⍳1+2×lw)-lw
+
+
+      lw2 ← lw÷2
+      ll2 ← 2+2×lw2
+      lattice_range2←(⌊ax az ÷2 ⋄ )+,∘.,⍨(⍳2+2×lw2)-lw2-1
+      lattice2←Hash_byte (seed+1),↑lattice_range2
+      coords2←(⌊ax az ÷2⋄)+∘.,⍨(⍳1+2×lw2)-lw2
      
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
@@ -300,7 +309,7 @@
       ⍝ chunks with vertex buffers write to fence buffer to be cycled back to pool
       set_m←(0≠Cg'vb')∧~m
       vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
-      vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺) ⍵}⍥{⍵/⍨set_m∧0≠Cg'wvb'}⍥Cg'wvb'
+      vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺)⍵}⍥{⍵/⍨set_m∧0≠Cg'wvb'}⍥Cg'wvb'
       chunk_info←m∘/¨chunk_info
       ⍝ access into the lattice grid
       ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/introduction.html
@@ -309,6 +318,8 @@
       t←t×t×(3-2×t) ⍝ Smoothstep
       t←2/,[2.5]t
      
+
+
       i←0
       :For pair :In new
           ⍝ Prevent lag spikes as chunk generation and loading from disk happens on main thread.
@@ -317,14 +328,21 @@
               :Leave
           :EndIf
      
+  
           idx←(,⍨2*16)⊥pair
           :If ~mapi∊⍨idx
               mapi,←idx
-              ⍝ Total of 256 points (16*2) that are spread out on XZ chunks.
-              ⍝ Twicefold Outer Product to get 4 points on the lattice each uses for bilinear interpolation
-              ⍝ For now hardcode terrain size (40+20×)
-              c←256/⍪(,⍨view_distance)+pair-(ax az)
-              idx←⌊40+20×2÷⍨+/+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤3⊢rand_vec Im lattice[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c]
+              c←256/⍪∊⍸(⌊pair÷2⋄)⍷coords2
+              c2←256/⍪(,⍨view_distance)+pair-(ax az)
+              ci←2|pair
+     
+              t2←1(-,[0.5]⊢)32÷⍨0.5+32 32⊤∊(⍳32*2)[(32×(16×⊃ci)+⍳16)∘.+((16×1⊃ci)+⍳16)]
+              t2←t2×t2×(3-2×t2) ⍝ Smoothstep
+              t2←2/,[2.5]t2
+        
+              idx←40+20×2÷⍨+/+⌿(⊣⌿t2)×(⊢⌿t2)+⌿⍤×⍤3⊢rand_vec Im lattice2[(ll2×⍳2)∘.+(⍳2)∘.+ll2⊥c]
+              idx2←10×2÷⍨+/+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤3⊢rand_vec Im lattice[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c2]
+              idx←⌊idx+idx2
               blocks←l⍴1
      
               surface←↓(16/⍳16),(⍪idx),(256 1⍴⍳16)
@@ -418,7 +436,7 @@
           ⍝ ⍺ ←→ GPU Device
           ⍝ ⍵ ←→ Pool Index
           0<≢⍵⊃wvb_pools:{o←⊃⍵⊃wvb_pools ⋄ (⍵⊃wvb_pools)↓⍨←1 ⋄ o}⍵
-          
+     
           vb←##.SDL_CreateGPUBuffer ⍺(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓wvb_sizes)0)
           0=vb:'Error creating vertex buffer'##.Assert vb
           vb
@@ -437,11 +455,11 @@
           ⍝ <0: Water Vertex Buffers
           0=≢vb_fenced:
           m←⍵∊⍨0⌷⍉vb_fenced
-
+     
           kinds←1⌷⍉vb_fenced
           mc←m∧kinds≥0
           mw←m∧kinds<0
-
+     
           vbs←2⌷⍉vb_fenced
           vb_fenced⌿⍨←~m
           ⍝ Solid
