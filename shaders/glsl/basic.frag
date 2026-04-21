@@ -7,8 +7,11 @@ layout (location = 1) in float z_depth;
 
 layout (location = 0) out vec4 o_color;
 
-float fog_start = 80.0;
-float fog_end = 120.0;
+layout (std140, set = 3, binding = 0) uniform FogInfo {
+    float fog_start;
+    float fog_end;
+};
+
 vec4 fog_color = vec4(0.47, 0.48, 0.49, 1.0);
 
 void main() {

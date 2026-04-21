@@ -41,14 +41,14 @@
       _←##.SDL_SetWindowRelativeMouseMode core_data.window 1
      
       :If ~⎕NEXISTS core_data.save
-        core_data.save←(⎕MKDIR⍠'Unique'1) core_data.save
+          core_data.save←(⎕MKDIR⍠'Unique' 1)core_data.save
       :EndIf
       file←core_data.save,'/state.dcf'
       :If ⎕NEXISTS file
-          save_file←file⎕FSTIE 1
+          save_file←file ⎕FSTIE 1
           save←⎕FREAD save_file 1
       :Else
-          save_file←file⎕FCREATE 1
+          save_file←file ⎕FCREATE 1
           (1 3⍴0 ¯1 0)⎕FSTAC save_file
           save ⎕FAPPEND save_file
       :EndIf
@@ -190,7 +190,7 @@
     ∇
 
     ∇ Create_pipelines(device window);default_format;depth_format;v_shader;f_shader;vb_desc;vb_attr;blend_state;ct_desc
-      (v_shader f_shader)←(v_ub:1 ⋄ f_sp:1)##.Create_shaders device'basic_vert' 'basic_frag'
+      (v_shader f_shader)←(v_ub:1 ⋄ f_ub:1 ⋄ f_sp:1)##.Create_shaders device'basic_vert' 'basic_frag'
       default_format←⊃##.SDL_GetGPUSwapchainTextureFormat device window
       depth_format←##.Get_depth_format device
      ⍝ Load shaders

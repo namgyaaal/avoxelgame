@@ -5,7 +5,7 @@
     l ← 16 128 16
     box ← ⊃∘.∨/1@0¨l-⍛↑¨1
 
-    view_distance ← 8
+    view_distance ← 9 ⍝ only multiples of 2 for now
     max_chunks ← 2*⍨1+2×view_distance
 
     ⍝ The maximum possible surface can be visualized as a
@@ -90,17 +90,16 @@
     seed←?2*32
     sns←()
     rand_vec←⍬
-    lattice_range←⍬
-    lattice←⍬
     ⍝ Limit amount of terrain generations per frame until I can figure out isolates...
     ⍝ Only triggered once majority of chunks are already loaded in...
     max_generations←3
 
     ⍝ FNV Hash Function based off of Hsu's implementation (?) in MicroUI-APL
+    ⍝    with suggestions from dzaima and Marshall Lochbaum
     ⍝ https://github.com/Co-dfns/MicroUI-APL/blob/cc6d5bc15ec6aee36fdf8f348e138a0bfd210706/mu.apln#L246
-    ⍝ Modified to work rowwise on a 2d array (can it be extended up? dunno)
-    ⍝ Primes are ≤2*8 because I only care about [0, 256)
-    Hash_byte ← {256| 137 (147×(32⍴2)⊥≠⍥((32⍴2)∘⊤)) foldl 83⎕DR ⍵}
+    ⍝ Modified to work column-by-column on a 2d array
+    ⍝ Prime is ≤2*8 because I only care about [0, 256)
+    Hash_byte ← {256|⊃(147×(8⍴2)⊥≠⍥((8⍴2)∘⊤))/↓⍉1↓83 ⎕DR(¯1+2*31)⍪⍵}
 
     ⍝ Don't plant it near edges for now!!
     tree_spots←∊¯2↓2↓⍉12 16⍴¯32↓32↓⍳256
@@ -278,28 +277,54 @@
      
     ∇
 
-    ∇ Update_range(device x z);range;new;old;m;pair;blocks;c;t;set_m;ll;ax;az;dx;dz;surface;tr;ty;tz;ground;tx;idx;dirt;grass;p;grid;rns;i;lw
-      lw←2+view_distance
-      ll←2+2×lw
+    ∇ Update_range(device x z);range;new;old;m;pair;c;t;set_m;ll;ax;az;dx;dz;tr;ty;tz;tx;y;p;grid;rns;p;p2;i;i2;lw;lw2;ll2;t2s;t2;c2;y2;idx
+    ⍝ Shadow here because it's too dang long!!!!
+    ⍝ (Will probably come back to bite me, whatever--gonna make this all a dfn eventually)
+      ⎕SHADOW (
+          'lattice_range' ⋄ 'lattice_range2' 
+          'coords' ⋄ 'coords2' 
+          'lattice' ⋄ 'lattice2'
+          'surface' ⋄ 'ground' ⋄ 'blocks'
+          'dirt' ⋄ 'grass'
+      )
+
       (ax az)←(⌊16÷⍨x z)
-     
       range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance
+      new←range~Cg'xz'
+      old←range~⍨Cg'xz'
+      ⍝ Right now we only have two octaves
+      ⍝ 1 - Each chunk is a cell on the lattice grid
+      ⍝ 2 - 2×2 group of chunks is a cell on the lattice grid
+     
+      lw←2+view_distance
+      lw2←⌈lw÷2
+     
+      ll←2+2×lw
+      ll2←2+2×lw2
+     
+     
       ⍝ Extra padding to account for bottom/right access
       ⍝ Lattice is just [0, 256) since we index into gradient vectors
       lattice_range←(ax az ⋄ )+,∘.,⍨(⍳2+2×lw)-lw-1
-      lattice←Hash_byte seed,↑lattice_range
-      coords←(ax az ⋄)+∘.,⍨(⍳1+2×lw)-lw
-
-
-      lw2 ← lw÷2
-      ll2 ← 2+2×lw2
-      lattice_range2←(⌊ax az ÷2 ⋄ )+,∘.,⍨(⍳2+2×lw2)-lw2-1
-      lattice2←Hash_byte (seed+1),↑lattice_range2
-      coords2←(⌊ax az ÷2⋄)+∘.,⍨(⍳1+2×lw2)-lw2
+      coords←(ax az ⋄ )+∘.,⍨(⍳1+2×lw)-lw
      
-      new←range~Cg'xz'
-      old←range~⍨Cg'xz'
+      lattice_range2←(⌊ax az÷2 ⋄ )+,∘.,⍨(⍳2+2×lw2)-lw2-1
+      coords2←(⌊ax az÷2 ⋄ )+∘.,⍨(⍳1+2×lw2)-lw2
      
+      lattice←0⍴⍨≢,lattice_range
+      lattice2←0⍴⍨≢,lattice_range2
+      ⍝ Most of the time we only load a selection of chunks
+      ⍝ Only do hash for these since hash is a bottleneck!
+      i←∪∊(ll×⍳2)∘.+(⍳2)∘.+ll⊥⍉↑view_distance+new-(ax az⋄)
+      i2←∪∊(ll2×⍳2)∘.+(⍳2)∘.+ll2⊥(⍴coords2)⊤(,coords2)⍳⌊new÷2
+
+      c←seed,↑(,lattice_range)[i]
+      c2←(seed+1),↑(,lattice_range2)[i2]
+      p←Hash_byte seed,c⍪c2
+
+      lattice[i] ← p↑⍨≢i
+      lattice2[i2] ← p↓⍨≢i
+    
       ⍝ Unload chunks
       m←~old∊⍨Cg'xz' ⍝ Kept
       { ⍝ (major cell index ⋄ index into chunk hash array)
@@ -314,12 +339,21 @@
       ⍝ access into the lattice grid
       ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/introduction.html
       ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/perlin-noise-part-2/perlin-noise.html
+     
+      ⍝ Octave 1
       t←1(-,[0.5]⊢)(16÷⍨0.5+16 16⊤⍳16*2)
       t←t×t×(3-2×t) ⍝ Smoothstep
       t←2/,[2.5]t
      
-
-
+      ⍝ Octave 2
+      ⍝ We generate 4 for the different possible chunks within a cell
+      t2s←{
+          (a b)←⍵
+          t←1(-,[0.5]⊢)32÷⍨0.5+32 32⊤∊(⍳32*2)[(32×(16×a)+⍳16)∘.+((16×b)+⍳16)]
+          t←t×t×(3-2×t) ⍝ Smoothstep
+          2/,[2.5]t
+      }¨↓⍉2 2⊤⍳4
+     
       i←0
       :For pair :In new
           ⍝ Prevent lag spikes as chunk generation and loading from disk happens on main thread.
@@ -328,24 +362,18 @@
               :Leave
           :EndIf
      
-  
           idx←(,⍨2*16)⊥pair
           :If ~mapi∊⍨idx
               mapi,←idx
-              c←256/⍪∊⍸(⌊pair÷2⋄)⍷coords2
+              c←256/⍪∊⍸(⌊pair÷2 ⋄ )⍷coords2
               c2←256/⍪(,⍨view_distance)+pair-(ax az)
-              ci←2|pair
-     
-              t2←1(-,[0.5]⊢)32÷⍨0.5+32 32⊤∊(⍳32*2)[(32×(16×⊃ci)+⍳16)∘.+((16×1⊃ci)+⍳16)]
-              t2←t2×t2×(3-2×t2) ⍝ Smoothstep
-              t2←2/,[2.5]t2
-        
-              idx←40+20×2÷⍨+/+⌿(⊣⌿t2)×(⊢⌿t2)+⌿⍤×⍤3⊢rand_vec Im lattice2[(ll2×⍳2)∘.+(⍳2)∘.+ll2⊥c]
-              idx2←10×2÷⍨+/+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤3⊢rand_vec Im lattice[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c2]
-              idx←⌊idx+idx2
+              t2←(+/2 1×2|pair)⊃t2s
+              y←40+20×2÷⍨+/+⌿(⊣⌿t2)×(⊢⌿t2)+⌿⍤×⍤3⊢rand_vec Im lattice2[(ll2×⍳2)∘.+(⍳2)∘.+ll2⊥c]
+              y2←10×2÷⍨+/+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤3⊢rand_vec Im lattice[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c2]
+              y←⌊y+y2
               blocks←l⍴1
      
-              surface←↓(16/⍳16),(⍪idx),(256 1⍴⍳16)
+              surface←↓(16/⍳16),(⍪y),(256 1⍴⍳16)
               blocks[surface-(0 2 0 ⋄ )]←0
               blocks←(#.block_data.Bi'Stone')@(1=⊢)⊢∧⍀⍤2⊢blocks
               blocks[surface-(0 1 0 ⋄ )]←#.block_data.Bi'Dirt'
@@ -362,9 +390,8 @@
                   blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
               :EndIf
      
-              blocks[;⍳40;]←(#.block_data.Bi'Sand')@(∊∘(#.block_data.Bi'Grass' 'Dirt'))⊢blocks[;⍳40;]
+              blocks[;⍳41;]←(#.block_data.Bi'Sand')@(∊∘(#.block_data.Bi'Grass' 'Dirt'))⊢blocks[;⍳41;]
               blocks[;⍳34;]←(#.block_data.Bi'Stone')@(∊∘(#.block_data.Bi'Sand'))⊢blocks[;⍳34;]
-     
               blocks[;⍳40;]←¯1@(1∘>)⊢blocks[;⍳40;]
               (packR blocks)⎕FAPPEND map
           :Else
@@ -394,6 +421,10 @@
       inds←m/Cg'idx_cnt'
       ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
      
+
+      ⍝ Fog Start -- Fog End
+      _←##.SDL_PushGPUFragmentUniformData cmd_buf 0(view_distance × 10 15)(4×2)
+
       ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
@@ -404,7 +435,7 @@
       inds←m/Cg'widx_cnt'
       ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
      
-      ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x ¯0.16 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
+      ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0.84 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
@@ -462,9 +493,7 @@
      
           vbs←2⌷⍉vb_fenced
           vb_fenced⌿⍨←~m
-          ⍝ Solid
-          _←kinds{(⍺⊃vb_pools),←⍵}⌸⍥{mc/⍵}vbs
-          ⍝ Water
-          _←(¯1+-kinds){(⍺⊃wvb_pools),←⍵}⌸⍥{mw/⍵}vbs
+          _←kinds{(⍺⊃vb_pools),←⍵}⌸⍥{mc/⍵}vbs ⍝ Solids
+          _←(¯1+-kinds){(⍺⊃wvb_pools),←⍵}⌸⍥{mw/⍵}vbs ⍝ Waters
       }
 :EndNamespace
