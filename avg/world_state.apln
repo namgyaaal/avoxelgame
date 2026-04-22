@@ -18,6 +18,7 @@
     'Chunks Rendered: '
     'Average FPS: '
     'Vertex Pool Sizes: '
+    'Water Vertex Pool Sizes: '
     'Fenced Vertex Buffers: '
     'Average WS Usage: '
     'Chunk WS Size: '
@@ -120,10 +121,11 @@
      
      
       text_copy←text_base
-      text_copy[1 2 3 4 5 6 7],←⍕¨(≢##.world.chunks
+      text_copy[1 2 3 4 5 6 7 8],←⍕¨(≢##.world.chunks
           ##.world.chunks_rendered
           (+⌿÷≢)recent_fps
           ≢¨##.world.vb_pools
+          ≢¨##.world.wvb_pools
           ≢##.world.vb_fenced
           (+⌿÷≢)recent_ws_usage÷1024*2
           (1024*2)÷⍨⎕SIZE'##.world.chunks')

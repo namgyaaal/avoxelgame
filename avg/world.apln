@@ -5,7 +5,7 @@
     l ← 16 128 16
     box ← ⊃∘.∨/1@0¨l-⍛↑¨1
 
-    view_distance ← 9 ⍝ only multiples of 2 for now
+    view_distance ← 8
     max_chunks ← 2*⍨1+2×view_distance
 
     ⍝ The maximum possible surface can be visualized as a
@@ -16,10 +16,7 @@
     ⍝  6×(×/-×/⍤-∘2)l  - Outer
     max_faces ← 6×⌈2÷⍨×/¯2+l
     max_faces +← 6×(×/-×/⍤-∘2) l
-
-
-    ⍝ w-water
-    wmax_faces ← (2÷⍨1⊃l)×(2*⍨⊃l)
+    wmax_faces ← (2÷⍨1⊃l)×(2*⍨⊃l) ⍝ w-water
 
     ⍝ For each face we need 4 vertices and 6 indices
     ⍝ Furthermore, we need the amount of info per vertex and size of indices
@@ -30,6 +27,7 @@
     vb_pools ← ⍬ ⍬ ⍬
     vb_start_lens ← ⌊1.0 0.0 0.0×max_chunks
 
+    ⍝ Most occurences have a significantly small amount of water surface exposed
     wvb_sizes ← ⌈0 0.025 1.0 × wvsize
     wvb_pools ← ⍬ ⍬
     wvb_start_lens ← ⌊1.2 0.0 × max_chunks
@@ -39,11 +37,16 @@
     ⍝ freed vbs are added with fence pointer 0 and when fence is
     ⍝   retrieved, they're set with func Push_fence.
     ⍝ Released with Pop_fence
+    ⍝
     ⍝ Put both water and chunk buffers in here
     ⍝   (negate vb_kind starting with ¯1 instead of 0)
     vb_fenced ← 0 3⍴0
 
+    ⍝ Water and Solid vertex buffers share same index buffer since
+    ⍝    both can be understood as a list of quads.
     ib ← 0
+    ⍝ Also share same transfer buffer, when copying, interleaved in format
+    ⍝ CHUNK A WATER A CHUNK B CHUNK C WATER C
     tb ← 0
     tb_pos ← 0
     tb_size ← ⌊2×vsize
@@ -53,7 +56,7 @@
     chunks ← 0⍴⍨0,l
     cnames ← 'cx' 'cz' 'vb' 'wvb' 'vb_kind' 'wvb_kind' 'idx_cnt' 'widx_cnt' 'dirty'
     chunk_info ← (≢cnames)⍴⊂⍬
-    chunks_rendered←0
+    chunks_rendered←0 ⍝ For render information
 
     I←{⍺[⍵]}
     Im←{⍺[⍵;]}
@@ -89,7 +92,7 @@
 
     seed←?2*32
     sns←()
-    rand_vec←⍬
+    rand_vec←⍬ ⍝ randomized 2d gradients
     ⍝ Limit amount of terrain generations per frame until I can figure out isolates...
     ⍝ Only triggered once majority of chunks are already loaded in...
     max_generations←3
@@ -110,6 +113,8 @@
     empty_rle←(l⋄(×/l⋄)⋄(0⋄))
 
     ∇ Init(core_data device save);vb_params;tb_params;p;cmd;pass;size;state;pxz;map_file
+     
+      ⍝ Allocate some vertex buffers for each pool to start off with.
       vb_pools←{
           (cnt size)←⍵
           vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX size 0
@@ -189,6 +194,7 @@
           flat←∊chunk
           solid←chunk>0
           edges←solid∧box
+          ⍝ Solid
           ⍝ (1) Returns format (16 32 16 3 2) where (3 2) are rotations
           ⍝ (2) collapse into (vertex_num 6) multiply by index where not 0
           ⍝ (3) index into box and 6wise multiply+⍳add for texture index
@@ -208,9 +214,14 @@
           _←##.LSE_MemcpyU8(ptr+offset)buf vs
      
           ⍝ Water
-          w_p←⍉l⊤⍸∊(chunk=¯1)(2>⌿⍤2⍪⍤2)⊢⍴⍨⊃l
-          vert←,[⍳2][0 0 0 ⋄ 1 0 0 ⋄ 1 0 1 ⋄ 0 0 1](+⍤2)4(⌿⍤2),[0.5]w_p
-          vert+←(3,⍨≢vert)⍴128×[0 0 0 ⋄ 0 0 1 ⋄ 1 0 1 ⋄ 1 0 0]
+          ⍝ Note that if there's an ocean, only sea level is rendered (not every water block)
+          ⍝ (1) Add 0-array "ontop" of chunk and fold up 2-wise to set surfaces as true
+          ⍝ (2) Get list of where true as positions
+          ⍝ (3) Expand each to a quad facing up
+          ⍝ (4) See Solid (5)
+          w_p←⍉l⊤⍸∊(chunk=¯1)(2>⌿⍤2⍪⍤2)⊢⍴⍨⊃l                            ⍝ (1, 2)
+          vert←,[⍳2][0 0 0 ⋄ 1 0 0 ⋄ 1 0 1 ⋄ 0 0 1](+⍤2)4(⌿⍤2),[0.5]w_p ⍝ (3)
+          vert+←(3,⍨≢vert)⍴128×[0 0 0 ⋄ 0 0 1 ⋄ 1 0 1 ⋄ 1 0 0]          ⍝ (4)
           buf←∊vert,6
           wvs←≢buf
           wic←6×4÷⍨≢vert
@@ -228,16 +239,23 @@
       ⍝ Copy into transfer buffer until it's full for this frame or no more dirty chunks
       idxs←⍸Cg'dirty'
      
+      ⍝ Copy table of needed information
       copy_name←'offset' 'vs' 'ic' 'wvs' 'wic' 'vb_kind' 'wvb_kind' 'vb' 'wvb'
       p←##.SDL_MapGPUTransferBuffer device tb 1
       copy_table←{
           (vs ic wvs wic)←Copy_chunk(chunks⌷⍨idxs⊃⍨≢⊃⍵ ⋄ p ⋄ tb_pos)
           pos←tb_pos ⋄ tb_pos+←vs+wvs
-          ⍵,¨(≢copy_name)↑pos vs ic wvs wic
+          ⍵,¨(≢copy_name)↑pos vs ic wvs wic ⍝ vertex buffer and pool # set later
       }⍣{(tb_size≤tb_pos+vsize)∨(⊃⍺)≥⍥≢idxs}⊢(≢copy_name)⍴⊂⍬
       _←##.SDL_UnmapGPUTransferBuffer device tb
-      Cpi←copy_name∘⍳∘⊆ ⍝ Copy Index
+      Cpi←copy_name∘⍳∘⊆       ⍝ Copy Index
       Cpg←{copy_table⊃⍨Cpi ⍵} ⍝ Copy Get
+     
+      ⍝ Each follows pattern
+      ⍝ - If pre-existing vertex buffer, send back to fence queue until GPU is done
+      ⍝ - Set vertex buffers onto copy table
+      ⍝ - For each row, upload from transfer buffer to GPU
+      ⍝ - Set global chunk info table with results
      
       ⍝ ------------- ⍝
       ⍝ Solid Related ⍝
@@ -269,7 +287,7 @@
       has_vb←m∧0≠Cg'wvb'
       vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺)⍵}⍥{⍵/⍨has_vb}⍥Cg'wvb'
       (m2/(Cpi'wvb')⊃copy_table)←device∘Fetch_wbuffer¨m2/Cpg'wvb_kind'
-      ⍝ 0=wvb to prevent side effect call (if empty it does fill)
+      ⍝ 0=wvb to prevent side effect call (if empty it does a fill!)
       {(pos vs wvs wvb)←⍵ ⋄ 0=wvb: ⋄ _←##.SDL_UploadToGPUBuffer pass(tb ⋄ pos+vs)(wvb 0 wvs)0}¨m2/↓⍉↑Cpg¨'offset' 'vs' 'wvs' 'wvb'
       (m/(Ci'widx_cnt')⊃chunk_info)←m2/Cpg'wic'
       (m/(Ci'wvb')⊃chunk_info)←m2/Cpg'wvb'
@@ -277,54 +295,41 @@
      
     ∇
 
-    ∇ Update_range(device x z);range;new;old;m;pair;c;t;set_m;ll;ax;az;dx;dz;tr;ty;tz;tx;y;p;grid;rns;p;p2;i;i2;lw;lw2;ll2;t2s;t2;c2;y2;idx
+    ∇ Update_range(device x z);range;m;pair;set_m;ax;az;tr;ty;tz;tx;y;p;rns;p1;p2;i;i2;t1;t2;y1;y2;idx
     ⍝ Shadow here because it's too dang long!!!!
     ⍝ (Will probably come back to bite me, whatever--gonna make this all a dfn eventually)
-      ⎕SHADOW (
-          'lattice_range' ⋄ 'lattice_range2' 
-          'coords' ⋄ 'coords2' 
-          'lattice' ⋄ 'lattice2'
+      ⎕SHADOW(
+          'coords1' ⋄ 'coords2'
           'surface' ⋄ 'ground' ⋄ 'blocks'
           'dirt' ⋄ 'grass'
+          'new' ⋄ 'old'
+          't1_tl' ⋄ 't2_tl'
       )
-
+     
       (ax az)←(⌊16÷⍨x z)
       range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
-      ⍝ Right now we only have two octaves
-      ⍝ 1 - Each chunk is a cell on the lattice grid
-      ⍝ 2 - 2×2 group of chunks is a cell on the lattice grid
-     
-      lw←2+view_distance
-      lw2←⌈lw÷2
-     
-      ll←2+2×lw
-      ll2←2+2×lw2
-     
-     
-      ⍝ Extra padding to account for bottom/right access
-      ⍝ Lattice is just [0, 256) since we index into gradient vectors
-      lattice_range←(ax az ⋄ )+,∘.,⍨(⍳2+2×lw)-lw-1
-      coords←(ax az ⋄ )+∘.,⍨(⍳1+2×lw)-lw
-     
-      lattice_range2←(⌊ax az÷2 ⋄ )+,∘.,⍨(⍳2+2×lw2)-lw2-1
-      coords2←(⌊ax az÷2 ⋄ )+∘.,⍨(⍳1+2×lw2)-lw2
-     
-      lattice←0⍴⍨≢,lattice_range
-      lattice2←0⍴⍨≢,lattice_range2
-      ⍝ Most of the time we only load a selection of chunks
-      ⍝ Only do hash for these since hash is a bottleneck!
-      i←∪∊(ll×⍳2)∘.+(⍳2)∘.+ll⊥⍉↑view_distance+new-(ax az⋄)
-      i2←∪∊(ll2×⍳2)∘.+(⍳2)∘.+ll2⊥(⍴coords2)⊤(,coords2)⍳⌊new÷2
 
-      c←seed,↑(,lattice_range)[i]
-      c2←(seed+1),↑(,lattice_range2)[i2]
-      p←Hash_byte seed,c⍪c2
 
-      lattice[i] ← p↑⍨≢i
-      lattice2[i2] ← p↓⍨≢i
+      ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/introduction.html
+      ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/perlin-noise-part-2/perlin-noise.html
+      ⍝ We have 2 octaves
+      ⍝ 1 ←→ 4×4 chunk
+      ⍝ 2 ←→ 16×16 chunk
     
+      ⍝ Chunk corresponds to a "patch" of each octave that we translate around 
+      ⍝     before doing smoothstep and using for bilinear interpolation
+      t1_tl←1(-,[0.5]⊢)64÷⍨0.5+64 64⊤∊(⍳64*2)[(64×⍳16)∘.+(⍳16)]
+      t2_tl←1(-,[0.5]⊢)256÷⍨0.5+256 256⊤∊(⍳256*2)[(256×⍳16)∘.+(⍳16)]
+      ⍝ Get unique coordinates used for generation process and hash them 
+      ⍝     for indices into rand_vec table
+      coords1←∪,(⍳ 2 2)∘.+⌊new÷4
+      coords2←∪,(⍳ 2 2)∘.+⌊new÷16
+
+      p1←Hash_byte (seed+1),↑coords1
+      p2←Hash_byte (seed+2),↑coords2
+     
       ⍝ Unload chunks
       m←~old∊⍨Cg'xz' ⍝ Kept
       { ⍝ (major cell index ⋄ index into chunk hash array)
@@ -336,23 +341,6 @@
       vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
       vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺)⍵}⍥{⍵/⍨set_m∧0≠Cg'wvb'}⍥Cg'wvb'
       chunk_info←m∘/¨chunk_info
-      ⍝ access into the lattice grid
-      ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/introduction.html
-      ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/perlin-noise-part-2/perlin-noise.html
-     
-      ⍝ Octave 1
-      t←1(-,[0.5]⊢)(16÷⍨0.5+16 16⊤⍳16*2)
-      t←t×t×(3-2×t) ⍝ Smoothstep
-      t←2/,[2.5]t
-     
-      ⍝ Octave 2
-      ⍝ We generate 4 for the different possible chunks within a cell
-      t2s←{
-          (a b)←⍵
-          t←1(-,[0.5]⊢)32÷⍨0.5+32 32⊤∊(⍳32*2)[(32×(16×a)+⍳16)∘.+((16×b)+⍳16)]
-          t←t×t×(3-2×t) ⍝ Smoothstep
-          2/,[2.5]t
-      }¨↓⍉2 2⊤⍳4
      
       i←0
       :For pair :In new
@@ -365,15 +353,28 @@
           idx←(,⍨2*16)⊥pair
           :If ~mapi∊⍨idx
               mapi,←idx
-              c←256/⍪∊⍸(⌊pair÷2 ⋄ )⍷coords2
-              c2←256/⍪(,⍨view_distance)+pair-(ax az)
-              t2←(+/2 1×2|pair)⊃t2s
-              y←40+20×2÷⍨+/+⌿(⊣⌿t2)×(⊢⌿t2)+⌿⍤×⍤3⊢rand_vec Im lattice2[(ll2×⍳2)∘.+(⍳2)∘.+ll2⊥c]
-              y2←10×2÷⍨+/+⌿(⊣⌿t)×(⊢⌿t)+⌿⍤×⍤3⊢rand_vec Im lattice[(ll×⍳2)∘.+(⍳2)∘.+ll⊥c2]
-              y←⌊y+y2
+
+
+              ⍝ Translate "patches" to chunk's position relative to the different octaves
+              ⍝     and use points as interpolation to produce y1 y2
+              t1←[(¯1 1×÷4) × 4|⊃pair ⋄ (¯1 1×÷4) × 4|1⊃pair]+⍤¯2 ⊢ t1_tl
+              t1←t1×t1×(3-2×t1) ⍝ Smoothstep
+              t1←2/,[2.5]t1
+
+              t2 ← [(¯1 1×÷16) × 16|⊃pair ⋄ (¯1 1×÷16) × 16|1⊃pair]+⍤¯2 ⊢ t2_tl
+              t2←t2×t2×(3-2×t2) ⍝ Smoothstep
+              t2←2/,[2.5]t2
+
+              ⍝ tN can be split into X (⊣⌿) and Y (⊢⌿)
+              ⍝ A chunk interpolates across 4 different edges with 16×16 blocks
+              ⍝ tN corresponds to blocks positions, idea is to retrieve 4 edges and 
+              ⍝     interpolate all at once.
+              y1←10+40×2÷⍨+/+⌿(⊣⌿t1)×(⊢⌿t1)+⌿⍤×⍤3⊢2 2 256 2⍴256⌿rand_vec Im p1⌷⍨⊂coords1⍳,(⍳2 2) ∘.+ ⊂⌊pair÷4
+              y2←50+40×2÷⍨+/+⌿(⊣⌿t2)×(⊢⌿t2)+⌿⍤×⍤3⊢2 2 256 2⍴256⌿rand_vec Im p2⌷⍨⊂coords2⍳,(⍳2 2) ∘.+ ⊂⌊pair÷16
+              y←⌊y1+y2
               blocks←l⍴1
      
-              surface←↓(16/⍳16),(⍪y),(256 1⍴⍳16)
+              surface←↓(16/⍳16),(⍪126⌊1⌈y),(256 1⍴⍳16)
               blocks[surface-(0 2 0 ⋄ )]←0
               blocks←(#.block_data.Bi'Stone')@(1=⊢)⊢∧⍀⍤2⊢blocks
               blocks[surface-(0 1 0 ⋄ )]←#.block_data.Bi'Dirt'
@@ -383,13 +384,14 @@
               ⍝ Tree :-)
               rns←(⎕RL:|4192 4192 4192⊥pair,seed)
               (tx ground tz)←(0 ⋄ 1 ⋄ 0)+⊃surface⌷⍨tree_spots⊃⍨rns.?≢tree_spots
-              :If ground>45
+              :If ground>45 ⍝ Only do tree if above sea level to a degree
                   ty←3+rns.?3
                   blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
                   blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
                   blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
               :EndIf
      
+              ⍝ Sand/Water
               blocks[;⍳41;]←(#.block_data.Bi'Sand')@(∊∘(#.block_data.Bi'Grass' 'Dirt'))⊢blocks[;⍳41;]
               blocks[;⍳34;]←(#.block_data.Bi'Stone')@(∊∘(#.block_data.Bi'Sand'))⊢blocks[;⍳34;]
               blocks[;⍳40;]←¯1@(1∘>)⊢blocks[;⍳40;]
@@ -419,21 +421,24 @@
       chunks_rendered←+/m
       vbs←m/Cg'vb'
       inds←m/Cg'idx_cnt'
-      ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
      
-
       ⍝ Fog Start -- Fog End
-      _←##.SDL_PushGPUFragmentUniformData cmd_buf 0(view_distance × 10 15)(4×2)
-
+      _←##.SDL_PushGPUFragmentUniformData cmd_buf 0(view_distance×10 15)(4×2)
+     
+     
+      ⍝ Render Solid
+     
+      ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
       ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
      
+      ⍝ Render Water
+     
       m←m∧0≠Cg'wvb'
       vbs←m/Cg'wvb'
       inds←m/Cg'widx_cnt'
-      ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
      
       ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0.84 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
@@ -464,6 +469,7 @@
       }
 
       Fetch_wbuffer←{
+          ⍝ Fetch_buffer but for water
           ⍝ ⍺ ←→ GPU Device
           ⍝ ⍵ ←→ Pool Index
           0<≢⍵⊃wvb_pools:{o←⊃⍵⊃wvb_pools ⋄ (⍵⊃wvb_pools)↓⍨←1 ⋄ o}⍵
