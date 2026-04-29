@@ -5,7 +5,7 @@
     l ← 16 128 16
     box ← ⊃∘.∨/1@0¨l-⍛↑¨1
 
-    view_distance ← 8
+    view_distance ← 12
     max_chunks ← 2*⍨1+2×view_distance
 
     ⍝ The maximum possible surface can be visualized as a
@@ -23,25 +23,6 @@
     (vsize isize) ← (4×4×max_faces ⋄ 4×6×max_faces)
     (wvsize wisize) ← (4×4×wmax_faces ⋄ 4×6×wmax_faces)
 
-    vb_sizes ← ⌈0 0.18 0.7 1.0 × vsize
-    vb_pools ← ⍬ ⍬ ⍬
-    vb_start_lens ← ⌊1.0 0.0 0.0×max_chunks
-
-    ⍝ Most occurences have a significantly small amount of water surface exposed
-    wvb_sizes ← ⌈0 0.025 1.0 × wvsize
-    wvb_pools ← ⍬ ⍬
-    wvb_start_lens ← ⌊1.2 0.0 × max_chunks
-
-    ⍝ vbs that aren't done being used by the gpu
-    ⍝ (fence counter, index into vb_pools, vb pointer)
-    ⍝ freed vbs are added with fence pointer 0 and when fence is
-    ⍝   retrieved, they're set with func Push_fence.
-    ⍝ Released with Pop_fence
-    ⍝
-    ⍝ Put both water and chunk buffers in here
-    ⍝   (negate vb_kind starting with ¯1 instead of 0)
-    vb_fenced ← 0 3⍴0
-
     ⍝ Water and Solid vertex buffers share same index buffer since
     ⍝    both can be understood as a list of quads.
     ib ← 0
@@ -49,12 +30,11 @@
     ⍝ CHUNK A WATER A CHUNK B CHUNK C WATER C
     tb ← 0
     tb_pos ← 0
-    tb_size ← ⌊2×vsize
-    ⍝ Vector of x and z positions corresponding to xz column
+    tb_size ← isize⌈⌊1.4×vsize ⍝ at minimum should be index size since we use it for IB first.
     (texture sampler) ← ⍬ ⍬
 
     chunks ← 0⍴⍨0,l
-    cnames ← 'cx' 'cz' 'vb' 'wvb' 'vb_kind' 'wvb_kind' 'idx_cnt' 'widx_cnt' 'dirty'
+    cnames ← 'cx' 'cz' 'vb' 'wvb' 'idx_cnt' 'widx_cnt' 'dirty'
     chunk_info ← (≢cnames)⍴⊂⍬
     chunks_rendered←0 ⍝ For render information
 
@@ -87,7 +67,8 @@
     ⍝   Insert rank and replicate by 24 (possible vertices of a cube)
     ⍝   For each sub-(24 ⋄ 3) matrix add faces
     ⍝   Ravel into (vertices ⋄ 3)
-    vertices ← ,[⍳2]faces(+⍤2)v_cnt(⌿⍤2),[0.5]⍉l⊤⍳×/l
+    ⍝vertices ← ,[⍳2]faces(+⍤2)v_cnt(⌿⍤2),[0.5]⍉l⊤⍳×/l
+    vertices←,[⍳2]faces+⍤1⍤2 1⊢⍉l⊤⍳×/l
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
     seed←?2*32
@@ -114,19 +95,6 @@
 
     ∇ Init(core_data device save);vb_params;tb_params;p;cmd;pass;size;state;pxz;map_file
      
-      ⍝ Allocate some vertex buffers for each pool to start off with.
-      vb_pools←{
-          (cnt size)←⍵
-          vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX size 0
-          ({⍵,##.SDL_CreateGPUBuffer device vb_params}⍣cnt)⍬
-      }¨↓⍉[vb_start_lens ⋄ 1↓vb_sizes]
-     
-      wvb_pools←{
-          (cnt size)←⍵
-          vb_params←##.SDL_GPU_BUFFERUSAGE_VERTEX size 0
-          ({⍵,##.SDL_CreateGPUBuffer device vb_params}⍣cnt)⍬
-      }¨↓⍉[wvb_start_lens ⋄ 1↓wvb_sizes]
-     
       tb_params←⊂##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(tb_size)0
       tb←##.SDL_CreateGPUTransferBuffer device tb_params
       'Error creating chunk transfer buffer'##.Assert tb
@@ -140,6 +108,7 @@
       ⍝ Overhead should be minimal if this is done once
       p←##.SDL_MapGPUTransferBuffer device tb 0
       _←##.LSE_MemcpyU32 p(indices)isize
+     
       _←##.SDL_UnmapGPUTransferBuffer device tb
       cmd←##.SDL_AcquireGPUCommandBuffer device
       pass←##.SDL_BeginGPUCopyPass cmd
@@ -165,14 +134,12 @@
 
     ∇ Release(device save)
       save.seed←seed
-      {_←##.SDL_ReleaseGPUBuffer device ⍵}¨∊(
-          vb_pools
-          (2⌷⍉vb_fenced)
+      {_←##.SDL_ReleaseGPUBuffer device ⍵}¨(0∘≠)⍛/∊(
           Cg'vb'
-          (0≠Cg'wvb')/Cg'wvb'
+          Cg'wvb'
+          ib
+          tb
       )
-      _←##.SDL_ReleaseGPUBuffer device ib
-      _←##.SDL_ReleaseGPUBuffer device tb
       _←##.SDL_ReleaseGPUSampler device sampler
       {
           (packR chunks⌷⍨⊃⍵)⎕FREPLACE(map ⋄ 2+1⊃⍵)
@@ -187,6 +154,13 @@
     ∇
 
       Copy_chunk←{
+     
+      ⍝ Note to self, look into:
+      ⍝ Staggered grid -- Kori
+      ⍝ Finite volume method -- fluid dynamics
+      ⍝ Gridding technique -- store information for center cell information
+      ⍝ Information itself discrete for the sides
+
           (chunk ptr offset)←⍵
           ⍝ Collapse chunk @ x z and write it to ptr
           ⍝ Return vertex size in bytes and number of indices
@@ -240,12 +214,12 @@
       idxs←⍸Cg'dirty'
      
       ⍝ Copy table of needed information
-      copy_name←'offset' 'vs' 'ic' 'wvs' 'wic' 'vb_kind' 'wvb_kind' 'vb' 'wvb'
+      copy_name←'offset' 'vs' 'ic' 'wvs' 'wic' 'vb' 'wvb'
       p←##.SDL_MapGPUTransferBuffer device tb 1
       copy_table←{
           (vs ic wvs wic)←Copy_chunk(chunks⌷⍨idxs⊃⍨≢⊃⍵ ⋄ p ⋄ tb_pos)
           pos←tb_pos ⋄ tb_pos+←vs+wvs
-          ⍵,¨(≢copy_name)↑pos vs ic wvs wic ⍝ vertex buffer and pool # set later
+          ⍵,¨(≢copy_name)↑pos vs ic wvs wic ⍝ set vertex buffers later
       }⍣{(tb_size≤tb_pos+vsize)∨(⊃⍺)≥⍥≢idxs}⊢(≢copy_name)⍴⊂⍬
       _←##.SDL_UnmapGPUTransferBuffer device tb
       Cpi←copy_name∘⍳∘⊆       ⍝ Copy Index
@@ -261,38 +235,42 @@
       ⍝ Solid Related ⍝
       ⍝ ------------- ⍝
      
-      ((Cpi'vb_kind')⊃copy_table)←vb_sizes∘⍸¨Cpg'vs'
       idxs↑⍨←≢⊃copy_table
       m←idxs∊⍨⍳≢⊃chunk_info
       has_vb←m∧0≠Cg'vb'
-      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨has_vb}⍥Cg'vb'
      
-      ((Cpi'vb')⊃copy_table)←device∘Fetch_buffer¨Cpg'vb_kind'
+      ((Cpi'vb')⊃copy_table)←{
+          ##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX ⍵ 0)
+      }¨Cpg'vs'
      
       ⍝ GPU Upload and set loaded chunks as ready with render info
-      {(pos vs vb)←⍵ ⋄ _←##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0}¨↓⍉↑Cpg¨'offset' 'vs' 'vb'
+      {(pos vs vb)←⍵
+        _←##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0
+      }¨↓⍉↑Cpg¨'offset' 'vs' 'vb'
       (m/(Ci'idx_cnt')⊃chunk_info)←Cpg'ic'
       (m/(Ci'vb')⊃chunk_info)←Cpg'vb'
-      (m/(Ci'vb_kind')⊃chunk_info)←Cpg'vb_kind'
       (m/(Ci'dirty')⊃chunk_info)←0
      
       ⍝ ------------- ⍝
       ⍝ Water Related ⍝
       ⍝ ------------- ⍝
      
-      ((Cpi'wvb_kind')⊃copy_table)←wvb_sizes∘⍸¨Cpg'wvs'
-     
       idxs←idxs/⍨m2←0≠Cpg'wic'
       m←idxs∊⍨⍳≢⊃chunk_info
       has_vb←m∧0≠Cg'wvb'
-      vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺)⍵}⍥{⍵/⍨has_vb}⍥Cg'wvb'
-      (m2/(Cpi'wvb')⊃copy_table)←device∘Fetch_wbuffer¨m2/Cpg'wvb_kind'
-      ⍝ 0=wvb to prevent side effect call (if empty it does a fill!)
-      {(pos vs wvs wvb)←⍵ ⋄ 0=wvb: ⋄ _←##.SDL_UploadToGPUBuffer pass(tb ⋄ pos+vs)(wvb 0 wvs)0}¨m2/↓⍉↑Cpg¨'offset' 'vs' 'wvs' 'wvb'
-      (m/(Ci'widx_cnt')⊃chunk_info)←m2/Cpg'wic'
-      (m/(Ci'wvb')⊃chunk_info)←m2/Cpg'wvb'
-      (m/(Ci'wvb_kind')⊃chunk_info)←m2/Cpg'wvb_kind'
      
+      (m2/(Cpi'wvb')⊃copy_table)←{
+        0=⍵:0
+      ##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX ⍵ 0)
+      }¨m2/Cpg'wvs'
+     
+      ⍝ 0=wvb to prevent side effect call (if empty it does a fill!)
+      {(pos vs wvs wvb)←⍵
+        0=wvb:
+        _←##.SDL_UploadToGPUBuffer pass(tb ⋄ pos+vs)(wvb 0 wvs)0
+      }¨m2/↓⍉↑Cpg¨'offset' 'vs' 'wvs' 'wvb'
+      (m/(Ci'widx_cnt')⊃chunk_info)←m2/Cpg'wic'
+      (m/(Ci'wvb')⊃chunk_info)←m2/Cpg'wvb' 
     ∇
 
     ∇ Update_range(device x z);range;m;pair;set_m;ax;az;tr;ty;tz;tx;y;p;rns;p1;p2;i;i2;t1;t2;y1;y2;idx
@@ -310,25 +288,25 @@
       range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
-
-
+     
+     
       ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/introduction.html
       ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/perlin-noise-part-2/perlin-noise.html
       ⍝ We have 2 octaves
       ⍝ 1 ←→ 4×4 chunk
       ⍝ 2 ←→ 16×16 chunk
-    
-      ⍝ Chunk corresponds to a "patch" of each octave that we translate around 
+     
+      ⍝ Chunk corresponds to a "patch" of each octave that we translate around
       ⍝     before doing smoothstep and using for bilinear interpolation
       t1_tl←1(-,[0.5]⊢)64÷⍨0.5+64 64⊤∊(⍳64*2)[(64×⍳16)∘.+(⍳16)]
       t2_tl←1(-,[0.5]⊢)256÷⍨0.5+256 256⊤∊(⍳256*2)[(256×⍳16)∘.+(⍳16)]
-      ⍝ Get unique coordinates used for generation process and hash them 
+      ⍝ Get unique coordinates used for generation process and hash them
       ⍝     for indices into rand_vec table
-      coords1←∪,(⍳ 2 2)∘.+⌊new÷4
-      coords2←∪,(⍳ 2 2)∘.+⌊new÷16
-
-      p1←Hash_byte (seed+1),↑coords1
-      p2←Hash_byte (seed+2),↑coords2
+      coords1←∪,(⍳2 2)∘.+⌊new÷4
+      coords2←∪,(⍳2 2)∘.+⌊new÷16
+     
+      p1←Hash_byte(seed+1),↑coords1
+      p2←Hash_byte(seed+2),↑coords2
      
       ⍝ Unload chunks
       m←~old∊⍨Cg'xz' ⍝ Kept
@@ -336,12 +314,14 @@
           (packR chunks⌷⍨⊃⍵)⎕FREPLACE(map ⋄ 2+1⊃⍵)
       }{⍺⍺¨∘↓⍣(~0∊⍴⍵)⊢⍵}(~m)⌿⍉[⍳≢chunks ⋄ mapi⍳Cg'enc_xz']
       chunks⌿⍨←m
-      ⍝ chunks with vertex buffers write to fence buffer to be cycled back to pool
       set_m←(0≠Cg'vb')∧~m
-      vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
-      vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺)⍵}⍥{⍵/⍨set_m∧0≠Cg'wvb'}⍥Cg'wvb'
+      {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨set_m/Cg'vb' 
+      {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨set_m/Cg'wvb'
+      ⍝vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
+      ⍝vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺)⍵}⍥{⍵/⍨set_m∧0≠Cg'wvb'}⍥Cg'wvb'
       chunk_info←m∘/¨chunk_info
      
+      ⍝ Terrain generation step
       i←0
       :For pair :In new
           ⍝ Prevent lag spikes as chunk generation and loading from disk happens on main thread.
@@ -354,23 +334,22 @@
           :If ~mapi∊⍨idx
               mapi,←idx
 
-
               ⍝ Translate "patches" to chunk's position relative to the different octaves
               ⍝     and use points as interpolation to produce y1 y2
-              t1←[(¯1 1×÷4) × 4|⊃pair ⋄ (¯1 1×÷4) × 4|1⊃pair]+⍤¯2 ⊢ t1_tl
+              t1←[(¯1 1×÷4)×4|⊃pair ⋄ (¯1 1×÷4)×4|1⊃pair]+⍤¯2⊢t1_tl
               t1←t1×t1×(3-2×t1) ⍝ Smoothstep
               t1←2/,[2.5]t1
-
-              t2 ← [(¯1 1×÷16) × 16|⊃pair ⋄ (¯1 1×÷16) × 16|1⊃pair]+⍤¯2 ⊢ t2_tl
+     
+              t2←[(¯1 1×÷16)×16|⊃pair ⋄ (¯1 1×÷16)×16|1⊃pair]+⍤¯2⊢t2_tl
               t2←t2×t2×(3-2×t2) ⍝ Smoothstep
               t2←2/,[2.5]t2
-
+     
               ⍝ tN can be split into X (⊣⌿) and Y (⊢⌿)
               ⍝ A chunk interpolates across 4 different edges with 16×16 blocks
-              ⍝ tN corresponds to blocks positions, idea is to retrieve 4 edges and 
+              ⍝ tN corresponds to blocks positions, idea is to retrieve 4 edges and
               ⍝     interpolate all at once.
-              y1←10+40×2÷⍨+/+⌿(⊣⌿t1)×(⊢⌿t1)+⌿⍤×⍤3⊢2 2 256 2⍴256⌿rand_vec Im p1⌷⍨⊂coords1⍳,(⍳2 2) ∘.+ ⊂⌊pair÷4
-              y2←50+40×2÷⍨+/+⌿(⊣⌿t2)×(⊢⌿t2)+⌿⍤×⍤3⊢2 2 256 2⍴256⌿rand_vec Im p2⌷⍨⊂coords2⍳,(⍳2 2) ∘.+ ⊂⌊pair÷16
+              y1←10+40×2÷⍨+/+⌿(⊣⌿t1)×(⊢⌿t1)+⌿⍤×⍤3⊢2 2 256 2⍴256⌿rand_vec Im p1⌷⍨⊂coords1⍳,(⍳2 2)∘.+⊂⌊pair÷4
+              y2←50+40×2÷⍨+/+⌿(⊣⌿t2)×(⊢⌿t2)+⌿⍤×⍤3⊢2 2 256 2⍴256⌿rand_vec Im p2⌷⍨⊂coords2⍳,(⍳2 2)∘.+⊂⌊pair÷16
               y←⌊y1+y2
               blocks←l⍴1
      
@@ -425,7 +404,6 @@
       ⍝ Fog Start -- Fog End
       _←##.SDL_PushGPUFragmentUniformData cmd_buf 0(view_distance×10 15)(4×2)
      
-     
       ⍝ Render Solid
      
       ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
@@ -457,49 +435,4 @@
           ⍺∘{(~⍺)∨0≤2⊃⍵}¨⍛/cindices,¨((⊃l)∘|@(0 2)⊢)¨⍵
       }
 
-      Fetch_buffer←{
-          ⍝ ⍺ ←→ GPU Device
-          ⍝ ⍵ ←→ Pool Index
-          ⍝ Note: either return it back to the vector or destroy it
-          ⍝ Memory leak otherwise
-          0<≢⍵⊃vb_pools:{o←⊃⍵⊃vb_pools ⋄ (⍵⊃vb_pools)↓⍨←1 ⋄ o}⍵
-          vb←##.SDL_CreateGPUBuffer ⍺(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓vb_sizes)0)
-          0=vb:'Error creating vertex buffer'##.Assert vb
-          vb
-      }
-
-      Fetch_wbuffer←{
-          ⍝ Fetch_buffer but for water
-          ⍝ ⍺ ←→ GPU Device
-          ⍝ ⍵ ←→ Pool Index
-          0<≢⍵⊃wvb_pools:{o←⊃⍵⊃wvb_pools ⋄ (⍵⊃wvb_pools)↓⍨←1 ⋄ o}⍵
-     
-          vb←##.SDL_CreateGPUBuffer ⍺(##.SDL_GPU_BUFFERUSAGE_VERTEX(⍵⊃1↓wvb_sizes)0)
-          0=vb:'Error creating vertex buffer'##.Assert vb
-          vb
-      }
-
-      Push_fence←{
-          ⍝ ⍵ ←→ Fence counter
-          0=≢vb_fenced:
-          m←¯1=0⌷⍉vb_fenced
-          (m/0⌷⍉vb_fenced)←⍵
-      }
-
-      Pop_fences←{
-          ⍝ ⍵ ←→ Fence counters
-          ⍝ ≥0: Chunk Vertex Buffers
-          ⍝ <0: Water Vertex Buffers
-          0=≢vb_fenced:
-          m←⍵∊⍨0⌷⍉vb_fenced
-     
-          kinds←1⌷⍉vb_fenced
-          mc←m∧kinds≥0
-          mw←m∧kinds<0
-     
-          vbs←2⌷⍉vb_fenced
-          vb_fenced⌿⍨←~m
-          _←kinds{(⍺⊃vb_pools),←⍵}⌸⍥{mc/⍵}vbs ⍝ Solids
-          _←(¯1+-kinds){(⍺⊃wvb_pools),←⍵}⌸⍥{mw/⍵}vbs ⍝ Waters
-      }
 :EndNamespace

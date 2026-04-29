@@ -29,9 +29,9 @@
 
     ∇ Init save
       (x y z yaw pitch vy noclip)←save.⎕VGET(
-          ('player_x' x)
-          ('player_y' y)
-          ('player_z' z)
+          ('player_x'x)
+          ('player_y'y)
+          ('player_z'z)
           ('player_yaw' 0)
           ('player_pitch' 0)
           ('vy'gravity)
@@ -129,6 +129,12 @@
 
 
     ∇ Input;button
+    ⍝ 1-arm diffs
+    ⍝ No 2-arm diffs
+    ⍝ Sequence Enumeration state machine
+   
+
+
       :If ##.LSE_CheckEvent ##.SDL_EVENT_KEY_DOWN
           :Select ⊃##.LSE_GetKeyPressed ⍬
           :Case ##.SDLK_W

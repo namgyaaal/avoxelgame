@@ -17,20 +17,11 @@
     'Chunks Loaded: '
     'Chunks Rendered: '
     'Average FPS: '
-    'Vertex Pool Sizes: '
-    'Water Vertex Pool Sizes: '
-    'Fenced Vertex Buffers: '
     'Average WS Usage: '
     'Chunk WS Size: '
     )
     recent_fps←⍬
     recent_ws_usage←⍬
-
-
-    fence_ctr←0
-    ⍝ Fence Counter, Fence Ptr (avoid passing pointers)
-    fences←0 2⍴0
-
 
     save_file←0
     save←()
@@ -121,12 +112,9 @@
      
      
       text_copy←text_base
-      text_copy[1 2 3 4 5 6 7 8],←⍕¨(≢##.world.chunks
+      text_copy[1+⍳5],←⍕¨(≢##.world.chunks
           ##.world.chunks_rendered
           (+⌿÷≢)recent_fps
-          ≢¨##.world.vb_pools
-          ≢¨##.world.wvb_pools
-          ≢##.world.vb_fenced
           (+⌿÷≢)recent_ws_usage÷1024*2
           (1024*2)÷⍨⎕SIZE'##.world.chunks')
      
@@ -167,15 +155,7 @@
           ##.world_ui.Draw core_data cmd_buf pass
           _←##.SDL_EndGPURenderPass pass
       :EndIf
-     
-      fence←##.SDL_SubmitGPUCommandBufferAndAcquireFence cmd_buf
-      fence_idx←fence_ctr ⋄ fence_ctr+←1
-      ##.world.Push_fence fence_idx
-      fences⍪←(fence_idx fence)
-      fence_m←{(_ ptr)←⍵ ⋄ _←##.SDL_QueryGPUFence core_data.device ptr}¨↓fences
-      {(_ ptr)←⍵ ⋄ _←##.SDL_ReleaseGPUFence core_data.device ptr}¨↓fence_m⌿fences
-      ##.world.Pop_fences 0⌷⍉fence_m⌿fences
-      fences⌿⍨←~fence_m
+      ##.SDL_SubmitGPUCommandBuffer cmd_buf
     ∇
 
 
