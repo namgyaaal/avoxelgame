@@ -93,7 +93,7 @@
     mapi←(1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
     empty_rle←(l⋄(×/l⋄)⋄(0⋄))
 
-    ∇ Init(core_data device save);vb_params;tb_params;p;cmd;pass;size;state;pxz;map_file
+    ∇ Init(device save save_dir);vb_params;tb_params;p;cmd;pass;size;state;pxz;map_file
      
       tb_params←⊂##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(tb_size)0
       tb←##.SDL_CreateGPUTransferBuffer device tb_params
@@ -121,7 +121,7 @@
       sns←(⎕RL:seed)
       rand_vec←1 2○⍤1⊢⍪○2×sns.?256⍴0
      
-      map_file←core_data.save,'/map_data.dcf'
+      map_file←save_dir,'/map_data.dcf'
       :If ⎕NEXISTS map_file
           map←map_file ⎕FSTIE 0
           mapi←(1500⌶)⎕FREAD map 1
@@ -160,7 +160,7 @@
       ⍝ Finite volume method -- fluid dynamics
       ⍝ Gridding technique -- store information for center cell information
       ⍝ Information itself discrete for the sides
-
+     
           (chunk ptr offset)←⍵
           ⍝ Collapse chunk @ x z and write it to ptr
           ⍝ Return vertex size in bytes and number of indices
@@ -245,7 +245,7 @@
      
       ⍝ GPU Upload and set loaded chunks as ready with render info
       {(pos vs vb)←⍵
-        _←##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0
+          _←##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0
       }¨↓⍉↑Cpg¨'offset' 'vs' 'vb'
       (m/(Ci'idx_cnt')⊃chunk_info)←Cpg'ic'
       (m/(Ci'vb')⊃chunk_info)←Cpg'vb'
@@ -260,17 +260,17 @@
       has_vb←m∧0≠Cg'wvb'
      
       (m2/(Cpi'wvb')⊃copy_table)←{
-        0=⍵:0
-      ##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX ⍵ 0)
+          0=⍵:0
+          ##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX ⍵ 0)
       }¨m2/Cpg'wvs'
      
       ⍝ 0=wvb to prevent side effect call (if empty it does a fill!)
       {(pos vs wvs wvb)←⍵
-        0=wvb:
-        _←##.SDL_UploadToGPUBuffer pass(tb ⋄ pos+vs)(wvb 0 wvs)0
+          0=wvb:
+          _←##.SDL_UploadToGPUBuffer pass(tb ⋄ pos+vs)(wvb 0 wvs)0
       }¨m2/↓⍉↑Cpg¨'offset' 'vs' 'wvs' 'wvb'
       (m/(Ci'widx_cnt')⊃chunk_info)←m2/Cpg'wic'
-      (m/(Ci'wvb')⊃chunk_info)←m2/Cpg'wvb' 
+      (m/(Ci'wvb')⊃chunk_info)←m2/Cpg'wvb'
     ∇
 
     ∇ Update_range(device x z);range;m;pair;set_m;ax;az;tr;ty;tz;tx;y;p;rns;p1;p2;i;i2;t1;t2;y1;y2;idx
@@ -315,7 +315,7 @@
       }{⍺⍺¨∘↓⍣(~0∊⍴⍵)⊢⍵}(~m)⌿⍉[⍳≢chunks ⋄ mapi⍳Cg'enc_xz']
       chunks⌿⍨←m
       set_m←(0≠Cg'vb')∧~m
-      {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨set_m/Cg'vb' 
+      {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨set_m/Cg'vb'
       {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨set_m/Cg'wvb'
       ⍝vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
       ⍝vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺)⍵}⍥{⍵/⍨set_m∧0≠Cg'wvb'}⍥Cg'wvb'
@@ -333,7 +333,7 @@
           idx←(,⍨2*16)⊥pair
           :If ~mapi∊⍨idx
               mapi,←idx
-
+     
               ⍝ Translate "patches" to chunk's position relative to the different octaves
               ⍝     and use points as interpolation to produce y1 y2
               t1←[(¯1 1×÷4)×4|⊃pair ⋄ (¯1 1×÷4)×4|1⊃pair]+⍤¯2⊢t1_tl

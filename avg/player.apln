@@ -128,60 +128,50 @@
       }
 
 
-    ∇ Input;button
-    ⍝ 1-arm diffs
-    ⍝ No 2-arm diffs
-    ⍝ Sequence Enumeration state machine
-   
-
-
-      :If ##.LSE_CheckEvent ##.SDL_EVENT_KEY_DOWN
-          :Select ⊃##.LSE_GetKeyPressed ⍬
-          :Case ##.SDLK_W
-              e_w←1
-          :Case ##.SDLK_A
-              e_a←1
-          :Case ##.SDLK_S
-              e_s←1
-          :Case ##.SDLK_D
-              e_d←1
-          :Case ##.SDLK_SPACE
-              e_jump←1
-          :Case ##.SDLK_F
-              noclip←~noclip
-          :Case ##.SDLK_1
-              block_select←0⊃block_choices
-          :Case ##.SDLK_2
-              block_select←1⊃block_choices
-          :Case ##.SDLK_3
-              block_select←2⊃block_choices
-          :Case ##.SDLK_4
-              block_select←3⊃block_choices
-          :Case ##.SDLK_5
-              block_select←4⊃block_choices
-          :EndSelect
-      :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_KEY_UP
-          :Select ⊃##.LSE_GetKeyPressed ⍬
-          :Case ##.SDLK_W
-              e_w←0
-          :Case ##.SDLK_A
-              e_a←0
-          :Case ##.SDLK_S
-              e_s←0
-          :Case ##.SDLK_D
-              e_d←0
-          :EndSelect
-      :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_MOUSE_MOTION
-          (e_mx e_my)←##.LSE_GetMouseMoveRel 0 0
-      :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_MOUSE_BUTTON_DOWN
-          button←##.LSE_GetButton
+    ∇ Input;e;ekd;eku;F_ekd;button;bi
      
-          :If button=1
-              e_break←1
-          :ElseIf button=3
-              e_place←1
-          :EndIf
-      :EndIf
+      e←(
+          ##.SDL_EVENT_KEY_DOWN ⋄ ##.SDL_EVENT_KEY_UP
+          ##.SDL_EVENT_MOUSE_MOTION ⋄ ##.SDL_EVENT_MOUSE_BUTTON_DOWN
+      )
+     
+      ekd←(##.SDLK_W ⋄ ##.SDLK_A ⋄ ##.SDLK_S ⋄ ##.SDLK_D
+          ##.SDLK_SPACE ⋄ ##.SDLK_F
+          ##.SDLK_1 ⋄ ##.SDLK_2 ⋄ ##.SDLK_3 ⋄ ##.SDLK_4 ⋄ ##.SDLK_5)
+      eku←(##.SDLK_W ⋄ ##.SDLK_A ⋄ ##.SDLK_S ⋄ ##.SDLK_D)
+     
+      bi←block_choices⍳block_select
+     
+      →(E_KD_ E_KU_ E_MM E_MBD_)/⍨##.LSE_CheckEvent¨e
+      →E_DONE
+     E_KD_:→⎕LC+1+ekd⍳⊃##.LSE_GetKeyPressed ⍬
+     E_KD_W:e_w←1 ⋄ →E_DONE
+     E_KD_A:e_a←1 ⋄ →E_DONE
+     E_KD_S:e_s←1 ⋄ →E_DONE
+     E_KD_D:e_d←1 ⋄ →E_DONE
+     E_KD_SPACE:e_jump←1 ⋄ →E_DONE
+     E_KD_F:noclip←~noclip ⋄ →E_DONE
+     E_KD_1:bi←0 ⋄ →E_DONE
+     E_KD_2:bi←1 ⋄ →E_DONE
+     E_KD_3:bi←2 ⋄ →E_DONE
+     E_KD_4:bi←3 ⋄ →E_DONE
+     E_KD_5:bi←4 ⋄ →E_DONE
+     E_KD_NONE: ⋄ →E_DONE
+     E_KU_:→⎕LC+1+eku⍳⊃##.LSE_GetKeyPressed ⍬
+     E_KU_W:e_w←0 ⋄ →E_DONE
+     E_KU_A:e_a←0 ⋄ →E_DONE
+     E_KU_S:e_s←0 ⋄ →E_DONE
+     E_KU_D:e_d←0 ⋄ →E_DONE
+     E_KU_NONE: ⋄ →E_DONE
+     E_MM:
+      (e_mx e_my)←##.LSE_GetMouseMoveRel 0 0
+      →E_DONE
+     E_MBD_:→⎕LC+1+1 3⍳##.LSE_GetButton ⍝ SDL Mouse Button codes
+     E_MBD_BREAK:e_break←1 ⋄ →E_DONE
+     E_MBD_PLACE:e_place←1 ⋄ →E_DONE
+     E_MBD_NONE: ⋄ →E_DONE
+     E_DONE:
+      block_select←bi⊃block_choices
     ∇
 
     ∇ Update dt;v;dir;forward;sideways;blks;m

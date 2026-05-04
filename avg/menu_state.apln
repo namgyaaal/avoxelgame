@@ -21,57 +21,70 @@
 
     dirt←0
 
-
-    states ← 'menu' 'saves'
-    cur_state ← states⍳⊂'menu'
-
-
     menu_scope ← ⍬
     save_scope ← ⍬
 
     max_saves←4
     saves ← ⍬
 
-    ∇ Init core_data;sam_params;ptr;cmd;pass;u;v;txt;text_render;img;img2;enc;texs;apple_vertices;indices;addr;m;offsets;names
+    next_world←''
+    time←0
+
+    ∇ a←Loop_menu core
+      new_time←⊃##.SDL_GetTicks
+      core.dt←1000÷⍨time-⍨new_time
+      time←new_time
+      
+      a←Update_menu core
+      Draw_menu _Draw_with core
+    ∇
+
+    ∇ a←Loop_saves core;next
+      a←Update_saves core
+      Draw_saves _Draw_with core
+    ∇
+
+
+    ∇ Init core;sam_params;ptr;cmd;pass;u;v;txt;text_render;img;img2;enc;texs;apple_vertices;indices;addr;m;offsets;names
       dirt←##.block_data.Bi'Dirt'
      
-      apple_texture←##.SDL_CreateGPUTexture core_data.device(
+      apple_texture←##.SDL_CreateGPUTexture core.device(
           1 ⋄ ##.SDL_GPU_TEXTUREFORMAT_R8G8B8A8_UNORM ⋄ 3 ⋄ 256 ⋄ 256
           1 1 0 0
       )
       'Error creating apple texture'##.Assert apple_texture
       texs←4×256*2
      
-      bg_vb←##.SDL_CreateGPUBuffer core_data.device(
+      bg_vb←##.SDL_CreateGPUBuffer core.device(
           ##.SDL_GPU_BUFFERUSAGE_VERTEX ⋄ bg_vs ⋄ 0
       )
-      apple_vb←##.SDL_CreateGPUBuffer core_data.device(
+      apple_vb←##.SDL_CreateGPUBuffer core.device(
           ##.SDL_GPU_BUFFERUSAGE_VERTEX ⋄ apple_vs ⋄ 0
       )
-      ib←##.SDL_CreateGPUBuffer core_data.device(
+      ib←##.SDL_CreateGPUBuffer core.device(
           ##.SDL_GPU_BUFFERUSAGE_INDEX ⋄ is ⋄ 0
       )
      
       'Error creating menu buffers'##.Assert bg_vb ib
      
       sam_params←⊂0 0 0 0 0 2 0 4 0 0 200 1 0 0 0 0
-      bg_sampler←##.SDL_CreateGPUSampler core_data.device sam_params
+      bg_sampler←##.SDL_CreateGPUSampler core.device sam_params
       sam_params←⊂0 0 0 2 2 2 0 4 0 0 200 1 0 0 0 0
-      apple_sampler←##.SDL_CreateGPUSampler core_data.device sam_params
+      apple_sampler←##.SDL_CreateGPUSampler core.device sam_params
       'Error creating menu samplers'##.Assert bg_sampler apple_sampler
      
       Create_pipeline(
-          core_data.device
-          core_data.window
+          core.device
+          core.window
       )
      
-      u←core_data.w÷64
-      v←core_data.h÷64
+      u←core.w÷64
+      v←core.h÷64
       bg_vertices←∊[
           0 0 0 v dirt
-          core_data.w 0 u v dirt
-          core_data.w core_data.h u 0 dirt
-          0 core_data.h 0 0 dirt
+          core.w 0 u v dirt
+          core.w core.h u 0 dirt
+          0 core.h 0 0 dirt
       ]
       apple_vertices←∊[
           0 0 0 1 dirt
@@ -82,10 +95,10 @@
       indices←0 1 2 0 2 3
      
       tb←##.SDL_CreateGPUTransferBuffer(
-          core_data.device
+          core.device
           ##.SDL_GPU_TRANSFERBUFFERUSAGE_UPLOAD(+/bg_vs apple_vs is texs)0
       )
-      ptr←##.SDL_MapGPUTransferBuffer core_data.device tb 1
+      ptr←##.SDL_MapGPUTransferBuffer core.device tb 1
       _←##.LSE_MemcpyF32(ptr ⋄ bg_vertices ⋄ bg_vs)
       _←##.LSE_MemcpyF32(ptr+bg_vs ⋄ apple_vertices ⋄ apple_vs)
       _←##.LSE_MemcpyU16(ptr+bg_vs+apple_vs ⋄ indices ⋄ is)
@@ -104,9 +117,9 @@
           _←##.SDL_DestroySurface img
       :EndSection image_load
      
-      _←##.SDL_UnmapGPUTransferBuffer core_data.device tb
+      _←##.SDL_UnmapGPUTransferBuffer core.device tb
      
-      cmd←##.SDL_AcquireGPUCommandBuffer core_data.device
+      cmd←##.SDL_AcquireGPUCommandBuffer core.device
       pass←##.SDL_BeginGPUCopyPass cmd
       _←##.SDL_UploadToGPUBuffer pass(tb 0)(bg_vb 0 bg_vs)1
       _←##.SDL_UploadToGPUBuffer pass(tb bg_vs)(apple_vb 0 apple_vs)0
@@ -120,34 +133,33 @@
       _←##.SDL_EndGPUCopyPass pass
       _←##.SDL_SubmitGPUCommandBuffer cmd
      
-     
       ⍝ Menu
       menu_scope←(≢##.text.snames)⍴⊂⍬
       save_scope←(≢##.text.snames)⍴⊂⍬
      
       txt←'UTF-8'⎕UCS'The Meaning of life',(⎕UCS 10),'⍎⊖⍕⊃⊂|⌊-*+○⌈×÷!⌽⍉⌹~⍴⍋⍒,⍟?⍳0'
       ptr←(color:212 175 55 255)##.text.Make_text txt
-      menu_scope⍪¨←(ptr ⋄ 280+core_data.w÷2 ⋄ core_data.h-155 ⋄ 1 ⋄ 0.4 ⋄ 0.3)
+      menu_scope⍪¨←(ptr ⋄ 280+core.w÷2 ⋄ core.h-155 ⋄ 1 ⋄ 0.4 ⋄ 0.3)
      
       ptr←##.text.Make_text'UTF-8'⎕UCS'Play'
-      menu_scope⍪¨←(ptr ⋄ core_data.w÷2 ⋄ core_data.h-470 ⋄ 1 ⋄ 0.4 ⋄ 0)
+      menu_scope⍪¨←(ptr ⋄ core.w÷2 ⋄ core.h-470 ⋄ 1 ⋄ 0.4 ⋄ 0)
      
       ptr←##.text.Make_text'UTF-8'⎕UCS'Quit'
-      menu_scope⍪¨←(ptr ⋄ core_data.w÷2 ⋄ core_data.h-540 ⋄ 1 ⋄ 0.4 ⋄ 0)
+      menu_scope⍪¨←(ptr ⋄ core.w÷2 ⋄ core.h-540 ⋄ 1 ⋄ 0.4 ⋄ 0)
      
       names←{
-        (∧/' '=1⊃⍵): '<EMPTY SAVE>'
-        1⊃⍵
+          (∧/' '=1⊃⍵):'<EMPTY SAVE>'
+          1⊃⍵
       }¨↓max_saves↑saves←Get_saves
- 
-      offsets←core_data.h-100 170 240 310
-      offsets {
+     
+      offsets←core.h-100 170 240 310
+      offsets{
           ptr←##.text.Make_text'UTF-8'⎕UCS ⍵
           save_scope⍪¨←(ptr ⋄ 30 ⋄ ⍺ ⋄ 0 ⋄ 0.4 ⋄ 0)
       }¨names
-          
+     
       ptr←##.text.Make_text'UTF-8'⎕UCS'Back'
-      save_scope⍪¨←(ptr ⋄ 20 ⋄ core_data.h-380 ⋄ 0 ⋄ 0.4 ⋄ 0)
+      save_scope⍪¨←(ptr ⋄ 20 ⋄ core.h-380 ⋄ 0 ⋄ 0.4 ⋄ 0)
       ##.text.scope←menu_scope
     ∇
 
@@ -156,109 +168,110 @@
       ⍝ get valid save directories
       ⍝ -- Check if has state.dcf and map_data.dcf
       prefix←'saves/'
-      saves←(⍉↑1↓saves)⌿⍨1=⊃saves←1 0 10 (⎕NINFO⍠1) prefix,'*'
+      saves←(⍉↑1↓saves)⌿⍨1=⊃saves←1 0 10(⎕NINFO⍠1)prefix,'*'
       saves⌿⍨←{∧/∨/has∘.(∨/⍷)⊃⍵}¨(⎕NINFO⍠1),∘'/*'¨0⌷⍉saves
       saves←saves[⍋1⌷⍉saves;]
-
+     
       :If 0=≢saves
-        tbl←saves
-        :Return
+          tbl←saves
+          :Return
       :EndIf
       ⍝ Turn second column into the name
       fmt←'Dddd, DDoo Mmmm YYYY'
-      dt_fmt←{fmt(1200⌶)1⎕DT⊂⍵}¨1⌷⍉saves
+      dt_fmt←{fmt(1200⌶)1 ⎕DT⊂⍵}¨1⌷⍉saves
       (1⌷⍉saves)←∊¨(,∘' -- '¨(≢prefix)↓¨0⌷⍉saves),¨dt_fmt
       tbl←saves
     ∇
 
-    ∇ Input core_data;x;y;u;v
+    ∇ Input core;x;y;u;v
       :If ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
      
           x←##.text.Si'x_'
           y←##.text.Si'y_'
-          (x⊃menu_scope)←(280+core_data.w÷2 ⋄ core_data.w÷2 ⋄ core_data.w÷2)
-          (y⊃menu_scope)←(core_data.h-155 ⋄ core_data.h-470 ⋄ core_data.h-540)
+          (x⊃menu_scope)←(280+core.w÷2 ⋄ core.w÷2 ⋄ core.w÷2)
+          (y⊃menu_scope)←(core.h-155 ⋄ core.h-470 ⋄ core.h-540)
      
-          (u v)←(core_data.w core_data.h)÷64
+          (u v)←(core.w core.h)÷64
           bg_vertices←∊[
               0 0 0 v dirt
-              core_data.w 0 u v dirt
-              core_data.w core_data.h u 0 dirt
-              0 core_data.h 0 0 dirt
+              core.w 0 u v dirt
+              core.w core.h u 0 dirt
+              0 core.h 0 0 dirt
           ]
       :EndIf
-     
     ∇
 
-    ∇ Update core_data;click;x;y;m;xy;wh;bl;tr;w;h;pi;i;new
-      elapsed+←core_data.dt
-     
-     
-     
+    ∇ a←Update_menu core;click;x;y;m;xy;wh;bl;tr;w;h;pi
+      elapsed+←core.dt
       (click x y)←##.SDL_GetMouseState 0 0
-      y←core_data.h-y
-      :If cur_state=states⍳⊂'menu'
-          (0⊃(##.text.Si'scale')⊃menu_scope)←0.5+0.025×1○3×elapsed
+      y←core.h-y
+      (0⊃(##.text.Si'scale')⊃menu_scope)←0.5+0.025×1○3×elapsed
      
-          xy←(⊂1 2)⌷(⍉↑)menu_scope⌷⍨⊂##.text.Si'x_' 'y_'
-          (w h)←(⊂pi←##.text.Pi menu_scope⊃⍨⊂##.text.Si'ptr')∘⌷¨##.text.table⌷⍨⊂##.text.Ti'w_' 'h_'
-          tr←wh+bl←xy-0.5×wh←0.4×(⊂1 2)⌷(⍉↑)w h
-          m←∧/(bl∘(<⍤1)∧tr∘(>⍤1))x y
+      xy←(⊂1 2)⌷(⍉↑)menu_scope⌷⍨⊂##.text.Si'x_' 'y_'
+      (w h)←(⊂pi←##.text.Pi menu_scope⊃⍨⊂##.text.Si'ptr')∘⌷¨##.text.table⌷⍨⊂##.text.Ti'w_' 'h_'
+      tr←wh+bl←xy-0.5×wh←0.4×(⊂1 2)⌷(⍉↑)w h
+      m←∧/(bl∘(<⍤1)∧tr∘(>⍤1))x y
      
-          ((⊂m/1↓pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥212 175 55 255
-          ((⊂(~m)/1↓pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥255 255 255 255
+      ((⊂m/1↓pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥212 175 55 255
+      ((⊂(~m)/1↓pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥255 255 255 255
      
-          :If (click=1)∧(0∊⍸m)
-              cur_state←states⍳⊂'saves'
-          :ElseIf (click=1)∧(1∊⍸m)
-              core_data.quit←1
-          :EndIf
-     
-          ##.text.scope←menu_scope
-      :ElseIf cur_state=states⍳⊂'saves'
-          xy←(⍉↑)save_scope⌷⍨⊂##.text.Si'x_' 'y_'
-          (w h)←(⊂pi←##.text.Pi save_scope⊃⍨⊂##.text.Si'ptr')∘⌷¨##.text.table⌷⍨⊂##.text.Ti'w_' 'h_'
-          wh←0.4×(⍉↑)w h
-          (1⌷⍉xy)-←(1⌷⍉wh)
-          tr←wh+bl←xy
-          m←∧/(bl∘(<⍤1)∧tr∘(>⍤1))x y
-     
-          ((⊂m/pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥212 175 55 255
-          ((⊂(~m)/pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥255 255 255 255
-     
-          :If (click=1)∧(4∊⍸m)
-              cur_state←states⍳⊂'menu'
-          :ElseIf (click=1)∧(∨/4>⍸m)
-              i←⊃⍸m
-              :If i<≢saves
-                core_data.save←i⊃0⌷⍉saves
-              :Else
-                new←'saves/World',(⍕i+1),'_'
-                core_data.save←new
-              :EndIf
-              core_data.next_state←##.world_state
-          :EndIf
-          ##.text.scope←save_scope
+      ##.text.scope←menu_scope
+      a←##.state.TICK
+      :If (click=1)∧(0∊⍸m)
+          a←##.state.NEXT
+      :ElseIf (click=1)∧(1∊⍸m)
+          a←##.state.QUIT
       :EndIf
     ∇
 
-    ∇ Draw core_data;cmd_buf;res;swap;pass;color_info;ui_proj;mat;x;y;scale;ptr
-      cmd_buf←##.SDL_AcquireGPUCommandBuffer core_data.device
+    ∇ a←Update_saves core;click;x;y;m;xy;wh;bl;tr;w;h;pi
+      (click x y)←##.SDL_GetMouseState 0 0
+      y←core.h-y
+      xy←(⍉↑)save_scope⌷⍨⊂##.text.Si'x_' 'y_'
+      (w h)←(⊂pi←##.text.Pi save_scope⊃⍨⊂##.text.Si'ptr')∘⌷¨##.text.table⌷⍨⊂##.text.Ti'w_' 'h_'
+      wh←0.4×(⍉↑)w h
+      (1⌷⍉xy)-←(1⌷⍉wh)
+      tr←wh+bl←xy
+      m←∧/(bl∘(<⍤1)∧tr∘(>⍤1))x y
+     
+      ((⊂m/pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥212 175 55 255
+      ((⊂(~m)/pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥255 255 255 255
+     
+      ##.text.scope←save_scope
+     
+      a←##.state.TICK
+      :If (click=1)∧(4∊⍸m)
+          a←##.state.BACK
+      :ElseIf (click=1)∧(∨/4>⍸m)
+          i←⊃⍸m
+          :If i<≢saves
+              next_world←i⊃0⌷⍉saves
+              a←##.state.NEXT
+          :Else
+              next_world←'saves/World',(⍕i+1),'_'
+              a←##.state.NEXT
+          :EndIf
+      :EndIf
+     
+    ∇
+
+    ∇ (Draw_fn _Draw_with)core;cmd_buf;res;swap;pass;color_info;ui_proj;mat;x;y;scale;ptr
+      cmd_buf←##.SDL_AcquireGPUCommandBuffer core.device
       pass←##.SDL_BeginGPUCopyPass cmd_buf
-      ##.text.Copy core_data.device pass
+      ##.text.Copy core.device pass
       ⍝ kinda lazy just copy background every frame to handle resizes
-      ptr←##.SDL_MapGPUTransferBuffer core_data.device tb 1
+      ptr←##.SDL_MapGPUTransferBuffer core.device tb 1
       _←##.LSE_MemcpyF32(ptr ⋄ bg_vertices ⋄ bg_vs)
-      _←##.SDL_UnmapGPUTransferBuffer core_data.device tb
+      _←##.SDL_UnmapGPUTransferBuffer core.device tb
       _←##.SDL_UploadToGPUBuffer pass(tb 0)(bg_vb 0 bg_vs)1
       _←##.SDL_EndGPUCopyPass pass
      
       (res swap _ _)←##.SDL_WaitAndAcquireGPUSwapchainTexture(
           cmd_buf
-          core_data.window
+          core.window
           0 ⋄ 0 ⋄ 0
       )
-      ui_proj←##.math.Ortho(0 0 core_data.h core_data.w 0.1 100)
+      ui_proj←##.math.Ortho(0 0 core.h core.w 0.1 100)
       :If swap≠0
           color_info←⊂swap 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
           pass←##.LSE_BeginDepthLessRenderPass cmd_buf color_info 1
@@ -270,18 +283,7 @@
           _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture bg_sampler)1
           _←##.SDL_DrawGPUIndexedPrimitives pass 6 1 0 0 0
      
-          :If cur_state≡states⍳⊂'menu'
-          ⍝ Logo
-              scale←1@(⊂3 3)⊢1.1×∘.=⍨⍳4
-              x←128-⍨core_data.w÷2
-              y←core_data.h-370
-              mat←ui_proj+.×⍨scale+.×(x ⋄ y ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4
-              _←##.SDL_PushGPUVertexUniformData cmd_buf 0(∊mat)(16×4)
-              _←##.SDL_BindGPUVertexBuffers pass 0(⊂apple_vb 0)1
-              _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_16BIT
-              _←##.SDL_BindGPUFragmentSamplers pass 0(⊂apple_texture apple_sampler)1
-              _←##.SDL_DrawGPUIndexedPrimitives pass 6 1 0 0 0
-          :EndIf
+          Draw_fn pass ui_proj
      
           ##.text.Draw cmd_buf pass ui_proj
           _←##.SDL_EndGPURenderPass pass
@@ -290,15 +292,30 @@
       _←##.SDL_SubmitGPUCommandBuffer cmd_buf
     ∇
 
+    ∇ Draw_menu(pass ui_proj)
+      ⍝ Logo
+      scale←1@(⊂3 3)⊢1.1×∘.=⍨⍳4
+      x←128-⍨core.w÷2
+      y←core.h-370
+      mat←ui_proj+.×⍨scale+.×(x ⋄ y ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4
+      _←##.SDL_PushGPUVertexUniformData cmd_buf 0(∊mat)(16×4)
+      _←##.SDL_BindGPUVertexBuffers pass 0(⊂apple_vb 0)1
+      _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_16BIT
+      _←##.SDL_BindGPUFragmentSamplers pass 0(⊂apple_texture apple_sampler)1
+      _←##.SDL_DrawGPUIndexedPrimitives pass 6 1 0 0 0
+    ∇
 
-    ∇ Release core_data
-      ##.text.Clear core_data.device
+    ∇ Draw_saves(_ _)
+     
+    ∇
+
+    ∇ Release core
+      ##.text.Clear core.device
       menu_scope←(≢##.text.snames)⍴⊂⍬
       save_scope←(≢##.text.snames)⍴⊂⍬
-     
-      _←##.SDL_ReleaseGPUTransferBuffer core_data.device tb
-      {_←##.SDL_ReleaseGPUBuffer core_data.device ⍵}¨bg_vb apple_vb ib
-      _←##.SDL_ReleaseGPUTexture core_data.device apple_texture
+      _←##.SDL_ReleaseGPUTransferBuffer core.device tb
+      {_←##.SDL_ReleaseGPUBuffer core.device ⍵}¨bg_vb apple_vb ib
+      _←##.SDL_ReleaseGPUTexture core.device apple_texture
     ∇
 
     ∇ Create_pipeline(device window);v_shader;f_shader;format;vb_desc;vb_attr;blend_state;ct_desc

@@ -27,15 +27,21 @@
     save←()
 
 
+    ∇ a←Loop core
+      a←##.state.TICK 
+      Update core
+      Draw core
+    ∇
 
-    ∇ Init core_data;blocks;ptr;file
-      _←##.SDL_SetWindowMouseGrab core_data.window 1
-      _←##.SDL_SetWindowRelativeMouseMode core_data.window 1
+
+    ∇ Init(core save_dir);blocks;ptr;file
+      _←##.SDL_SetWindowMouseGrab core.window 1
+      _←##.SDL_SetWindowRelativeMouseMode core.window 1
      
-      :If ~⎕NEXISTS core_data.save
-          core_data.save←(⎕MKDIR⍠'Unique' 1)core_data.save
+      :If ~⎕NEXISTS save_dir
+          save_dir←(⎕MKDIR⍠'Unique' 1)save_dir
       :EndIf
-      file←core_data.save,'/state.dcf'
+      file←save_dir,'/state.dcf'
       :If ⎕NEXISTS file
           save_file←file ⎕FSTIE 1
           save←⎕FREAD save_file 1
@@ -46,53 +52,53 @@
       :EndIf
      
      
-      ##.world.Init core_data core_data.device save
-      ##.world_ui.Init core_data
+      ##.world.Init core.device save save_dir
+      ##.world_ui.Init core
       ##.player.Init save
      
-      depth_texture←(core_data.w core_data.h)##.Create_depth_texture core_data.device
+      depth_texture←(core.w core.h)##.Create_depth_texture core.device
       'Error creating depth texture'##.Assert depth_texture
      
-      Create_pipelines core_data.device core_data.window
+      Create_pipelines core.device core.window
      
       view←##.player.Get_view ⍬
-      proj←##.math.Proj(○70÷180 ⋄ core_data.w÷core_data.h ⋄ 0.1 ⋄ 500)
-      ui_proj←##.math.Ortho(0 0 core_data.h core_data.w 0.1 100)
+      proj←##.math.Proj(○70÷180 ⋄ core.w÷core.h ⋄ 0.1 ⋄ 500)
+      ui_proj←##.math.Ortho(0 0 core.h core.w 0.1 100)
       proj_view←view+.×proj
      
       time←⊃##.SDL_GetTicks ⍬
       info_scope←(≢##.text.snames)⍴⊂⍬
      
       ptr←(color:0 0 0 255)##.text.Make_text'UTF-8'⎕UCS'Foobar'
-      info_scope⍪¨←(ptr ⋄ core_data.w-480 ⋄ core_data.h-20 ⋄ 0 ⋄ 0.4 ⋄ 0)
+      info_scope⍪¨←(ptr ⋄ core.w-480 ⋄ core.h-20 ⋄ 0 ⋄ 0.4 ⋄ 0)
      
       ##.text.scope←info_scope
     ∇
 
-    ∇ Input core_data;x;y
+    ∇ Input core;x;y
       :If ##.LSE_CheckEvent ##.SDL_EVENT_KEY_DOWN
           key←⊃##.LSE_GetKeyPressed
           :If key=##.SDLK_I
               toggle_ui←~toggle_ui
           :EndIf
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
-          proj←##.math.Proj(○70÷180 ⋄ core_data.w÷core_data.h ⋄ 0.1 ⋄ 500)
+          proj←##.math.Proj(○70÷180 ⋄ core.w÷core.h ⋄ 0.1 ⋄ 500)
           proj_view←view+.×proj
-          ui_proj←##.math.Ortho(0 0 core_data.h core_data.w 0.1 100)
+          ui_proj←##.math.Ortho(0 0 core.h core.w 0.1 100)
      
-          _←##.SDL_ReleaseGPUTexture core_data.device depth_texture
-          depth_texture←(core_data.w core_data.h)##.Create_depth_texture core_data.device
+          _←##.SDL_ReleaseGPUTexture core.device depth_texture
+          depth_texture←(core.w core.h)##.Create_depth_texture core.device
           'Error creating depth texture'##.Assert depth_texture
      
           (x y)←##.text.Si'x_' 'y_'
-          (x⊃info_scope)←core_data.w-480
-          (y⊃info_scope)←core_data.h-20
+          (x⊃info_scope)←core.w-480
+          (y⊃info_scope)←core.h-20
       :EndIf
      
       ##.player.Input
     ∇
 
-    ∇ Update core_data;new_time;dt;text_copy;ustr
+    ∇ Update core;new_time;dt;text_copy;ustr
       new_time←⊃##.SDL_GetTicks ⍬
       dt←1000÷⍨new_time-time
       time←new_time
@@ -105,7 +111,7 @@
       recent_ws_usage,⍨←#.(2000⌶)1
       (recent_fps recent_ws_usage)←60↑¨(recent_fps recent_ws_usage)
      
-      ##.world.Update_range core_data.device ##.player.x ##.player.z
+      ##.world.Update_range core.device ##.player.x ##.player.z
       ##.player.Update dt
       view←##.player.Get_view ⍬
       proj_view←view+.×proj
@@ -124,15 +130,15 @@
       ##.text.scope←info_scope
     ∇
 
-    ∇ Draw core_data;lx;lz;cmd_buf;pass;res;swap;color_info;depth_info;fence;fence_idx;fence_m
+    ∇ Draw core;lx;lz;cmd_buf;pass;res;swap;color_info;depth_info;fence;fence_idx;fence_m
       (lx _ lz)←##.player.Get_look ⍬
      
-      cmd_buf←##.SDL_AcquireGPUCommandBuffer core_data.device
+      cmd_buf←##.SDL_AcquireGPUCommandBuffer core.device
       pass←##.SDL_BeginGPUCopyPass cmd_buf
-      ##.world.Copy_chunks core_data.device pass
-      ##.text.Copy core_data.device pass
+      ##.world.Copy_chunks core.device pass
+      ##.text.Copy core.device pass
       _←##.SDL_EndGPUCopyPass pass
-      (res swap _ _)←##.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf core_data.window 0 0 0
+      (res swap _ _)←##.SDL_WaitAndAcquireGPUSwapchainTexture cmd_buf core.window 0 0 0
       'Error acquiring swapchain texture'##.Assert res
      
       :If 0≠swap
@@ -142,7 +148,7 @@
      
           pass←##.SDL_BeginGPURenderPass cmd_buf color_info 1 depth_info
           _←##.SDL_BindGPUGraphicsPipeline pass world_pipeline
-          ##.world.Draw_chunks core_data cmd_buf pass ##.player.x ##.player.z lx lz proj_view
+          ##.world.Draw_chunks core cmd_buf pass ##.player.x ##.player.z lx lz proj_view
           _←##.SDL_EndGPURenderPass pass
      
           ⍝ UI Render pass
@@ -152,21 +158,21 @@
           :If 1=toggle_ui
               ##.text.Draw cmd_buf pass ui_proj
           :EndIf
-          ##.world_ui.Draw core_data cmd_buf pass
+          ##.world_ui.Draw core cmd_buf pass
           _←##.SDL_EndGPURenderPass pass
       :EndIf
       ##.SDL_SubmitGPUCommandBuffer cmd_buf
     ∇
 
 
-    ∇ Release core_data
+    ∇ Release core
       ##.player.Save save
      
-      ##.world.Release core_data.device save
-      ##.world_ui.Release core_data
-      ##.text.Clear core_data.device
-      _←##.SDL_SetWindowMouseGrab core_data.window 0
-      _←##.SDL_SetWindowRelativeMouseMode core_data.window 0
+      ##.world.Release core.device save
+      ##.world_ui.Release core
+      ##.text.Clear core.device
+      _←##.SDL_SetWindowMouseGrab core.window 0
+      _←##.SDL_SetWindowRelativeMouseMode core.window 0
      
       save ⎕FREPLACE save_file 1
     ∇

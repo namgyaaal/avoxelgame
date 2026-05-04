@@ -1,0 +1,140 @@
+:Namespace state
+    ⎕IO←0
+
+
+    ⍝ State Machine Enumeration based off of "My Favorite Verbose Programming Technique"
+    ⍝ https://github.com/Co-dfns/APL-Asteroids
+    ⍝ Was previously doing namespace swapping for state handling
+    ⍝ -- Want to see if there is any perceivable benefit of doing this instead.
+
+
+    ⍝ Overall pattern:
+    ⍝ - Each state has a mini-event loop that is exhausted before
+    ⍝   being updated and drawn, hence %_EVENT_ precedes %_.
+    ⍝   This is an equivalent of "while polling check if input" but
+    ⍝   'unrolled.'
+    ⍝
+    ⍝ - A helper operator that checks if user is quitting or if window is
+    ⍝   resized is added to make this process a bit easier.
+    ⍝
+    ⍝ - Menu and Saves share the same resources but are different
+    ⍝   enough in logic to be conceptually split up, hence they go to
+    ⍝   the same release function.
+
+
+    (TICK QUIT BACK NEXT) ← 1+⍳4
+
+    ∇ Game_loop core
+     
+      ##.menu_state.Init core
+     
+     ⍝ ----------
+     ⍝ Menu State
+     ⍝ ----------
+     
+     ∆_MENU_EVENT_:→⎕LC+##.menu_state.Input _Exhaust_with core
+     ∆_MENU_EVENT_TICK:→∆_MENU_EVENT_
+     ∆_MENU_EVENT_QUIT:→∆_MENU_QUIT
+     ∆_MENU_EVENT_BACK:∘∘∘
+     ∆_MENU_EVENT_NEXT:→∆_MENU_
+     
+     ∆_MENU_:→⎕LC+##.menu_state.Loop_menu core
+     ∆_MENU_TICK:→∆_MENU_EVENT_
+     ∆_MENU_QUIT:##.menu_state.Release core ⋄ →0
+     ∆_MENU_BACK:∘∘∘
+     ∆_MENU_NEXT:→∆_SAVES_EVENT_
+     
+     ⍝ -----------
+     ⍝ Saves State
+     ⍝ -----------
+     
+     ∆_SAVES_EVENT_:→⎕LC+##.menu_state.Input _Exhaust_with core
+     ∆_SAVES_EVENT_TICK:→∆_SAVES_EVENT_
+     ∆_SAVES_EVENT_QUIT:→∆_MENU_QUIT
+     ∆_SAVES_EVENT_BACK:∘∘∘
+     ∆_SAVES_EVENT_NEXT:→∆_SAVES_
+     
+     ∆_SAVES_:→⎕LC+##.menu_state.Loop_saves core
+     ∆_SAVES_TICK:→∆_SAVES_EVENT_
+     ∆_SAVES_QUIT:→∆_MENU_QUIT
+     ∆_SAVES_BACK:→∆_MENU_
+     ∆_SAVES_NEXT:Saves_to_world core ⋄ →∆_WORLD_EVENT_
+     
+     ⍝ -----------
+     ⍝ World State
+     ⍝ -----------
+     
+     ∆_WORLD_EVENT_:→⎕LC+##.world_state.Input _Exhaust_with core
+     ∆_WORLD_EVENT_TICK:→∆_WORLD_EVENT_
+     ∆_WORLD_EVENT_QUIT:→∆_WORLD_QUIT
+     ∆_WORLD_EVENT_BACK:∘∘∘
+     ∆_WORLD_EVENT_NEXT:→∆_WORLD_
+     
+     ∆_WORLD_:→⎕LC+##.world_state.Loop core
+     ∆_WORLD_TICK:→∆_WORLD_EVENT_
+     ∆_WORLD_QUIT:##.world_state.Release core ⋄ →0
+     ∆_WORLD_BACK:∘∘∘
+     ∆_WORLD_NEXT:∘∘∘
+    ∇
+
+    ∇ Saves_to_world core;save
+      save←##.menu_state.next_world
+      ##.menu_state.Release core
+      ##.world_state.Init core save
+    ∇
+
+    ∇ a←(Exhaust_fn _Exhaust_with)core
+      a←TICK
+      :If 0=⊃##.LSE_PollEvent
+          a←NEXT
+          :Return
+      :EndIf
+      :If ##.LSE_CheckEvent ##.SDL_EVENT_QUIT
+          a←QUIT
+      :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_KEY_DOWN
+          :If ##.SDLK_Q=⊃##.LSE_GetKeyPressed ⍬
+              a←QUIT
+          :EndIf
+      :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
+          (core.w core.h)←##.LSE_GetWindowResize 0 0
+      :EndIf
+      Exhaust_fn core
+    ∇
+
+    ∇ Play
+      res←##.SDL_Init ##.SDL_INIT_VIDEO
+      'Error initializing SDL3'##.Assert res
+     
+      window←##.SDL_CreateWindow'A Voxel Game' 1280 720 32
+      'Error creating window'##.Assert window
+     
+      device←##.SDL_CreateGPUDevice(
+          ##.Get_shader_format ⍬
+          1
+          ##.Get_device_backend ⍬
+      )
+      'Error creating GPU device'##.Assert device
+      res←##.SDL_ClaimWindowForGPUDevice device window
+      'Error attaching GPU device to window'##.Assert res
+      ##.block_data.Init device
+      ##.text.Init device window
+      core_data←(
+          window:window
+          device:device
+          w:1280
+          h:720
+          dt:÷60
+          save:''
+      )
+     
+      Game_loop core_data
+     
+      ##.text.Release device
+      ##.block_data.Release device
+      _←##.SDL_ReleaseWindowFromGPUDevice device window
+      _←##.SDL_DestroyGPUDevice device
+      _←##.SDL_DestroyWindow window
+      _←##.SDL_Quit
+    ∇
+
+:EndNamespace

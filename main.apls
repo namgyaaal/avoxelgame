@@ -1,4 +1,4 @@
 #!/usr/local/bin/dyalogscript DYALOG_INITSESSION=1 LOAD=./avg
 
-Play
+state.Play
 ⎕ ← 'Complete'
