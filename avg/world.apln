@@ -1,21 +1,15 @@
 :Namespace world
     ⎕IO ← 0
-    'foldl' 'packR'⎕CY'dfns'
+    'packR'⎕CY'dfns'
 
     l ← 16 128 16
-    box ← ⊃∘.∨/1@0¨l-⍛↑¨1
 
     view_distance ← 12
     max_chunks ← 2*⍨1+2×view_distance
 
     ⍝ The maximum possible surface can be visualized as a
-    ⍝   3d checkerboard. We need to also account for the edges
-    ⍝   of the chunk
-    ⍝ This is:
-    ⍝  6×⌈2÷⍨×/¯2+l    - Inner
-    ⍝  6×(×/-×/⍤-∘2)l  - Outer
+    ⍝   3d checkerboard.
     max_faces ← 6×⌈2÷⍨×/¯2+l
-    max_faces +← 6×(×/-×/⍤-∘2) l
     wmax_faces ← (2÷⍨1⊃l)×(2*⍨⊃l) ⍝ w-water
 
     ⍝ For each face we need 4 vertices and 6 indices
@@ -30,7 +24,7 @@
     ⍝ CHUNK A WATER A CHUNK B CHUNK C WATER C
     tb ← 0
     tb_pos ← 0
-    tb_size ← isize⌈⌊1.4×vsize ⍝ at minimum should be index size since we use it for IB first.
+    tb_size ← isize⌈⌊1.8×vsize ⍝ at minimum should be index size since we use it for IB first.
     (texture sampler) ← ⍬ ⍬
 
     chunks ← 0⍴⍨0,l
@@ -167,16 +161,15 @@
           ⍝ IMPORTANT: Assumes that where data is being written to has enough space
           flat←∊chunk
           solid←chunk>0
-          edges←solid∧box
           ⍝ Solid
           ⍝ (1) Returns format (16 32 16 3 2) where (3 2) are rotations
           ⍝ (2) collapse into (vertex_num 6) multiply by index where not 0
-          ⍝ (3) index into box and 6wise multiply+⍳add for texture index
+          ⍝ (3) index into flattened chunk and 6wise multiply+⍳add for texture index
           ⍝ (4) index into texture and select exposed faces, duplicate 4 for faces
           ⍝ (5) do some bitpacking here. Since we know x z ∊ [0, 16], they only take 5 bits
           ⍝     use the leading bit for uv coordinate into 4 corners (hence adding 128)
           ⍝     with this we only need 4 bytes for a vertex
-          exposed←↑[0]{edges∨solid>⍵}¨0 1 2∘.{⍵⌽[⍺]solid}¯1 1  ⍝ (1)
+          exposed←↑[0]{solid>⍵}¨0 1 2∘.{⍵↓[⍺](0<⍵)⌽[⍺]0,[⍺]solid}¯1 1 ⍝ (1)
           vert←vertices⌿⍨4/m←∊exposed
           tex←(⍳×/l)(×⍤¯1),[1+⍳2],[⍳3]exposed                  ⍝ (2)
           tex←∊(⍳6)(+⍤1)6×flat[tex]                            ⍝ (3)
@@ -185,6 +178,7 @@
           buf←∊vert,tex
           vs←≢buf
           ic←6×4÷⍨≢vert
+     
           _←##.LSE_MemcpyU8(ptr+offset)buf vs
      
           ⍝ Water
@@ -200,7 +194,6 @@
           wvs←≢buf
           wic←6×4÷⍨≢vert
           _←##.LSE_MemcpyU8(ptr+offset+vs)buf wvs
-     
           (vs ic wvs wic)
       }
 
@@ -238,7 +231,8 @@
       idxs↑⍨←≢⊃copy_table
       m←idxs∊⍨⍳≢⊃chunk_info
       has_vb←m∧0≠Cg'vb'
-     
+      {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨has_vb/Cg'vb'
+
       ((Cpi'vb')⊃copy_table)←{
           ##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX ⍵ 0)
       }¨Cpg'vs'
@@ -258,6 +252,7 @@
       idxs←idxs/⍨m2←0≠Cpg'wic'
       m←idxs∊⍨⍳≢⊃chunk_info
       has_vb←m∧0≠Cg'wvb'
+      {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨has_vb/Cg'wvb'
      
       (m2/(Cpi'wvb')⊃copy_table)←{
           0=⍵:0
@@ -386,7 +381,7 @@
     ∇
 
 
-    ∇ Draw_chunks(core_data cmd_buf pass px pz lx lz proj_view);w;m;vbs;inds;xz;ud;frs;n;d;box;h;t;t2;centers;extents;r
+    ∇ Draw_chunks(core_data cmd_buf pass px pz lx lz proj_view);w;m;vbs;inds;xz;ud;frs;n;d;h;t;t2;centers;extents;r
       ⍝ Frustum Culling
       frs←##.player.Get_frustum(○70÷180 ⋄ core_data.w÷core_data.h ⋄ 0.1 ⋄ 500)
       n←3↑[1]frs
