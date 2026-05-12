@@ -1,4 +1,20 @@
 :Namespace text
+    ⍝ In a specific group of states generally we want to have a lot of text
+    ⍝ in memory but only draw some of them at a time
+    ⍝ (e.g., in a menu going through different options)
+    ⍝
+    ⍝ Thus have two inverted tables 'table' and 'scope,'
+    ⍝ Table representing text loaded in and Scope referencing what need
+    ⍝ to be drawn.
+    ⍝
+    ⍝ Specifying what we want drawn is a matter of just appending to scope
+    ⍝ loaded in text with information relevant to how its displayed.
+    ⍝
+    ⍝ Width, Height and Color are specific to table because width and height
+    ⍝ are computed from the rasterization and color requires regenerating
+    ⍝ vertex data.
+
+
     'chksum'⎕CY'dfns'
     ⎕IO←0
     (max_vertices max_indices) ← (4000 3000)
@@ -18,6 +34,7 @@
 
 
     ⍝ Table of all loaded text
+    ⍝ Hash utilized to minimize regenerating vertex data with chksum on color + str
     tnames←'ptr' 'str' 'color' 'w_' 'h_' 'hash'
     table←(≢tnames)⍴⊂⍬
     Ti←tnames∘⍳∘⊆

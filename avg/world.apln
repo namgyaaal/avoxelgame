@@ -1,4 +1,25 @@
 :Namespace world
+    ⍝ World data can be understood as a 4d array where
+    ⍝ major cells are chunks loaded into memory coupled
+    ⍝ with an inverted table where rows correspond to chunks
+    ⍝ of the 4d array.
+    ⍝
+    ⍝ Loading chunks is a matter of appending to the 4d array
+    ⍝ and inverted tables. Deleting is a matter of filtering
+    ⍝ both out.
+    ⍝
+    ⍝ Columns of the inverted table correspond to useful information
+    ⍝ e.g., vertex buffer pointer, whether or not it needs to be
+    ⍝ uploaded to the gpu, the x and z coordinate, etc..
+    ⍝
+    ⍝ -------------
+    ⍝ Table Columns
+    ⍝ -------------
+    ⍝ - X and Z position (cx, cz)
+    ⍝ - Vertex buffer pointers for solid information and water (vb, wvb)
+    ⍝ - Index count for drawing for solid and water (idx_cnt widx_cnt)
+    ⍝ - Whether or not it needs to be uploaded (dirty)
+
     ⎕IO ← 0
     'packR'⎕CY'dfns'
 
@@ -9,7 +30,7 @@
 
     ⍝ The maximum possible surface can be visualized as a
     ⍝   3d checkerboard.
-    max_faces ← 6×⌈2÷⍨×/¯2+l
+    max_faces ← 6×⌈2÷⍨×/l
     wmax_faces ← (2÷⍨1⊃l)×(2*⍨⊃l) ⍝ w-water
 
     ⍝ For each face we need 4 vertices and 6 indices
@@ -61,7 +82,6 @@
     ⍝   Insert rank and replicate by 24 (possible vertices of a cube)
     ⍝   For each sub-(24 ⋄ 3) matrix add faces
     ⍝   Ravel into (vertices ⋄ 3)
-    ⍝vertices ← ,[⍳2]faces(+⍤2)v_cnt(⌿⍤2),[0.5]⍉l⊤⍳×/l
     vertices←,[⍳2]faces+⍤1⍤2 1⊢⍉l⊤⍳×/l
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
@@ -232,7 +252,7 @@
       m←idxs∊⍨⍳≢⊃chunk_info
       has_vb←m∧0≠Cg'vb'
       {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨has_vb/Cg'vb'
-
+     
       ((Cpi'vb')⊃copy_table)←{
           ##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX ⍵ 0)
       }¨Cpg'vs'
@@ -312,8 +332,6 @@
       set_m←(0≠Cg'vb')∧~m
       {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨set_m/Cg'vb'
       {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨set_m/Cg'wvb'
-      ⍝vb_fenced⍪←¯1,'vb_kind'{⍉↑⍺ ⍵}⍥{⍵/⍨set_m}⍥Cg'vb'
-      ⍝vb_fenced⍪←¯1,'wvb_kind'{⍉↑(-1+⍺)⍵}⍥{⍵/⍨set_m∧0≠Cg'wvb'}⍥Cg'wvb'
       chunk_info←m∘/¨chunk_info
      
       ⍝ Terrain generation step
