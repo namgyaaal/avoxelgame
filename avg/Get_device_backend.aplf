@@ -3,7 +3,7 @@
      formats←(
          'metal'
          'vulkan'
-         'vulkan'
+         'direct3d12'
      )
      ∊formats⌷⍨os⍳⊂'-64'~⍨⊃# ⎕WG'APLVersion'
  }

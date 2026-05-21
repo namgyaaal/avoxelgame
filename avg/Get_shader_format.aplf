@@ -1,9 +1,9 @@
- Get_shader_format ← {
-    os ← ('Mac' ⋄ 'Linux' ⋄ 'Windows')
-    formats ← (
-        SDL_GPU_SHADERFORMAT_MSL
-        SDL_GPU_SHADERFORMAT_SPIRV
-        SDL_GPU_SHADERFORMAT_SPIRV
-    )
-    formats⌷⍨os⍳⊂'-64'~⍨⊃#⎕WG'APLVersion'
+ Get_shader_format←{
+     os←('Mac' ⋄ 'Linux' ⋄ 'Windows')
+     formats←(
+         SDL_GPU_SHADERFORMAT_MSL
+         SDL_GPU_SHADERFORMAT_SPIRV
+         SDL_GPU_SHADERFORMAT_DXIL
+     )
+     formats⌷⍨os⍳⊂'-64'~⍨⊃# ⎕WG'APLVersion'
  }

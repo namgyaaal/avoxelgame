@@ -207,7 +207,7 @@
           ⍝ (2) Get list of where true as positions
           ⍝ (3) Expand each to a quad facing up
           ⍝ (4) See Solid (5)
-          w_p←⍉l⊤⍸∊(chunk=¯1)(2>⌿⍤2⍪⍤2)⊢⍴⍨⊃l                            ⍝ (1, 2)
+          w_p←⍉l⊤⍸∊(chunk=¯1)(2>⌿⍤2⍪⍤2)⊢0⍴⍨⊃l                            ⍝ (1, 2)
           vert←,[⍳2][0 0 0 ⋄ 1 0 0 ⋄ 1 0 1 ⋄ 0 0 1](+⍤2)4(⌿⍤2),[0.5]w_p ⍝ (3)
           vert+←(3,⍨≢vert)⍴128×[0 0 0 ⋄ 0 0 1 ⋄ 1 0 1 ⋄ 1 0 0]          ⍝ (4)
           buf←∊vert,6
@@ -313,8 +313,8 @@
      
       ⍝ Chunk corresponds to a "patch" of each octave that we translate around
       ⍝     before doing smoothstep and using for bilinear interpolation
-      t1_tl←1(-,[0.5]⊢)64÷⍨0.5+64 64⊤∊(⍳64*2)[(64×⍳16)∘.+(⍳16)]
-      t2_tl←1(-,[0.5]⊢)256÷⍨0.5+256 256⊤∊(⍳256*2)[(256×⍳16)∘.+(⍳16)]
+      t1_tl←1(-,[0.5]⊢)64÷⍨0.5+64 64⊤∊(64×⍳16)∘.+(⍳16)
+      t2_tl←1(-,[0.5]⊢)256÷⍨0.5+256 256⊤∊(256×⍳16)∘.+(⍳16)
       ⍝ Get unique coordinates used for generation process and hash them
       ⍝     for indices into rand_vec table
       coords1←∪,(⍳2 2)∘.+⌊new÷4

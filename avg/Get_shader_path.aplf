@@ -1,17 +1,17 @@
- Get_shader_path ← {
+ Get_shader_path←{
      ⍝ ⍵ ←→ File name
      ⍝ e.g., 'basic_vert' → 'shaders/msl/basic_vert.msl' on macOS
-    os←('Mac' ⋄ 'Linux' ⋄ 'Windows')
-    paths←(
-        'shaders/msl/'
-        'shaders/spv/'
-        'shaders/spv/'
-    )
-    ext←(
-        '.msl'
-        '.spv'
-        '.spv'
-    )
-    idx←os⍳⊂'-64'~⍨⊃# ⎕WG'APLVersion'
-    ∊paths[idx], ⍵, ext[idx]
+     os←('Mac' ⋄ 'Linux' ⋄ 'Windows')
+     paths←(
+         'shaders/msl/'
+         'shaders/spv/'
+         'shaders/dxil/'
+     )
+     ext←(
+         '.msl'
+         '.spv'
+         '.dxil'
+     )
+     idx←os⍳⊂'-64'~⍨⊃# ⎕WG'APLVersion'
+     ∊paths[idx],⍵,ext[idx]
  }

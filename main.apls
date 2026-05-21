@@ -1,4 +1,12 @@
-#!/usr/local/bin/dyalogscript DYALOG_INITSESSION=1 LOAD=./avg
+#!/usr/local/bin/dyalogscript 
 
+⎕SE.(⍎⊃2⎕FIX'/StartupSession.aplf',⍨2⎕NQ # 'GetEnvironment' 'DYALOG')
+⎕SE.Link.Create # 'avg'
+
+⍝ Testing w/o
+⍝ DYALOG_INITSESSION=1 LOAD=./avg
+
+⍝ Needed without LOAD=dir
+Run
 state.Play
 ⎕ ← 'Complete'
