@@ -98,6 +98,7 @@
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
           (core.w core.h)←##.LSE_GetWindowResize 0 0
       :EndIf
+      
       Exhaust_fn core
     ∇
 
@@ -134,6 +135,8 @@
       _←##.SDL_ReleaseWindowFromGPUDevice device window
       _←##.SDL_DestroyGPUDevice device
       _←##.SDL_DestroyWindow window
+      ⍝ https://github.com/libsdl-org/SDL/issues/10081#issuecomment-2570813902
+      _←##.SDL_PumpEvents
       _←##.SDL_Quit
     ∇
 

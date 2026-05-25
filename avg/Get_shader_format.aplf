@@ -3,7 +3,7 @@
      formats←(
          SDL_GPU_SHADERFORMAT_MSL
          SDL_GPU_SHADERFORMAT_SPIRV
-         SDL_GPU_SHADERFORMAT_DXIL
+         SDL_GPU_SHADERFORMAT_SPIRV
      )
      formats⌷⍨os⍳⊂'-64'~⍨⊃# ⎕WG'APLVersion'
  }

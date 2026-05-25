@@ -25,7 +25,7 @@
 
     l ← 16 128 16
 
-    view_distance ← 12
+    view_distance ← 8
     max_chunks ← 2*⍨1+2×view_distance
 
     ⍝ The maximum possible surface can be visualized as a

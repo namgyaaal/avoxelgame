@@ -5,12 +5,12 @@
      paths←(
          'shaders/msl/'
          'shaders/spv/'
-         'shaders/dxil/'
+         'shaders/spv/'
      )
      ext←(
          '.msl'
          '.spv'
-         '.dxil'
+         '.spv'
      )
      idx←os⍳⊂'-64'~⍨⊃# ⎕WG'APLVersion'
      ∊paths[idx],⍵,ext[idx]

@@ -28,7 +28,7 @@
 
 
     ∇ a←Loop core
-      a←##.state.TICK 
+      a←##.state.TICK
       Update core
       Draw core
     ∇
@@ -161,7 +161,7 @@
           ##.world_ui.Draw core cmd_buf pass
           _←##.SDL_EndGPURenderPass pass
       :EndIf
-      ##.SDL_SubmitGPUCommandBuffer cmd_buf
+      _←##.SDL_SubmitGPUCommandBuffer cmd_buf
     ∇
 
 
@@ -175,6 +175,7 @@
       _←##.SDL_SetWindowRelativeMouseMode core.window 0
      
       save ⎕FREPLACE save_file 1
+      ⎕FUNTIE save_file
     ∇
 
     ∇ Create_pipelines(device window);default_format;depth_format;v_shader;f_shader;vb_desc;vb_attr;blend_state;ct_desc
