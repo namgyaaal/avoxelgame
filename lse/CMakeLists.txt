@@ -12,8 +12,11 @@ FILE(GLOB SOURCES src/*.c)
 add_library(LSE SHARED src/events.c
     src/gpu.c
     src/pipeline.c
-    src/utils.c)
+    src/utils.c
+    src/dwa.c)
 
+
+set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
 IF (WIN32)
     set_target_properties(LSE PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)

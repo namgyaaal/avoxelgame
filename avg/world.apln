@@ -199,7 +199,8 @@
           vs←≢buf
           ic←6×4÷⍨≢vert
      
-          _←##.LSE_MemcpyU8(ptr+offset)buf vs
+          _←##.LSE_CopyAsBytesOnto(ptr+offset)buf (⎕DR buf)
+          ⍝_←##.LSE_MemcpyU8(ptr+offset)buf vs
      
           ⍝ Water
           ⍝ Note that if there's an ocean, only sea level is rendered (not every water block)
@@ -442,11 +443,11 @@
           ⍝ ⍺ ←→ filter out invalid ones (default true)
           ⍝ returns them in terms of locations into 4d chunk matrix
           ⍺←1
-          (filter w h) ← (⍺ ⋄ ⊃l ⋄ 1⊃l)
+          (filter w h)←(⍺ ⋄ ⊃l ⋄ 1⊃l)
           0=≢⍵:⍬
           coords←⌊w÷⍨(⊂0 2)∘⌷¨⍵
           cindices←coords⍳⍨Cg'xz' ⍝ map to world major cells
-          {filter∧∧/(0≤2⊃⍵⋄h>2⊃⍵)}¨⍛/cindices,¨(w∘|@(0 2)⊢)¨⍵
+          {filter∧∧/(0≤2⊃⍵ ⋄ h>2⊃⍵)}¨⍛/cindices,¨(w∘|@(0 2)⊢)¨⍵
       }
 
 :EndNamespace

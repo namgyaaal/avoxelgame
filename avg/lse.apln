@@ -12,6 +12,7 @@
     u32_arr ← '<U4[]'
     ptr ← 'P-'
     cstr ← '<0C1[]'
+    pocket ← 'PP'
 
     fns ← ⍬
 
@@ -63,6 +64,7 @@
     'LSE_DrawListWithPushConstants' ⍬ (ptr ptr '<P[]' u32_arr u32 f32_arr u32 u32)
 
     'LSE_BeginDepthLessRenderPass' ptr (ptr '<' GPUColorTargetInfo u32)
+    'LSE_CopyAsBytesOnto' ⍬ (ptr '<' pocket i32)
     )
 
     ∇ Load_lib path
