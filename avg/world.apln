@@ -442,10 +442,11 @@
           ⍝ ⍺ ←→ filter out invalid ones (default true)
           ⍝ returns them in terms of locations into 4d chunk matrix
           ⍺←1
+          (filter w h) ← (⍺ ⋄ ⊃l ⋄ 1⊃l)
           0=≢⍵:⍬
-          coords←⌊l[0]÷⍨(⊂0 2)∘⌷¨⍵
-          cindices←coords⍳⍨Cg'xz'
-          ⍺∘{(~⍺)∨0≤2⊃⍵}¨⍛/cindices,¨((⊃l)∘|@(0 2)⊢)¨⍵
+          coords←⌊w÷⍨(⊂0 2)∘⌷¨⍵
+          cindices←coords⍳⍨Cg'xz' ⍝ map to world major cells
+          {filter∧∧/(0≤2⊃⍵⋄h>2⊃⍵)}¨⍛/cindices,¨(w∘|@(0 2)⊢)¨⍵
       }
 
 :EndNamespace
