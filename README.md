@@ -75,3 +75,7 @@ Note that this requires the DirectX Shader Compiler, glslc and spirv-cross.
 - You currently can't play multiple times in the same session.
     - Known to syserror 999 !
     - There's probably memory leaks somewhere !
+
+# Credits
+
+Textures by Madeline Vergani ([@RubenVerg](https://github.com/RubenVerg))
