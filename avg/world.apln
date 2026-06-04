@@ -25,7 +25,7 @@
 
     l ← 16 128 16
 
-    view_distance ← 8
+    view_distance ← 20
     max_chunks ← 2*⍨1+2×view_distance
 
     ⍝ The maximum possible surface can be visualized as a
@@ -133,7 +133,8 @@
      
       seed←save.⎕VGET⊂'seed'seed
       sns←(⎕RL:seed)
-      rand_vec←1 2○⍤1⊢⍪○2×sns.?256⍴0
+      rand_vec←2×¯0.5+?256⍴0
+      ⍝rand_vec←1 2○⍤1⊢⍪○2×sns.?256⍴0
      
       map_file←save_dir,'/map_data.dcf'
       :If ⎕NEXISTS map_file
@@ -305,6 +306,7 @@
       old←range~⍨Cg'xz'
      
      
+     
       ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/introduction.html
       ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/perlin-noise-part-2/perlin-noise.html
       ⍝ We have 2 octaves
@@ -313,15 +315,21 @@
      
       ⍝ Chunk corresponds to a "patch" of each octave that we translate around
       ⍝     before doing smoothstep and using for bilinear interpolation
-      t1_tl←1(-,[0.5]⊢)64÷⍨0.5+64 64⊤∊(64×⍳16)∘.+(⍳16)
-      t2_tl←1(-,[0.5]⊢)256÷⍨0.5+256 256⊤∊(256×⍳16)∘.+(⍳16)
+     
+      V1←256÷⍨⍉16 64 16⊤⍳16×64×16
+      V2←64÷⍨⍉16 64 16⊤⍳16×64×16
+      trilerp←{v←(2 ⋄ i←2÷⍨≢⍵)⍴⍵ ⋄ d←⍺[;4 2 1⍳i] ⋄ (1-d ⋄ d)+.×v}⍣3
+     
+     
+      ⍝t1_tl←1(-,[0.5]⊢)64÷⍨0.5+64 64⊤∊(64×⍳16)∘.+(⍳16)
+      ⍝t2_tl←1(-,[0.5]⊢)256÷⍨0.5+256 256⊤∊(256×⍳16)∘.+(⍳16)
       ⍝ Get unique coordinates used for generation process and hash them
       ⍝     for indices into rand_vec table
-      coords1←∪,(⍳2 2)∘.+⌊new÷4
-      coords2←∪,(⍳2 2)∘.+⌊new÷16
+      ⍝coords1←∪,(⍳2 2)∘.+⌊new÷4
+      ⍝coords2←∪,(⍳2 2)∘.+⌊new÷16
      
-      p1←Hash_byte(seed+1),↑coords1
-      p2←Hash_byte(seed+2),↑coords2
+      ⍝p1←Hash_byte(seed+1),↑coords1
+      ⍝p2←Hash_byte(seed+2),↑coords2
      
       ⍝ Unload chunks
       m←~old∊⍨Cg'xz' ⍝ Kept
@@ -334,6 +342,9 @@
       {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨set_m/Cg'wvb'
       chunk_info←m∘/¨chunk_info
      
+
+      gradient_mask ← ∊(⌽⍛(,⍨)(32÷⍨¯16+⍳32))+⍤¯1⍤2⊢16 64 16⍴0
+      ⍝gradient_mask ← ∊(⌽128÷⍨16+⍳64)+⍤¯1⍤2⊢16 64 16⍴0
       ⍝ Terrain generation step
       i←0
       :For pair :In new
@@ -349,44 +360,100 @@
      
               ⍝ Translate "patches" to chunk's position relative to the different octaves
               ⍝     and use points as interpolation to produce y1 y2
-              t1←[(¯1 1×÷4)×4|⊃pair ⋄ (¯1 1×÷4)×4|1⊃pair]+⍤¯2⊢t1_tl
-              t1←t1×t1×(3-2×t1) ⍝ Smoothstep
-              t1←2/,[2.5]t1
+              ⍝t1←[(¯1 1×÷4)×4|⊃pair ⋄ (¯1 1×÷4)×4|1⊃pair]+⍤¯2⊢t1_tl
+              ⍝t1←t1×t1×(3-2×t1) ⍝ Smoothstep
+              ⍝t1←2/,[2.5]t1
      
-              t2←[(¯1 1×÷16)×16|⊃pair ⋄ (¯1 1×÷16)×16|1⊃pair]+⍤¯2⊢t2_tl
-              t2←t2×t2×(3-2×t2) ⍝ Smoothstep
-              t2←2/,[2.5]t2
+              ⍝t2←[(¯1 1×÷16)×16|⊃pair ⋄ (¯1 1×÷16)×16|1⊃pair]+⍤¯2⊢t2_tl
+              ⍝t2←t2×t2×(3-2×t2) ⍝ Smoothstep
+              ⍝t2←2/,[2.5]t2
      
+              v←Hash_byte seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷4
+              ⍝v2←Hash_byte 42,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷16
+
+
+             
+              ⍝x←0.5>(32÷⍨¯32+⍳64)(+⍤¯1⍤2)⊢16 64 16⍴⊃(V(×⍤1)4|(⊃pair⋄1⋄1⊃pair)) trilerp rand_vec[v]
+     
+              ⍝x←0.5<gradient_mask+⊃(V(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[v]
+     
+              x←⊃(V2(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[v]
+              x←0.5<gradient_mask+(x)
+              ⍝x←0.5<gradient_mask+(x1×0.66)+(x2×0.33)
+
               ⍝ tN can be split into X (⊣⌿) and Y (⊢⌿)
               ⍝ A chunk interpolates across 4 different edges with 16×16 blocks
               ⍝ tN corresponds to blocks positions, idea is to retrieve 4 edges and
               ⍝     interpolate all at once.
-              y1←10+40×2÷⍨+/+⌿(⊣⌿t1)×(⊢⌿t1)+⌿⍤×⍤3⊢2 2 256 2⍴256⌿rand_vec Im p1⌷⍨⊂coords1⍳,(⍳2 2)∘.+⊂⌊pair÷4
-              y2←50+40×2÷⍨+/+⌿(⊣⌿t2)×(⊢⌿t2)+⌿⍤×⍤3⊢2 2 256 2⍴256⌿rand_vec Im p2⌷⍨⊂coords2⍳,(⍳2 2)∘.+⊂⌊pair÷16
-              y←⌊y1+y2
-              blocks←l⍴1
+              ⍝y1←10+40×2÷⍨+/+⌿(⊣⌿t1)×(⊢⌿t1)+⌿⍤×⍤3⊢2 2 256 2⍴256⌿rand_vec Im p1⌷⍨⊂coords1⍳,(⍳2 2)∘.+⊂⌊pair÷4
+              ⍝y2←50+40×2÷⍨+/+⌿(⊣⌿t2)×(⊢⌿t2)+⌿⍤×⍤3⊢2 2 256 2⍴256⌿rand_vec Im p2⌷⍨⊂coords2⍳,(⍳2 2)∘.+⊂⌊pair÷16
+              ⍝y←(16*2)⍴70
+              ⍝y←⌊y1+y2
+
+
+
+              ⍝(∊blocks[;30+⍳64;])←2@⊢x
+
+
+              
+              (WATER GRASS DIRT STONE) ← (¯1 1 2 3)
+
+              blocks←l⍴0
+              blocks[;0;]←GRASS
+              blocks[;1;]←WATER
+
+
+              m←16 64 16⍴x         ⍝ island mask
+              s←m(2>⌿⍤2⍪⍤2)⊢0⍴⍨⊃l  ⍝ surface mask
+              sp←⍸s                ⍝ where surface is
+
+              d ← STONE@⊢m
+              d[sp]←GRASS 
+              
+              d[(0 ¯1 0⋄)+sp]←DIRT
+              d[(0 ¯2 0⋄)+sp]←DIRT
+              d[(0 ¯3 0⋄)+sp]←DIRT
+              d[(0 ¯4 0⋄)+sp]←DIRT
      
-              surface←↓(16/⍳16),(⍪126⌊1⌈y),(256 1⍴⍳16)
-              blocks[surface-(0 2 0 ⋄ )]←0
-              blocks←(#.block_data.Bi'Stone')@(1=⊢)⊢∧⍀⍤2⊢blocks
-              blocks[surface-(0 1 0 ⋄ )]←#.block_data.Bi'Dirt'
-              blocks[surface-(0 2 0 ⋄ )]←#.block_data.Bi'Dirt'
-              blocks[surface]←#.block_data.Bi'Grass'
-     
+              blocks[;30+⍳64;]←d
+
               ⍝ Tree :-)
               rns←(⎕RL:|4192 4192 4192⊥pair,seed)
-              (tx ground tz)←(0 ⋄ 1 ⋄ 0)+⊃surface⌷⍨tree_spots⊃⍨rns.?≢tree_spots
-              :If ground>45 ⍝ Only do tree if above sea level to a degree
+              :If (0≠⍴sp)
+                  rns←(⎕RL:|4192 4192 4192⊥pair,seed)
+                  (tx ground tz)←(0 ⋄ 31 ⋄ 0)+⊃sp⌷⍨rns.?⍴sp
+
                   ty←3+rns.?3
-                  blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
-                  blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
-                  blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
+        
+                  :If (2<tx)∧(14>tx)∧(2<tz)∧(14>tz)
+                      blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
+                      blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
+                      blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
+                  :EndIf
               :EndIf
+
+
+              ⍝surface←↓(16/⍳16),(⍪126⌊1⌈y),(256 1⍴⍳16)
+              ⍝blocks[surface-(0 2 0 ⋄ )]←0
+              ⍝blocks←(#.block_data.Bi'Stone')@(1=⊢)⊢∧⍀⍤2⊢blocks
+              ⍝blocks[surface-(0 1 0 ⋄ )]←#.block_data.Bi'Dirt'
+              ⍝blocks[surface-(0 2 0 ⋄ )]←#.block_data.Bi'Dirt'
+              ⍝blocks[surface]←#.block_data.Bi'Grass'
+     
+              ⍝ Tree :-)
+              ⍝rns←(⎕RL:|4192 4192 4192⊥pair,seed)
+              ⍝(tx ground tz)←(0 ⋄ 1 ⋄ 0)+⊃surface⌷⍨tree_spots⊃⍨rns.?≢tree_spots
+              ⍝:If ground>45 ⍝ Only do tree if above sea level to a degree
+              ⍝    ty←3+rns.?3
+              ⍝    blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
+              ⍝    blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
+              ⍝    blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
+              ⍝:EndIf
      
               ⍝ Sand/Water
-              blocks[;⍳41;]←(#.block_data.Bi'Sand')@(∊∘(#.block_data.Bi'Grass' 'Dirt'))⊢blocks[;⍳41;]
-              blocks[;⍳34;]←(#.block_data.Bi'Stone')@(∊∘(#.block_data.Bi'Sand'))⊢blocks[;⍳34;]
-              blocks[;⍳40;]←¯1@(1∘>)⊢blocks[;⍳40;]
+              ⍝blocks[;⍳41;]←(#.block_data.Bi'Sand')@(∊∘(#.block_data.Bi'Grass' 'Dirt'))⊢blocks[;⍳41;]
+              ⍝blocks[;⍳34;]←(#.block_data.Bi'Stone')@(∊∘(#.block_data.Bi'Sand'))⊢blocks[;⍳34;]
+              ⍝blocks[;⍳40;]←¯1@(1∘>)⊢blocks[;⍳40;]
               (packR blocks)⎕FAPPEND map
           :Else
               blocks←0 packR ⎕FREAD(map ⋄ 2+mapi⍳idx)
@@ -415,6 +482,7 @@
       inds←m/Cg'idx_cnt'
      
       ⍝ Fog Start -- Fog End
+      ⍝10 15
       _←##.SDL_PushGPUFragmentUniformData cmd_buf 0(view_distance×10 15)(4×2)
      
       ⍝ Render Solid
@@ -442,11 +510,11 @@
           ⍝ ⍺ ←→ filter out invalid ones (default true)
           ⍝ returns them in terms of locations into 4d chunk matrix
           ⍺←1
-          (filter w h) ← (⍺ ⋄ ⊃l ⋄ 1⊃l)
+          (filter w h)←(⍺ ⋄ ⊃l ⋄ 1⊃l)
           0=≢⍵:⍬
           coords←⌊w÷⍨(⊂0 2)∘⌷¨⍵
           cindices←coords⍳⍨Cg'xz' ⍝ map to world major cells
-          {filter∧∧/(0≤2⊃⍵⋄h>2⊃⍵)}¨⍛/cindices,¨(w∘|@(0 2)⊢)¨⍵
+          {filter∧∧/(0≤2⊃⍵ ⋄ h>2⊃⍵)}¨⍛/cindices,¨(w∘|@(0 2)⊢)¨⍵
       }
 
 :EndNamespace

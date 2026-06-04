@@ -140,8 +140,8 @@
 
     ∇ Input;e;ekd;eku;F_ekd;button;bi
      ⍝ Replaced nested if with this, will see if it feels better...
-     ⍝ Covers everything in e variable 
-    
+     ⍝ Covers everything in e variable
+     
       e←(
           ##.SDL_EVENT_KEY_DOWN ⋄ ##.SDL_EVENT_KEY_UP
           ##.SDL_EVENT_MOUSE_MOTION ⋄ ##.SDL_EVENT_MOUSE_BUTTON_DOWN
@@ -207,7 +207,7 @@
           dir←Get_look ⍬
           v←dt×speed×forward×dir
           v+←dt×speed×sideways×dir ##.math.Cross 0 1 0
-          (x y z)+←15×v
+          (x y z)+←30×v
       :Else
           dir←##.math.Norm 0@1⊢Get_look ⍬
           v←dt×speed×forward×dir
