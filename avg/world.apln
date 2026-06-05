@@ -294,9 +294,13 @@
       ⎕SHADOW(
           'coords1' ⋄ 'coords2'
           'surface' ⋄ 'ground' ⋄ 'blocks'
-          'dirt' ⋄ 'grass'
+          'dirt' ⋄ 'grass' ⋄ 'leaves'
           'new' ⋄ 'old'
           't1_tl' ⋄ 't2_tl'
+          'LEAF' ⋄ 'DIRT' ⋄ 'GRASS' ⋄ 'SAND' ⋄ 'STONE' ⋄ 'APPLE_LEAF' ⋄ 'LOG'
+      )
+      (LEAF DIRT GRASS SAND STONE APPLE_LEAF LOG) ← #.block_data.Bi(
+          'Leaf' ⋄ 'Dirt' ⋄ 'Grass' ⋄ 'Sand' ⋄ 'Stone' ⋄ 'Apple Leaf' ⋄ 'Log'
       )
      
       (ax az)←(⌊16÷⍨x z)
@@ -368,24 +372,27 @@
      
               surface←↓(16/⍳16),(⍪126⌊1⌈y),(256 1⍴⍳16)
               blocks[surface-(0 2 0 ⋄ )]←0
-              blocks←(#.block_data.Bi'Stone')@(1=⊢)⊢∧⍀⍤2⊢blocks
-              blocks[surface-(0 1 0 ⋄ )]←#.block_data.Bi'Dirt'
-              blocks[surface-(0 2 0 ⋄ )]←#.block_data.Bi'Dirt'
-              blocks[surface]←#.block_data.Bi'Grass'
+              blocks←STONE@(1=⊢)⊢∧⍀⍤2⊢blocks
+              blocks[surface-(0 1 0 ⋄ )]←DIRT
+              blocks[surface-(0 2 0 ⋄ )]←DIRT
+              blocks[surface]←GRASS
      
               ⍝ Tree :-)
               rns←(⎕RL:|4192 4192 4192⊥pair,seed)
               (tx ground tz)←(0 ⋄ 1 ⋄ 0)+⊃surface⌷⍨tree_spots⊃⍨rns.?≢tree_spots
               :If ground>45 ⍝ Only do tree if above sea level to a degree
                   ty←3+rns.?3
-                  blocks[tx;ground+⍳ty;tz]←#.block_data.Bi'Log'
-                  blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←#.block_data.Bi'Leaf'
-                  blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←#.block_data.Bi'Leaf'
+                  blocks[tx;ground+⍳ty;tz]←LOG
+
+                  leaves ← APPLE_LEAF LEAF[0.9>rns.?5 2 5⍴0]
+                  blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←leaves
+                  leaves ← APPLE_LEAF LEAF[0.9>rns.?3 2 3⍴0]
+                  blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←leaves
               :EndIf
      
               ⍝ Sand/Water
-              blocks[;⍳41;]←(#.block_data.Bi'Sand')@(∊∘(#.block_data.Bi'Grass' 'Dirt'))⊢blocks[;⍳41;]
-              blocks[;⍳34;]←(#.block_data.Bi'Stone')@(∊∘(#.block_data.Bi'Sand'))⊢blocks[;⍳34;]
+              blocks[;⍳41;]←(SAND)@(∊∘(GRASS DIRT))⊢blocks[;⍳41;]
+              blocks[;⍳34;]←(STONE)@(∊∘(SAND))⊢blocks[;⍳34;]
               blocks[;⍳40;]←¯1@(1∘>)⊢blocks[;⍳40;]
               (packR blocks)⎕FAPPEND map
           :Else
@@ -442,11 +449,11 @@
           ⍝ ⍺ ←→ filter out invalid ones (default true)
           ⍝ returns them in terms of locations into 4d chunk matrix
           ⍺←1
-          (filter w h) ← (⍺ ⋄ ⊃l ⋄ 1⊃l)
+          (filter w h)←(⍺ ⋄ ⊃l ⋄ 1⊃l)
           0=≢⍵:⍬
           coords←⌊w÷⍨(⊂0 2)∘⌷¨⍵
           cindices←coords⍳⍨Cg'xz' ⍝ map to world major cells
-          {filter∧∧/(0≤2⊃⍵⋄h>2⊃⍵)}¨⍛/cindices,¨(w∘|@(0 2)⊢)¨⍵
+          {filter∧∧/(0≤2⊃⍵ ⋄ h>2⊃⍵)}¨⍛/cindices,¨(w∘|@(0 2)⊢)¨⍵
       }
 
 :EndNamespace

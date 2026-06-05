@@ -2,6 +2,7 @@
     ⎕IO←0
 
     atlas_len←5
+    ⍝ Left Right Bottom Top Back Front
     data←(
     (name: 'Air' ⋄ tex: 0 0 0 0 0 0)
     (name: 'Grass' ⋄ tex: 3 3 2 0 3 3)
@@ -12,6 +13,7 @@
     (name: 'Leaf' ⋄ tex: 10 10 10 10 10 10)
     (name: 'Brick' ⋄ tex: 5 5 5 5 5 5)
     (name: 'Sand' ⋄ tex: 7 7 7 7 7 7)
+    (name: 'Apple Leaf' ⋄ tex: 15 15 10 10 15 15)
     )
     names←⎕VGET∘'name'¨data
     tex_z←∊⎕VGET∘'tex'¨data
