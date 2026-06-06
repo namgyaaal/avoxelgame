@@ -11,6 +11,7 @@
     time←0
 
     toggle_ui←0
+    regular_scope←⍬
     info_scope←⍬
     text_base←(
     'Hello ⌽''dlrow'''
@@ -29,6 +30,8 @@
     save_file←0
     save←()
 
+    lock_mouse←1
+
 
     ∇ a←Loop core
       a←##.state.TICK
@@ -37,9 +40,9 @@
     ∇
 
 
-    ∇ Init(core save_dir);blocks;ptr;file
-      _←##.SDL_SetWindowMouseGrab core.window 1
-      _←##.SDL_SetWindowRelativeMouseMode core.window 1
+    ∇ Init(core save_dir);blocks;ptr;cursor;file
+      _←##.SDL_SetWindowMouseGrab core.window lock_mouse
+      _←##.SDL_SetWindowRelativeMouseMode core.window lock_mouse
      
       :If ~⎕NEXISTS save_dir
           save_dir←(⎕MKDIR⍠'Unique' 1)save_dir
@@ -70,12 +73,20 @@
       proj_view←view+.×proj
      
       time←⊃##.SDL_GetTicks ⍬
+      regular_scope←(≢##.text.snames)⍴⊂⍬
       info_scope←(≢##.text.snames)⍴⊂⍬
+     
+     
+     
+      cursor←(color:120 120 120 255)##.text.Make_text'UTF-8'⎕UCS'⊂⍛⌷'
+     
+      regular_scope⍪¨←(cursor ⋄ core.w÷2 ⋄ core.h÷2 ⋄ 1 ⋄ 0.4 ⋄ 0)
+      info_scope⍪¨←(cursor ⋄ core.w÷2 ⋄ core.h÷2 ⋄ 1 ⋄ 0.4 ⋄ 0)
      
       ptr←(color:0 0 0 255)##.text.Make_text'UTF-8'⎕UCS'Foobar'
       info_scope⍪¨←(ptr ⋄ core.w-480 ⋄ core.h-20 ⋄ 0 ⋄ 0.4 ⋄ 0)
      
-      ##.text.scope←info_scope
+      ##.text.scope←regular_scope
     ∇
 
     ∇ Input core;x;y
@@ -83,6 +94,10 @@
           key←⊃##.LSE_GetKeyPressed
           :If key=##.SDLK_I
               toggle_ui←~toggle_ui
+          :ElseIf key=##.SDLK_L
+              lock_mouse←~lock_mouse
+              _←##.SDL_SetWindowMouseGrab core.window lock_mouse
+              _←##.SDL_SetWindowRelativeMouseMode core.window lock_mouse      
           :EndIf
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
           proj←##.math.Proj(○70÷180 ⋄ core.w÷core.h ⋄ 0.1 ⋄ 500)
@@ -94,8 +109,13 @@
           'Error creating depth texture'##.Assert depth_texture
      
           (x y)←##.text.Si'x_' 'y_'
-          (x⊃info_scope)←core.w-480
-          (y⊃info_scope)←core.h-20
+     
+          (⊃x⊃regular_scope)←core.w÷2
+          (⊃y⊃regular_scope)←core.h÷2
+          (⊃x⊃info_scope)←core.w÷2
+          (⊃y⊃info_scope)←core.h÷2
+          (1⊃x⊃info_scope)←core.w-480
+          (1⊃y⊃info_scope)←core.h-20
       :EndIf
      
       ##.player.Input
@@ -114,7 +134,7 @@
       recent_ws_usage,⍨←(2000⌶)1
       recent_ws_alloc,⍨←(2000⌶)13
       (recent_fps recent_ws_usage recent_ws_alloc)←60↑¨(
-          recent_fps 
+          recent_fps
           recent_ws_usage
           recent_ws_alloc
       )
@@ -137,9 +157,13 @@
       )
      
       ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
-      (⊃(##.text.Ti'str')⊃##.text.table)←ustr
+      (1⊃(##.text.Ti'str')⊃##.text.table)←ustr
      
-      ##.text.scope←info_scope
+      :If 1=toggle_ui
+          ##.text.scope←info_scope
+      :Else
+          ##.text.scope←regular_scope
+      :EndIf
     ∇
 
     ∇ Draw core;lx;lz;cmd_buf;pass;res;swap;color_info;depth_info;fence;fence_idx;fence_m
@@ -166,10 +190,7 @@
           ⍝ UI Render pass
           color_info←⊂swap 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
           pass←##.LSE_BeginDepthLessRenderPass cmd_buf color_info 1
-          ⍝ Text Render Pass
-          :If 1=toggle_ui
-              ##.text.Draw cmd_buf pass ui_proj
-          :EndIf
+          ##.text.Draw cmd_buf pass ui_proj
           ##.world_ui.Draw core cmd_buf pass
           _←##.SDL_EndGPURenderPass pass
       :EndIf

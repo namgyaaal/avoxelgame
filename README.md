@@ -14,6 +14,7 @@ This is highly experimental and buggy.
 - Q to quit
 - I to toggle render information
 - F for fast noclip mode
+- L to lock and unlock the mouse while in-game
 - 1-5 to select different blocks to place
 
 # Requirements
