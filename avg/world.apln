@@ -254,11 +254,14 @@
       {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨has_vb/Cg'vb'
      
       ((Cpi'vb')⊃copy_table)←{
+          0=⍵:0
           ##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX ⍵ 0)
       }¨Cpg'vs'
      
       ⍝ GPU Upload and set loaded chunks as ready with render info
+      ⍝ 0=wvb to prevent side effect call (if empty it does a fill!)
       {(pos vs vb)←⍵
+          0=vb:
           _←##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0
       }¨↓⍉↑Cpg¨'offset' 'vs' 'vb'
       (m/(Ci'idx_cnt')⊃chunk_info)←Cpg'ic'
@@ -279,7 +282,6 @@
           ##.SDL_CreateGPUBuffer device(##.SDL_GPU_BUFFERUSAGE_VERTEX ⍵ 0)
       }¨m2/Cpg'wvs'
      
-      ⍝ 0=wvb to prevent side effect call (if empty it does a fill!)
       {(pos vs wvs wvb)←⍵
           0=wvb:
           _←##.SDL_UploadToGPUBuffer pass(tb ⋄ pos+vs)(wvb 0 wvs)0
@@ -299,7 +301,7 @@
           't1_tl' ⋄ 't2_tl'
           'LEAF' ⋄ 'DIRT' ⋄ 'GRASS' ⋄ 'SAND' ⋄ 'STONE' ⋄ 'APPLE_LEAF' ⋄ 'LOG'
       )
-      (LEAF DIRT GRASS SAND STONE APPLE_LEAF LOG) ← #.block_data.Bi(
+      (LEAF DIRT GRASS SAND STONE APPLE_LEAF LOG)←#.block_data.Bi(
           'Leaf' ⋄ 'Dirt' ⋄ 'Grass' ⋄ 'Sand' ⋄ 'Stone' ⋄ 'Apple Leaf' ⋄ 'Log'
       )
      
@@ -383,10 +385,10 @@
               :If ground>45 ⍝ Only do tree if above sea level to a degree
                   ty←3+rns.?3
                   blocks[tx;ground+⍳ty;tz]←LOG
-
-                  leaves ← APPLE_LEAF LEAF[0.9>rns.?5 2 5⍴0]
+     
+                  leaves←APPLE_LEAF LEAF[0.9>rns.?5 2 5⍴0]
                   blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←leaves
-                  leaves ← APPLE_LEAF LEAF[0.9>rns.?3 2 3⍴0]
+                  leaves←APPLE_LEAF LEAF[0.9>rns.?3 2 3⍴0]
                   blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←leaves
               :EndIf
      
@@ -394,6 +396,7 @@
               blocks[;⍳41;]←(SAND)@(∊∘(GRASS DIRT))⊢blocks[;⍳41;]
               blocks[;⍳34;]←(STONE)@(∊∘(SAND))⊢blocks[;⍳34;]
               blocks[;⍳40;]←¯1@(1∘>)⊢blocks[;⍳40;]
+
               (packR blocks)⎕FAPPEND map
           :Else
               blocks←0 packR ⎕FREAD(map ⋄ 2+mapi⍳idx)
@@ -406,7 +409,7 @@
     ∇
 
 
-    ∇ Draw_chunks(core_data cmd_buf pass px pz lx lz proj_view);w;m;vbs;inds;xz;ud;frs;n;d;h;t;t2;centers;extents;r
+    ∇ Draw_chunks(core_data cmd_buf pass px pz lx lz proj_view);w;m;m2;vbs;inds;xz;ud;frs;n;d;h;t;t2;centers;extents;r
       ⍝ Frustum Culling
       frs←##.player.Get_frustum(○70÷180 ⋄ core_data.w÷core_data.h ⋄ 0.1 ⋄ 500)
       n←3↑[1]frs
@@ -418,27 +421,29 @@
       m←(~Cg'dirty')∧∧/(-r)(≤⍤1)d(-⍤1)⍨n(+.×⍤2 1)centers
      
       chunks_rendered←+/m
-      vbs←m/Cg'vb'
-      inds←m/Cg'idx_cnt'
      
       ⍝ Fog Start -- Fog End
       _←##.SDL_PushGPUFragmentUniformData cmd_buf 0(view_distance×10 15)(4×2)
      
       ⍝ Render Solid
+
+      m2←m∧0≠vbs←Cg'vb'
+      vbs←m2/vbs
+      inds←m2/Cg'idx_cnt'
      
       ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
-      ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
+      ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m2/Cg'xz'
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
      
       ⍝ Render Water
      
-      m←m∧0≠Cg'wvb'
-      vbs←m/Cg'wvb'
-      inds←m/Cg'widx_cnt'
+      m2←m∧0≠vbs←Cg'wvb'
+      vbs←m2/vbs
+      inds←m2/Cg'widx_cnt'
      
-      ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0.84 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m/Cg'xz'
+      ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0.84 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m2/Cg'xz'
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
