@@ -87,7 +87,8 @@
 
     seed←?2*32
     sns←()
-    rand_vec←⍬ ⍝ randomized 2d gradients
+    rand_vec←⍬ ⍝ randomized gradients
+    perms←⍬    ⍝ a bunch of random permutations into the gradients for terrain gen
     ⍝ Limit amount of terrain generations per frame until I can figure out isolates...
     ⍝ Only triggered once majority of chunks are already loaded in...
     max_generations←3
@@ -106,6 +107,16 @@
     map←0 ⍝ set in world Init
     mapi←(1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
     empty_rle←(l⋄(×/l⋄)⋄(0⋄))
+
+    f4←64÷⍨0.5+⍉16 64 16⊤⍳16×64×16
+    f6←80÷⍨0.5+⍉16 64 16⊤⍳16×64×16
+    f8←128÷⍨0.5+⍉16 64 16⊤⍳16×64×16
+    f16←256÷⍨0.5+⍉16 64 16⊤⍳16×64×16
+    trilerp←{v←(2 ⋄ i←2÷⍨≢⍵)⍴⍵ ⋄ d←⍺[;4 2 1⍳i] ⋄ (1-d ⋄ d)+.×v}⍣3
+
+    
+    gradient_mask←∊((⌽7÷⍨1.1+⍳4),(196÷⍨⌽¯32+⍳60))+⍤¯1⍤2⊢16 64 16⍴0
+    ⍝gradient_mask←∊((⌽0.166+32÷⍨⍳12),(256÷⍨-⍳52))+⍤¯1⍤2⊢16 64 16⍴0
 
     ∇ Init(device save save_dir);vb_params;tb_params;p;cmd;pass;size;state;pxz;map_file
      
@@ -133,7 +144,8 @@
      
       seed←save.⎕VGET⊂'seed'seed
       sns←(⎕RL:seed)
-      rand_vec←2×¯0.5+sns.?256⍴0
+      rand_vec←sns.?256⍴0
+      perms←{256sns.?256}¨⍳16
       ⍝rand_vec←1 2○⍤1⊢⍪○2×sns.?256⍴0
      
       map_file←save_dir,'/map_data.dcf'
@@ -311,23 +323,6 @@
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
      
-     
-     
-      ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/procedural-patterns-noise-part-1/introduction.html
-      ⍝ https://www.scratchapixel.com/lessons/procedural-generation-virtual-worlds/perlin-noise-part-2/perlin-noise.html
-      ⍝ We have 2 octaves
-      ⍝ 1 ←→ 4×4 chunk
-      ⍝ 2 ←→ 16×16 chunk
-     
-      ⍝ Chunk corresponds to a "patch" of each octave that we translate around
-      ⍝     before doing smoothstep and using for bilinear interpolation
-     
-      V1←256÷⍨0.5+⍉16 64 16⊤⍳16×64×16
-      V2←64÷⍨0.5+⍉16 64 16⊤⍳16×64×16
-      V3←80÷⍨0.5+⍉16 64 16⊤⍳16×64×16
-      trilerp←{v←(2 ⋄ i←2÷⍨≢⍵)⍴⍵ ⋄ d←⍺[;4 2 1⍳i] ⋄ (1-d ⋄ d)+.×v}⍣3
-     
-     
       ⍝t1_tl←1(-,[0.5]⊢)64÷⍨0.5+64 64⊤∊(64×⍳16)∘.+(⍳16)
       ⍝t2_tl←1(-,[0.5]⊢)256÷⍨0.5+256 256⊤∊(256×⍳16)∘.+(⍳16)
       ⍝ Get unique coordinates used for generation process and hash them
@@ -349,20 +344,9 @@
       {0≡⍵: ⋄ _←##.SDL_ReleaseGPUBuffer device ⍵}¨set_m/Cg'wvb'
       chunk_info←m∘/¨chunk_info
      
-      V1←256÷⍨0.5+⍉16 64 16⊤⍳16×64×16
-      V2←64÷⍨0.5+⍉16 64 16⊤⍳16×64×16
-      V3←80÷⍨0.5+⍉16 64 16⊤⍳16×64×16
-      trilerp←{v←(2 ⋄ i←2÷⍨≢⍵)⍴⍵ ⋄ d←⍺[;4 2 1⍳i] ⋄ (1-d ⋄ d)+.×v}⍣3
-     
-     
-      gradient_mask←∊(0.8×⌽64÷⍨⍳64)+⍤¯1⍤2⊢16 64 16⍴0
-      ⍝gradient_mask ← ∊(⌽128÷⍨16+⍳64)+⍤¯1⍤2⊢16 64 16⍴0
       ⍝ Terrain generation step
       i←0
-     
-     
       m←mapi∊⍨(,⍨2*16)⊥⍉↑new
-     
       OC←⊃↓m⌿new
       NC←⊃↓(~m)⌿new
      
@@ -382,20 +366,32 @@
           mapi,←idx
      
           v←Hash_byte seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷4
-          v2←Hash_byte 1+seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷16
-          v3←Hash_byte 2+seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷5
+          v2←Hash_byte 2+seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷8
+          v3←Hash_byte 1+seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷16
      
-          x1←⊃(V2(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[v]
-          x2←⊃(V1(+⍤1)16÷⍨16|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[v2]
-          x3←⊃(V3(+⍤1)5÷⍨5|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[v3]
-          x←0.5<((0.5×gradient_mask)+0.3×(x3×0.3)+(x2×0.7))+((0.5×gradient_mask)+0.7×(x1))
+          x1←⊃(f4(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(0⊃perms)[v]]
+          x2←⊃(f8(+⍤1)8÷⍨8|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(1⊃perms)[v2]]
+
+          x4←⊃(f4(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(3⊃perms)[v]]
+          x5←⊃(f8(+⍤1)8÷⍨8|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(4⊃perms)[v2]]
+          x6←⊃(f16(+⍤1)16÷⍨16|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(5⊃perms)[v3]]
+
+          x7←⊃(f4(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(5⊃perms)[v]]
+          x8←⊃(f8(+⍤1)8÷⍨8|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(6⊃perms)[v2]]
+
+          SELECTION←1⌈0⌊10×(x7×0.33)+(x8×0.66)
+
+          LEFT←(x1)
+          RIGHT←(x4×0.4)+(x5×0.2)+(x6×0.4)
+
+          x←0.5<gradient_mask+(LEFT×(1-SELECTION))+(RIGHT×(SELECTION))
      
           (WATER GRASS DIRT STONE)←(¯1 1 2 3)
      
           blocks←l⍴0
-          blocks[;9;]←WATER
+          blocks[;⍳10;]←STONE
      
-          m←16 64 16⍴x         ⍝ island mask
+          m←16 64 16⍴x         ⍝ terrain mask
           s←m(2>⌿⍤2⍪⍤2)⊢0⍴⍨⊃l  ⍝ surface mask
           sp←⍸s                ⍝ where surface is
      
@@ -409,12 +405,13 @@
      
           blocks[;10+⍳64;]←d
      
-          blocks[;⍳11;]←(SAND)@(∊∘(GRASS DIRT))⊢blocks[;⍳11;]
-     
+          blocks[;⍳20;]←¯1@(1∘>)⊢blocks[;⍳20;]
+          blocks[;⍳22;]←(SAND)@(∊∘(GRASS DIRT))⊢blocks[;⍳22;]
+
               ⍝ Tree :-)
           rns←(⎕RL:|4192 4192 4192⊥pair,seed)
      
-          :If (0≠⍴sp)∧(10<⌊/1⌷⍉↑sp)∧(120>⌈/1⌷⍉↑sp)
+          :If (0≠⍴sp)∧(23<⌊/1⌷⍉↑sp)
               rns←(⎕RL:|4192 4192 4192⊥pair,seed)
               (tx ground tz)←(0 ⋄ 11 ⋄ 0)+⊃sp⌷⍨rns.?⍴sp
      
@@ -430,7 +427,7 @@
               :EndIf
           :EndIf
      
-          (packR blocks)⎕FAPPEND map     
+          (packR blocks)⎕FAPPEND map
           Queue_chunk device blocks pair
           i+←1
       :EndFor
