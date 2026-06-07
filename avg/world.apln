@@ -21,11 +21,12 @@
     ⍝ - Whether or not it needs to be uploaded (dirty)
 
     ⎕IO ← 0
+    ⎕CY'isolate'
     'packR'⎕CY'dfns'
 
     l ← 16 128 16
 
-    view_distance ← 12
+    view_distance ← 18
     max_chunks ← 2*⍨1+2×view_distance
 
     ⍝ The maximum possible surface can be visualized as a
@@ -91,7 +92,7 @@
     perms←⍬    ⍝ a bunch of random permutations into the gradients for terrain gen
     ⍝ Limit amount of terrain generations per frame until I can figure out isolates...
     ⍝ Only triggered once majority of chunks are already loaded in...
-    max_generations←2
+    max_generations←5
 
     ⍝ FNV Hash Function based off of Hsu's implementation (?) in MicroUI-APL
     ⍝    with suggestions from dzaima and Marshall Lochbaum
@@ -142,8 +143,20 @@
       sns←(⎕RL:seed)
       rand_vec←sns.?256⍴0
       perms←{256 sns.?256}¨⍳16
+     
+      iso.seed←seed
+      iso.rand_vec←sns.?256⍴0
+      iso.perms←{256 sns.?256}¨⍳16
+     
       ⍝rand_vec←1 2○⍤1⊢⍪○2×sns.?256⍴0
      
+
+      iso.(LEAF DIRT GRASS SAND STONE APPLE_LEAF LOG)←#.block_data.Bi(
+          'Leaf' ⋄ 'Dirt' ⋄ 'Grass' ⋄ 'Sand' ⋄ 'Stone' ⋄ 'Apple Leaf' ⋄ 'Log'
+      )
+      iso.l←16 128 16
+
+      chunk_iso←isolate.New iso
       map_file←save_dir,'/map_data.dcf'
       :If ⎕NEXISTS map_file
           map←map_file ⎕FSTIE 0
@@ -338,17 +351,169 @@
       :EndFor
     ∇
 
+
+    VEC←0
+    b←0
+
+    :Namespace iso
+        Patch←{(⍵ 64 ⍵)(÷⍤1)⍨0.5+⍉16 64 16⊤⍳16×64×16}
+        (f4 f6 f8 f16)←Patch¨64 80 128 256
+        trilerp←{v←(2 ⋄ i←2÷⍨≢⍵)⍴⍵ ⋄ d←⍺[;4 2 1⍳i] ⋄ (1-d ⋄ d)+.×v}⍣3
+        gradient_mask←∊((⌽7÷⍨1.1+⍳4),(196÷⍨⌽¯32+⍳60))+⍤¯1⍤2⊢16 64 16⍴0
+        Hash_byte ← {256|⊃(147×(8⍴2)⊥≠⍥((8⍴2)∘⊤))/↓⍉1↓83 ⎕DR(¯1+2*31)⍪⍵}
+        rand_vec←⍬
+        perms←⍬
+        seed←0
+        l←0
+        
+
+        ∇ r←Generate_chunks coords
+          chunks←⍬
+          idxs←⍬
+          i←0
+
+          out_coords←⍬
+
+          :For pair :In coords
+
+
+          ⍝ Prevent lag spikes as chunk generation and loading from disk happens on main thread.
+          ⍝ Should be modified once isolates are figured out/I optimize chunk generation
+              
+            :If i > 14
+                :Return
+            :EndIf
+
+              v←Hash_byte seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷4
+              v2←Hash_byte 2+seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷8
+              v3←Hash_byte 1+seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷16
+         
+          ⍝ Very basic 3d value selector noise
+         
+              x1←⊃(f4(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(0⊃perms)[v]]
+              x2←⊃(f8(+⍤1)8÷⍨8|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(1⊃perms)[v2]]
+         
+              x4←⊃(f4(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(3⊃perms)[v]]
+              x5←⊃(f8(+⍤1)8÷⍨8|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(4⊃perms)[v2]]
+              x6←⊃(f16(+⍤1)16÷⍨16|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(5⊃perms)[v3]]
+         
+              x7←⊃(f4(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(5⊃perms)[v]]
+              x8←⊃(f8(+⍤1)8÷⍨8|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(6⊃perms)[v2]]
+         
+              select←1⌈0⌊10×(x7×0.33)+(x8×0.66)
+              left←(x1×0.66)+(x2×0.33)
+              right←(x4×0.3)+(x5×0.3)+(x6×0.4)
+         
+              x←0.5<gradient_mask+(left×(1-select))+(right×(select))
+        
+              
+          blocks←l⍴0
+          blocks[;⍳10;]←STONE
+     
+          m←16 64 16⍴x         ⍝ terrain mask
+          s←m(2>⌿⍤2⍪⍤2)⊢0⍴⍨⊃l  ⍝ surface mask
+          sp←⍸s                ⍝ where surface is
+     
+          d←STONE@⊢m
+          d[sp]←GRASS
+     
+          d[0⌈(0 ¯1 0 ⋄ )+sp]←DIRT
+          d[0⌈(0 ¯2 0 ⋄ )+sp]←DIRT
+          d[0⌈(0 ¯3 0 ⋄ )+sp]←DIRT
+          d[0⌈(0 ¯4 0 ⋄ )+sp]←DIRT
+     
+          blocks[;10+⍳64;]←d
+     
+          blocks[;⍳20;]←¯1@(1∘>)⊢blocks[;⍳20;]
+          blocks[;⍳22;]←(SAND)@(∊∘(GRASS DIRT))⊢blocks[;⍳22;]
+     
+              rns←(⎕RL:|4192 4192 4192⊥pair,seed)
+          ⍝ From surface points filter out
+          ⍝ Edges (Want tree contained inside chunk)
+          ⍝ Where it's too low
+          sp←↓({(27<1⊃⍵)∧∧/(2∘<∧14∘>)(⊂0 2)⌷⍵}⍤1)⍛⌿↑(0 11 0 ⋄ )+sp
+          :If (0≠⍴sp)
+              rns←(⎕RL:|4192 4192 4192⊥pair,seed)
+              (tx ground tz)←⊃sp⌷⍨rns.?⍴sp
+              ty←3+rns.?3
+     
+              blocks[tx;ground+⍳ty;tz]←LOG
+     
+              leaves←APPLE_LEAF LEAF[0.9>rns.?5 2 5⍴0]
+              blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←leaves
+              leaves←APPLE_LEAF LEAF[0.9>rns.?3 2 3⍴0]
+              blocks[tx+¯1+⍳3;(ground+2 ⋄ ground+3)+ty;tz+¯1+⍳3]←leaves
+          :EndIf
+
+       
+          chunks,←⊂blocks
+          out_coords,←⊂pair
+     
+
+          :EndFor
+          
+
+          r←(chunks out_coords)
+       
+        ∇
+
+    :EndNamespace
+    chunk_iso ← 0⍝ isolate.New iso
+
+
     ∇ Load_new_chunks coords;pair;idx;v;v2;v3;x1;x2;x4;x5;x6;x7;x8;select;left;right;x;d;sp;blocks;m;s;rns;ty;leaves
-      (LEAF DIRT GRASS SAND STONE APPLE_LEAF LOG)←#.block_data.Bi(
-          'Leaf' ⋄ 'Dirt' ⋄ 'Grass' ⋄ 'Sand' ⋄ 'Stone' ⋄ 'Apple Leaf' ⋄ 'Log'
-      )
-      WATER←¯1
+      ⍝(LEAF DIRT GRASS SAND STONE APPLE_LEAF LOG)←#.block_data.Bi(
+      ⍝    'Leaf' ⋄ 'Dirt' ⋄ 'Grass' ⋄ 'Sand' ⋄ 'Stone' ⋄ 'Apple Leaf' ⋄ 'Log'
+      ⍝)
+      ⍝WATER←¯1
+
+      :If 0=≢coords
+        :Return
+      :EndIf
+     
+     
+      :If b=0
+          VEC←chunk_iso.Generate_chunks coords
+          b←~b
+      :Else
+          :If 1≡isolate.Failed'VEC'
+            ⎕←'Chunk Gen Error'
+            ⎕OFF
+          :EndIf
+          :If 1≡isolate.Available'VEC'
+              (new_chunks coords) ← VEC
+
+              pairs←new_chunks(,⍥⊂)¨coords
+
+              
+              :For twins :In pairs
+                (blocks pair)←twins
+                idx←(,⍨2*16)⊥pair              
+                mapi,←idx
+                (packR blocks)⎕FAPPEND map
+                Queue_chunk device blocks pair
+
+
+              :EndFor
+              VEC←⍬
+              mapi ⎕FREPLACE(map ⋄ 1)
+
+
+              b←0
+          :EndIf
+
+      :EndIf
      
       i←0
+      ⍝mapi ⎕FREPLACE(map ⋄ 1)
+
+    ∇
+
+    ∇ Foobar
       :For pair :In coords
           ⍝ Prevent lag spikes as chunk generation and loading from disk happens on main thread.
           ⍝ Should be modified once isolates are figured out/I optimize chunk generation
-          :If (i=max_generations)∧((max_chunks×0.8)<≢chunks)
+          :If i=max_generations
               :Leave
           :EndIf
           idx←(,⍨2*16)⊥pair
@@ -357,6 +522,8 @@
           v←Hash_byte seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷4
           v2←Hash_byte 2+seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷8
           v3←Hash_byte 1+seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷16
+     
+          ⍝ Very basic 3d value selector noise
      
           x1←⊃(f4(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(0⊃perms)[v]]
           x2←⊃(f8(+⍤1)8÷⍨8|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(1⊃perms)[v2]]
@@ -399,7 +566,7 @@
           ⍝ From surface points filter out
           ⍝ Edges (Want tree contained inside chunk)
           ⍝ Where it's too low
-          sp←↓({(27<1⊃⍵)∧∧/(2∘<∧14∘>)(⊂0 2)⌷⍵}⍤1)⍛⌿↑(0 11 0⋄)+sp
+          sp←↓({(27<1⊃⍵)∧∧/(2∘<∧14∘>)(⊂0 2)⌷⍵}⍤1)⍛⌿↑(0 11 0 ⋄ )+sp
           :If (0≠⍴sp)
               rns←(⎕RL:|4192 4192 4192⊥pair,seed)
               (tx ground tz)←⊃sp⌷⍨rns.?⍴sp
