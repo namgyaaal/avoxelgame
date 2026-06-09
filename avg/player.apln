@@ -187,6 +187,11 @@
     ∇
 
     ∇ Update dt;v;dir;forward;sideways;blks;m
+      ⍝ If the chunk isn't loaded yet freeze all movement updates
+      :If ~(##.world.Cg'xz')∊⍨⌊16÷⍨(x z ⋄ )
+          :Return
+      :EndIf
+
       (yaw pitch)-←dt×(e_mx e_my)
       pitch←1.54((-1.54)⌈⌊)pitch
       (e_mx e_my)←0

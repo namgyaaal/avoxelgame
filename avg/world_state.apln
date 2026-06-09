@@ -18,6 +18,7 @@
     'Chunks Loaded: '
     'Chunks Rendered: '
     'Average FPS: '
+    'Lowest FPS: '
     'Average WS Usage: '
     'Average WS Alloc: '
     'Chunk WS Size: '
@@ -97,7 +98,7 @@
           :ElseIf key=##.SDLK_L
               lock_mouse←~lock_mouse
               _←##.SDL_SetWindowMouseGrab core.window lock_mouse
-              _←##.SDL_SetWindowRelativeMouseMode core.window lock_mouse      
+              _←##.SDL_SetWindowRelativeMouseMode core.window lock_mouse
           :EndIf
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
           proj←##.math.Proj(○70÷180 ⋄ core.w÷core.h ⋄ 0.1 ⋄ 500)
@@ -146,10 +147,11 @@
      
      
       text_copy←text_base
-      text_copy[1+⍳7],←⍕¨(
+      text_copy[1+⍳8],←⍕¨(
           ≢##.world.chunks
           ##.world.chunks_rendered
           (+⌿÷≢)recent_fps
+          (⌊/)recent_fps
           (+⌿÷≢)recent_ws_usage÷1024*2
           (+⌿÷≢)recent_ws_alloc÷1024*2
           (1024*2)÷⍨⎕SIZE'##.world.chunks'
