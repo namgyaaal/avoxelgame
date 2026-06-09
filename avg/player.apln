@@ -188,11 +188,11 @@
 
     ∇ Update dt;v;dir;forward;sideways;blks;m
       ⍝ If the chunk isn't loaded yet freeze all movement updates
-      :If ~(##.world.Cg'xz')∊⍨⌊16÷⍨(x z⋄)
-        :Return
+      :If ~(##.world.Cg'xz')∊⍨⌊16÷⍨(x z ⋄ )
+          :Return
       :EndIf
-
-
+     
+     
       (yaw pitch)-←dt×(e_mx e_my)
       pitch←1.54((-1.54)⌈⌊)pitch
       (e_mx e_my)←0
@@ -213,7 +213,7 @@
           dir←Get_look ⍬
           v←dt×speed×forward×dir
           v+←dt×speed×sideways×dir ##.math.Cross 0 1 0
-          (x y z)+←20×v
+          (x y z)+←10×v
       :Else
           dir←##.math.Norm 0@1⊢Get_look ⍬
           v←dt×speed×forward×dir
