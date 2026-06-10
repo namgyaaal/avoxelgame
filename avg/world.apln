@@ -19,6 +19,14 @@
     ⍝ - Vertex buffer pointers for solid information and water (vb, wvb)
     ⍝ - Index count for drawing for solid and water (idx_cnt widx_cnt)
     ⍝ - Whether or not it needs to be uploaded (dirty)
+    ⍝
+    ⍝ ------------
+    ⍝ File Storage
+    ⍝ ------------
+    ⍝ Maps are saved in one large APL component file where first element
+    ⍝ is an array that is hashed when loaded that is used as way to get
+    ⍝ index of chunks based off of their coordinates, which are the further
+    ⍝ elements.
 
     ⎕IO ← 0
     'packR'⎕CY'dfns'
@@ -89,9 +97,8 @@
     sns←()
     rand_vec←⍬ ⍝ randomized gradients
     perms←⍬    ⍝ a bunch of random permutations into the gradients for terrain gen
-    ⍝ Limit amount of terrain generations per frame until I can figure out isolates...
-    ⍝ Only triggered once majority of chunks are already loaded in...
-    max_generations←2
+    ⍝ Limit amount of terrain generations per frame.
+    max_generations←1
 
     ⍝ FNV Hash Function based off of Hsu's implementation (?) in MicroUI-APL
     ⍝    with suggestions from dzaima and Marshall Lochbaum
@@ -109,6 +116,7 @@
     empty_rle←(l⋄(×/l⋄)⋄(0⋄))
 
 
+    ⍝ Chunk generation information
     Patch←{(⍵ 64 ⍵)(÷⍤1)⍨0.5+⍉16 64 16⊤⍳16×64×16}
     (f4 f6 f8 f16)←Patch¨64 80 128 256
     trilerp←{v←(2 ⋄ i←2÷⍨≢⍵)⍴⍵ ⋄ d←⍺[;4 2 1⍳i] ⋄ (1-d ⋄ d)+.×v}⍣3
@@ -338,46 +346,70 @@
       :EndFor
     ∇
 
-    ∇ Load_new_chunks coords;pair;idx;v;v2;v3;x1;x2;x4;x5;x6;x7;x8;select;left;right;x;d;sp;blocks;m;s;rns;ty;leaves
+    ∇ Load_new_chunks coords;pair;idx;i;v;v2;v3;l1;l2;r1;r2;r3;s1;s2;select;left;right;solid;d;sp;blocks;m;s;rns;ty;leaves;pos
+      ⎕SHADOW(
+          'grid_k' ⋄ 'grid_hash'
+          'LEAF' ⋄ 'DIRT' ⋄ 'GRASS' ⋄ 'SAND' ⋄ 'STONE'
+          'APPLE_LEAF' ⋄ 'LOG' ⋄ 'WATER'
+      )
+
       (LEAF DIRT GRASS SAND STONE APPLE_LEAF LOG)←#.block_data.Bi(
           'Leaf' ⋄ 'Dirt' ⋄ 'Grass' ⋄ 'Sand' ⋄ 'Stone' ⋄ 'Apple Leaf' ⋄ 'Log'
       )
       WATER←¯1
      
+      ⍝ Precompute hashes
+      ⍝ - (We only do octaves on 4 8 16 chunk frequency)
+      grid_k←seed,∪,[⍳2](⍉2⊥⍣¯1⍳8)+⍤1⍤2 1⊢⌊,[⍳2]↑(⊂1 0 1\↑coords)∘.÷4 8 16
+      grid_hash←Hash_byte grid_k
+     
       i←0
       :For pair :In coords
-          ⍝ Prevent lag spikes as chunk generation and loading from disk happens on main thread.
-          ⍝ Should be modified once isolates are figured out/I optimize chunk generation
-          :If (i=max_generations)∧((max_chunks×0.8)<≢chunks)
+          ⍝ Prevent fps hitch as chunk generation happens on main thread
+          :If (i=max_generations)
               :Leave
           :EndIf
-          idx←(,⍨2*16)⊥pair
-          mapi,←idx
+          pos←1 0 1\pair
+          mapi,←(,⍨2*16)⊥pair
+          i+←1
+
+          v←seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊pos÷4
+          v2←seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊pos÷8
+          v3←seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊pos÷16
      
-          v←Hash_byte seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷4
-          v2←Hash_byte 2+seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷8
-          v3←Hash_byte 1+seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊(⊃pair ⋄ 0 ⋄ 1⊃pair)÷16
+          v←grid_hash[grid_k⍳v]
+          v2←grid_hash[grid_k⍳v2]
+          v3←grid_hash[grid_k⍳v3]
      
-          x1←⊃(f4(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(0⊃perms)[v]]
-          x2←⊃(f8(+⍤1)8÷⍨8|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(1⊃perms)[v2]]
+          ⍝ Very basic 3d fractal value selector noise
+          ⍝ right(r) is chosen with more probability and is 
+          ⍝   more "smooth" (16-chunk octave) while
+          ⍝   left(l) is sampled for occasional cliffs + overhang
+          ⍝ - This eats up a lot of performance compared to 2d 
+          ⍝     perlin noise but looks cooelr lol
+          ⍝ - Each one samples from a different permutation of 
+          ⍝     the gradient vector for better randomness
+          
+          l1←⊃(f4(+⍤1)4÷⍨4|pos)trilerp rand_vec[(0⊃perms)[v]]
+          l2←⊃(f8(+⍤1)8÷⍨8|pos)trilerp rand_vec[(1⊃perms)[v2]]
      
-          x4←⊃(f4(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(3⊃perms)[v]]
-          x5←⊃(f8(+⍤1)8÷⍨8|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(4⊃perms)[v2]]
-          x6←⊃(f16(+⍤1)16÷⍨16|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(5⊃perms)[v3]]
+          r1←⊃(f4(+⍤1)4÷⍨4|pos)trilerp rand_vec[(3⊃perms)[v]]
+          r2←⊃(f8(+⍤1)8÷⍨8|pos)trilerp rand_vec[(4⊃perms)[v2]]
+          r3←⊃(f16(+⍤1)16÷⍨16|pos)trilerp rand_vec[(5⊃perms)[v3]]
      
-          x7←⊃(f4(+⍤1)4÷⍨4|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(5⊃perms)[v]]
-          x8←⊃(f8(+⍤1)8÷⍨8|(⊃pair ⋄ 0 ⋄ 1⊃pair))trilerp rand_vec[(6⊃perms)[v2]]
+          s1←⊃(f4(+⍤1)4÷⍨4|pos)trilerp rand_vec[(5⊃perms)[v]]
+          s2←⊃(f8(+⍤1)8÷⍨8|pos)trilerp rand_vec[(6⊃perms)[v2]]
      
-          select←1⌈0⌊10×(x7×0.33)+(x8×0.66)
-          left←(x1×0.66)+(x2×0.33)
-          right←(x4×0.3)+(x5×0.3)+(x6×0.4)
+          select←1⌈0⌊10×(s1×0.33)+(s2×0.66)
+          left←(l1×0.66)+(l2×0.33)
+          right←(r1×0.3)+(r2×0.3)+(r3×0.4)
      
-          x←0.5<gradient_mask+(left×(1-select))+(right×(select))
+          solid←0.5<gradient_mask+(left×(1-select))+(right×(select))
      
           blocks←l⍴0
           blocks[;⍳10;]←STONE
      
-          m←16 64 16⍴x         ⍝ terrain mask
+          m←16 64 16⍴solid     ⍝ terrain mask
           s←m(2>⌿⍤2⍪⍤2)⊢0⍴⍨⊃l  ⍝ surface mask
           sp←⍸s                ⍝ where surface is
      
@@ -399,7 +431,7 @@
           ⍝ From surface points filter out
           ⍝ Edges (Want tree contained inside chunk)
           ⍝ Where it's too low
-          sp←↓({(27<1⊃⍵)∧∧/(2∘<∧14∘>)(⊂0 2)⌷⍵}⍤1)⍛⌿↑(0 11 0⋄)+sp
+          sp←↓({(27<1⊃⍵)∧∧/(2∘<∧14∘>)(⊂0 2)⌷⍵}⍤1)⍛⌿↑(0 11 0 ⋄ )+sp
           :If (0≠⍴sp)
               rns←(⎕RL:|4192 4192 4192⊥pair,seed)
               (tx ground tz)←⊃sp⌷⍨rns.?⍴sp
@@ -415,7 +447,7 @@
      
           (packR blocks)⎕FAPPEND map
           Queue_chunk device blocks pair
-          i+←1
+          
       :EndFor
      
       ⍝ Add back new map indices after creating new chunks
