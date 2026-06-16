@@ -46,6 +46,7 @@
       _←##.SDL_SetWindowRelativeMouseMode core.window lock_mouse
      
       :If ~⎕NEXISTS save_dir
+          ⍝ Prevent file conflicts until I allow people to type in world name
           save_dir←(⎕MKDIR⍠'Unique' 1)save_dir
       :EndIf
       file←save_dir,'/state.dcf'
@@ -101,6 +102,11 @@
               _←##.SDL_SetWindowRelativeMouseMode core.window lock_mouse
           :EndIf
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
+          ⍝ When window resizes need to:
+          ⍝ - Set new projection matrices
+          ⍝ - Recreate depth texture
+          ⍝ - Reposition cursor and render stat information  
+
           proj←##.math.Proj(○70÷180 ⋄ core.w÷core.h ⋄ 0.1 ⋄ 500)
           proj_view←view+.×proj
           ui_proj←##.math.Ortho(0 0 core.h core.w 0.1 100)

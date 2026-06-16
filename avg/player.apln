@@ -239,7 +239,7 @@
 
       Get_frustum←{
           ⍝ ⍵ ←→ (fov, aspect ratio, znear, zfar)
-          ⍝ Should be returned as (normals distance) as (6 4) matrix
+          ⍝ Should be returned as (normals⋄distance)
           ⍝ (Near Far Right Left Top Bottom)
           (fov ⋄ ar ⋄ zn ⋄ zf)←⍵
           front←Get_look ⍬
@@ -269,7 +269,7 @@
           ]
           distance←p1(+.×⍤¯1)normals
      
-          normals,distance
+          (normals distance)
       }
 
 

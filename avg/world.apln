@@ -94,7 +94,7 @@
     indices←,0 1 2 0 2 3∘.+⍨4×⍳4÷⍨≢vertices
 
     seed←?2*32
-    sns←()
+    sns←()     ⍝ namespace for using world seed
     rand_vec←⍬ ⍝ randomized gradients
     perms←⍬    ⍝ a bunch of random permutations into the gradients for terrain gen
     ⍝ Limit amount of terrain generations per frame.
@@ -106,10 +106,6 @@
     ⍝ Modified to work column-by-column on a 2d array
     ⍝ Prime is ≤2*8 because I only care about [0, 256)
     Hash_byte ← {256|⊃(147×(8⍴2)⊥≠⍥((8⍴2)∘⊤))/↓⍉1↓83 ⎕DR(¯1+2*31)⍪⍵}
-
-    ⍝ Don't plant it near edges for now!!
-    tree_spots←∊¯2↓2↓⍉12 16⍴¯32↓32↓⍳256
-
     ⍝ File Save Information
     map←0 ⍝ set in world Init
     mapi←(1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
@@ -117,9 +113,13 @@
 
 
     ⍝ Chunk generation information
+
+    ⍝ Various octaves used in noise sampling
     Patch←{(⍵ 64 ⍵)(÷⍤1)⍨0.5+⍉16 64 16⊤⍳16×64×16}
     (f4 f6 f8 f16)←Patch¨64 80 128 256
+    ⍝ Trilinear interpolate (⍺) arbitary points [0,1] in R*3 inside (⍵) 8-point cube
     trilerp←{v←(2 ⋄ i←2÷⍨≢⍵)⍴⍵ ⋄ d←⍺[;4 2 1⍳i] ⋄ (1-d ⋄ d)+.×v}⍣3
+    ⍝ Give 3d noise a "surface"
     gradient_mask←∊((⌽7÷⍨1.1+⍳4),(196÷⍨⌽¯32+⍳60))+⍤¯1⍤2⊢16 64 16⍴0
 
     ∇ Init(device save save_dir);vb_params;tb_params;p;cmd;pass;size;state;pxz;map_file
@@ -149,9 +149,7 @@
       seed←save.⎕VGET⊂'seed'seed
       sns←(⎕RL:seed)
       rand_vec←sns.?256⍴0
-      perms←{256 sns.?256}¨⍳16
-      ⍝rand_vec←1 2○⍤1⊢⍪○2×sns.?256⍴0
-     
+      perms←{256 sns.?256}¨⍳16     
       map_file←save_dir,'/map_data.dcf'
       :If ⎕NEXISTS map_file
           map←map_file ⎕FSTIE 0
@@ -164,6 +162,9 @@
     ∇
 
     ∇ Release(device save)
+      ⍝ Write seed (since first creation won't have it)
+      ⍝ Free all GPU data
+      ⍝ Write out all chunks to disk
       save.seed←seed
       {_←##.SDL_ReleaseGPUBuffer device ⍵}¨(0∘≠)⍛/∊(
           Cg'vb'
@@ -276,7 +277,7 @@
       }¨Cpg'vs'
      
       ⍝ GPU Upload and set loaded chunks as ready with render info
-      ⍝ 0=wvb to prevent side effect call (if empty it does a fill!)
+      ⍝ 0=vb to prevent side effect call (if empty it does a fill!)
       {(pos vs vb)←⍵
           0=vb:
           _←##.SDL_UploadToGPUBuffer pass(tb pos)(vb 0 vs)0
@@ -307,15 +308,7 @@
       (m/(Ci'wvb')⊃chunk_info)←m2/Cpg'wvb'
     ∇
 
-    ∇ Update_range(device x z);range;m;pair;set_m;ax;az;tr;ty;tz;tx;y;p;rns;p1;p2;i;i2;t1;t2;y1;y2;idx
-    ⍝ Shadow here because it's too dang long!!!!
-    ⍝ (Will probably come back to bite me, whatever--gonna make this all a dfn eventually)
-      ⎕SHADOW(
-          'coords1' ⋄ 'coords2'
-          'surface' ⋄ 'ground' ⋄ 'blocks'
-          'new' ⋄ 'old'
-      )
-     
+    ∇ Update_range(device x z);range;m;pair;set_m;ax;az;y;p;rns;new;old 
       (ax az)←(⌊16÷⍨x z)
       range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance
       new←range~Cg'xz'
@@ -352,7 +345,7 @@
           'LEAF' ⋄ 'DIRT' ⋄ 'GRASS' ⋄ 'SAND' ⋄ 'STONE'
           'APPLE_LEAF' ⋄ 'LOG' ⋄ 'WATER'
       )
-
+     
       (LEAF DIRT GRASS SAND STONE APPLE_LEAF LOG)←#.block_data.Bi(
           'Leaf' ⋄ 'Dirt' ⋄ 'Grass' ⋄ 'Sand' ⋄ 'Stone' ⋄ 'Apple Leaf' ⋄ 'Log'
       )
@@ -363,16 +356,11 @@
       grid_k←seed,∪,[⍳2](⍉2⊥⍣¯1⍳8)+⍤1⍤2 1⊢⌊,[⍳2]↑(⊂1 0 1\↑coords)∘.÷4 8 16
       grid_hash←Hash_byte grid_k
      
-      i←0
-      :For pair :In coords
-          ⍝ Prevent fps hitch as chunk generation happens on main thread
-          :If (i=max_generations)
-              :Leave
-          :EndIf
+      ⍝ Limit max chunks generated to prevent fps hitching
+      :For pair :In (max_generations⌊≢)⍛↑coords
           pos←1 0 1\pair
           mapi,←(,⍨2*16)⊥pair
-          i+←1
-
+     
           v←seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊pos÷4
           v2←seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊pos÷8
           v3←seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊pos÷16
@@ -382,14 +370,14 @@
           v3←grid_hash[grid_k⍳v3]
      
           ⍝ Very basic 3d fractal value selector noise
-          ⍝ right(r) is chosen with more probability and is 
+          ⍝ right(r) is chosen with more probability and is
           ⍝   more "smooth" (16-chunk octave) while
           ⍝   left(l) is sampled for occasional cliffs + overhang
-          ⍝ - This eats up a lot of performance compared to 2d 
+          ⍝ - This eats up a lot of performance compared to 2d
           ⍝     perlin noise but looks cooelr lol
-          ⍝ - Each one samples from a different permutation of 
+          ⍝ - Each one samples from a different permutation of
           ⍝     the gradient vector for better randomness
-          
+     
           l1←⊃(f4(+⍤1)4÷⍨4|pos)trilerp rand_vec[(0⊃perms)[v]]
           l2←⊃(f8(+⍤1)8÷⍨8|pos)trilerp rand_vec[(1⊃perms)[v2]]
      
@@ -406,8 +394,9 @@
      
           solid←0.5<gradient_mask+(left×(1-select))+(right×(select))
      
+          
           blocks←l⍴0
-          blocks[;⍳10;]←STONE
+          blocks[;⍳10;]←STONE  ⍝ Noise properly starts at 11, below make it only stone
      
           m←16 64 16⍴solid     ⍝ terrain mask
           s←m(2>⌿⍤2⍪⍤2)⊢0⍴⍨⊃l  ⍝ surface mask
@@ -423,22 +412,26 @@
      
           blocks[;10+⍳64;]←d
      
+          ⍝ Empty blocks below 21 set to water
+          ⍝ If block is grass or dirt below 21 set to sand
           blocks[;⍳20;]←¯1@(1∘>)⊢blocks[;⍳20;]
           blocks[;⍳22;]←(SAND)@(∊∘(GRASS DIRT))⊢blocks[;⍳22;]
      
-              ⍝ Tree :-)
-          rns←(⎕RL:|4192 4192 4192⊥pair,seed)
+          ⍝ Tree :-)
           ⍝ From surface points filter out
           ⍝ Edges (Want tree contained inside chunk)
           ⍝ Where it's too low
           sp←↓({(27<1⊃⍵)∧∧/(2∘<∧14∘>)(⊂0 2)⌷⍵}⍤1)⍛⌿↑(0 11 0 ⋄ )+sp
           :If (0≠⍴sp)
+              ⍝ For deterministic tree placement
+              ⍝ (shoddy way to do it but only 1 tree per chunk..) 
               rns←(⎕RL:|4192 4192 4192⊥pair,seed)
               (tx ground tz)←⊃sp⌷⍨rns.?⍴sp
               ty←3+rns.?3
      
               blocks[tx;ground+⍳ty;tz]←LOG
      
+              ⍝ Random chance of apple leafs
               leaves←APPLE_LEAF LEAF[0.9>rns.?5 2 5⍴0]
               blocks[tx+¯2+⍳5;(ground ⋄ ground+1)+ty;tz+¯2+⍳5]←leaves
               leaves←APPLE_LEAF LEAF[0.9>rns.?3 2 3⍴0]
@@ -447,7 +440,7 @@
      
           (packR blocks)⎕FAPPEND map
           Queue_chunk device blocks pair
-          
+     
       :EndFor
      
       ⍝ Add back new map indices after creating new chunks
@@ -455,12 +448,9 @@
     ∇
 
 
-    ∇ Draw_chunks(core_data cmd_buf pass px pz lx lz proj_view);w;m;m2;vbs;inds;xz;ud;frs;n;d;h;t;t2;centers;extents;r
+    ∇ Draw_chunks(core cmd_buf pass px pz lx lz proj_view);w;m;m2;vbs;inds;xz;ud;frs;n;d;h;t;t2;centers;extents;r
       ⍝ Frustum Culling
-      frs←##.player.Get_frustum(○70÷180 ⋄ core_data.w÷core_data.h ⋄ 0.1 ⋄ 500)
-      n←3↑[1]frs
-      d←,3↓[1]frs
-     
+      (n d)←##.player.Get_frustum(○70÷180 ⋄ core.w÷core.h ⋄ 0.1 ⋄ 500)     
       ⍝ https://web.archive.org/web/20220115111822/https://gdbooks.gitbooks.io/3dcollisions/content/Chapter2/static_aabb_plane.html
       centers←(w÷2 ⋄ 2÷⍨h←1⊃l ⋄ w÷2)(+⍤1)⌽2⌽0,(w←⊃l)×↑Cg'xz'
       r←+/(|n)(×⍤1)(w ⋄ h ⋄ w)÷2
@@ -468,8 +458,7 @@
      
       chunks_rendered←+/m
      
-      ⍝ Fog Start -- Fog End
-      ⍝10 15
+      ⍝ Fog Start -- Fog End [10, 15]
       _←##.SDL_PushGPUFragmentUniformData cmd_buf 0(view_distance×10 15)(4×2)
      
       ⍝ Render Solid
@@ -502,11 +491,9 @@
           ⍝ returns them in terms of locations into 4d chunk matrix
           ⍺←1
           (filter w h)←(⍺ ⋄ ⊃l ⋄ 1⊃l)
-          (filter w h)←(⍺ ⋄ ⊃l ⋄ 1⊃l)
           0=≢⍵:⍬
           coords←⌊w÷⍨(⊂0 2)∘⌷¨⍵
           cindices←coords⍳⍨Cg'xz' ⍝ map to world major cells
-          {filter∧∧/(0≤2⊃⍵ ⋄ h>2⊃⍵)}¨⍛/cindices,¨(w∘|@(0 2)⊢)¨⍵
           {filter∧∧/(0≤2⊃⍵ ⋄ h>2⊃⍵)}¨⍛/cindices,¨(w∘|@(0 2)⊢)¨⍵
       }
 
