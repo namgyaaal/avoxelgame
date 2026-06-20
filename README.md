@@ -46,11 +46,11 @@ After that you should be able to run with `./main.apls`
 
 Some Linux users may have `dyalogscript` located in a different directory. If that's the case, the shebang in `main.apls` should be replaced with the path specified by `which dyalogscript`
 
-## Running on Windows (WIP)
+## Running on Windows
 
-Compiling everything on Windows is a bit more tricky and is best done with finding the SDL3 dev libraries provided on libsdl3 releases with cmake-gui (there are issues with SDL3 through vcpkg). 
+Compiling everything on Windows is a bit more tricky and is best done with finding the SDL3 dev libraries provided on libsdl3 releases with cmake-gui.
 
-Otherwise, .dlls should be provided as releases in the future which contains .dlls which should be placed in `./libs/`
+.dlls are provided as a release [here](https://github.com/namgyaaal/avoxelgame/releases/tag/Supplementary) which can be placed in a folder `./libs` on the directory this repository.
 
 Afterwards, the game can be played through a Dyalog session like so:
 

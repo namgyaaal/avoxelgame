@@ -33,7 +33,7 @@
 
     l ← 16 128 16
 
-    view_distance ← 12
+    view_distance ← 8
     max_chunks ← 2*⍨1+2×view_distance
 
     ⍝ The maximum possible surface can be visualized as a
@@ -149,7 +149,7 @@
       seed←save.⎕VGET⊂'seed'seed
       sns←(⎕RL:seed)
       rand_vec←sns.?256⍴0
-      perms←{256 sns.?256}¨⍳16     
+      perms←{256 sns.?256}¨⍳16
       map_file←save_dir,'/map_data.dcf'
       :If ⎕NEXISTS map_file
           map←map_file ⎕FSTIE 0
@@ -308,7 +308,7 @@
       (m/(Ci'wvb')⊃chunk_info)←m2/Cpg'wvb'
     ∇
 
-    ∇ Update_range(device x z);range;m;pair;set_m;ax;az;y;p;rns;new;old 
+    ∇ Update_range(device x z);range;m;pair;set_m;ax;az;y;p;rns;new;old
       (ax az)←(⌊16÷⍨x z)
       range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance
       new←range~Cg'xz'
@@ -394,7 +394,7 @@
      
           solid←0.5<gradient_mask+(left×(1-select))+(right×(select))
      
-          
+     
           blocks←l⍴0
           blocks[;⍳10;]←STONE  ⍝ Noise properly starts at 11, below make it only stone
      
@@ -424,7 +424,7 @@
           sp←↓({(27<1⊃⍵)∧∧/(2∘<∧14∘>)(⊂0 2)⌷⍵}⍤1)⍛⌿↑(0 11 0 ⋄ )+sp
           :If (0≠⍴sp)
               ⍝ For deterministic tree placement
-              ⍝ (shoddy way to do it but only 1 tree per chunk..) 
+              ⍝ (shoddy way to do it but only 1 tree per chunk..)
               rns←(⎕RL:|4192 4192 4192⊥pair,seed)
               (tx ground tz)←⊃sp⌷⍨rns.?⍴sp
               ty←3+rns.?3
@@ -450,7 +450,7 @@
 
     ∇ Draw_chunks(core cmd_buf pass px pz lx lz proj_view);w;m;m2;vbs;inds;xz;ud;frs;n;d;h;t;t2;centers;extents;r
       ⍝ Frustum Culling
-      (n d)←##.player.Get_frustum(○70÷180 ⋄ core.w÷core.h ⋄ 0.1 ⋄ 500)     
+      (n d)←##.player.Get_frustum(○70÷180 ⋄ core.w÷core.h ⋄ 0.1 ⋄ 500)
       ⍝ https://web.archive.org/web/20220115111822/https://gdbooks.gitbooks.io/3dcollisions/content/Chapter2/static_aabb_plane.html
       centers←(w÷2 ⋄ 2÷⍨h←1⊃l ⋄ w÷2)(+⍤1)⌽2⌽0,(w←⊃l)×↑Cg'xz'
       r←+/(|n)(×⍤1)(w ⋄ h ⋄ w)÷2
