@@ -212,7 +212,7 @@
           dir←Get_look ⍬
           v←dt×speed×forward×dir
           v+←dt×speed×sideways×dir ##.math.Cross 0 1 0
-          (x y z)+←7.5×v
+          (x y z)+←10×v
       :Else
           dir←##.math.Norm 0@1⊢Get_look ⍬
           v←dt×speed×forward×dir

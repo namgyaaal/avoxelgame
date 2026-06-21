@@ -33,7 +33,7 @@
 
     l ← 16 128 16
 
-    view_distance ← 8
+    view_distance ← 10
     max_chunks ← 2*⍨1+2×view_distance
 
     ⍝ The maximum possible surface can be visualized as a
@@ -97,8 +97,9 @@
     sns←()     ⍝ namespace for using world seed
     rand_vec←⍬ ⍝ randomized gradients
     perms←⍬    ⍝ a bunch of random permutations into the gradients for terrain gen
-    ⍝ Limit amount of terrain generations per frame.
+    ⍝ Limit amount of terrain generations and unloading per frame.
     max_generations←1
+    max_unload←5
 
     ⍝ FNV Hash Function based off of Hsu's implementation (?) in MicroUI-APL
     ⍝    with suggestions from dzaima and Marshall Lochbaum
@@ -308,14 +309,16 @@
       (m/(Ci'wvb')⊃chunk_info)←m2/Cpg'wvb'
     ∇
 
-    ∇ Update_range(device x z);range;m;pair;set_m;ax;az;y;p;rns;new;old
+    ∇ Update_range(device x z);range;m;m2;pair;set_m;ax;az;y;p;rns;new;old
       (ax az)←(⌊16÷⍨x z)
       range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
      
       ⍝ Unload chunks
+      ⍝ ratelimit since packR+⎕FREPLACE takes a bit.
       m←~old∊⍨Cg'xz' ⍝ Kept
+      m←max_unload{1@(⍺↓⍸~⍵)⊢⍵}m
       { ⍝ (major cell index ⋄ index into chunk hash array)
           (packR chunks⌷⍨⊃⍵)⎕FREPLACE(map ⋄ 2+1⊃⍵)
       }{⍺⍺¨∘↓⍣(~0∊⍴⍵)⊢⍵}(~m)⌿⍉[⍳≢chunks ⋄ mapi⍳Cg'enc_xz']

@@ -19,14 +19,10 @@
     'Chunks Rendered: '
     'Average FPS: '
     'Lowest FPS: '
-    'Average WS Usage: '
-    'Average WS Alloc: '
-    'Chunk WS Size: '
-    'Total Compactions: '
+    'Average Low FPS: '
     )
     recent_fps←⍬
-    recent_ws_usage←⍬
-    recent_ws_alloc←⍬
+    low_fps←⍬
 
     save_file←0
     save←()
@@ -105,8 +101,8 @@
           ⍝ When window resizes need to:
           ⍝ - Set new projection matrices
           ⍝ - Recreate depth texture
-          ⍝ - Reposition cursor and render stat information  
-
+          ⍝ - Reposition cursor and render stat information
+     
           proj←##.math.Proj(○70÷180 ⋄ core.w÷core.h ⋄ 0.1 ⋄ 500)
           proj_view←view+.×proj
           ui_proj←##.math.Ortho(0 0 core.h core.w 0.1 100)
@@ -138,13 +134,8 @@
       ⍝ - (time from initialization to first frame is small enough)
       ⍝ - Hence just add 16.66ms if it's 0 as proxy
       recent_fps,⍨←÷dt+(1÷60)×0=dt
-      recent_ws_usage,⍨←(2000⌶)1
-      recent_ws_alloc,⍨←(2000⌶)13
-      (recent_fps recent_ws_usage recent_ws_alloc)←60↑¨(
-          recent_fps
-          recent_ws_usage
-          recent_ws_alloc
-      )
+      low_fps,⍨←(⌊/recent_fps)
+      (recent_fps low_fps)←60↑¨(recent_fps low_fps)
      
       ##.world.Update_range core.device ##.player.x ##.player.z
       ##.player.Update dt
@@ -153,15 +144,12 @@
      
      
       text_copy←text_base
-      text_copy[1+⍳8],←⍕¨(
+      text_copy[1+⍳5],←⍕¨(
           ≢##.world.chunks
           ##.world.chunks_rendered
           (+⌿÷≢)recent_fps
           (⌊/)recent_fps
-          (+⌿÷≢)recent_ws_usage÷1024*2
-          (+⌿÷≢)recent_ws_alloc÷1024*2
-          (1024*2)÷⍨⎕SIZE'##.world.chunks'
-          (2000⌶)2
+          (+⌿÷≢)low_fps
       )
      
       ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
