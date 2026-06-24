@@ -34,7 +34,7 @@
       new_time←⊃##.SDL_GetTicks
       core.dt←1000÷⍨time-⍨new_time
       time←new_time
-      
+     
       a←Update_menu core
       Draw_menu _Draw_with core
     ∇
@@ -137,16 +137,11 @@
       menu_scope←(≢##.text.snames)⍴⊂⍬
       save_scope←(≢##.text.snames)⍴⊂⍬
      
-      txt←'UTF-8'⎕UCS'The Meaning of life',(⎕UCS 10),'⍎⊖⍕⊃⊂|⌊-*+○⌈×÷!⌽⍉⌹~⍴⍋⍒,⍟?⍳0'
-      ptr←(color:212 175 55 255)##.text.Make_text txt
-      menu_scope⍪¨←(ptr ⋄ 280+core.w÷2 ⋄ core.h-155 ⋄ 1 ⋄ 0.4 ⋄ 0.3)
-     
-      ptr←##.text.Make_text'UTF-8'⎕UCS'Play'
-      menu_scope⍪¨←(ptr ⋄ core.w÷2 ⋄ core.h-470 ⋄ 1 ⋄ 0.4 ⋄ 0)
-     
-      ptr←##.text.Make_text'UTF-8'⎕UCS'Quit'
-      menu_scope⍪¨←(ptr ⋄ core.w÷2 ⋄ core.h-540 ⋄ 1 ⋄ 0.4 ⋄ 0)
-     
+      ptr←##.text.Make_text'UTF-8'⎕UCS∊(⎕UCS 10),⍨(7 20)⍴⎕D,⎕A,⎕UCS 2031⌶6
+      menu_scope⍪¨←(ptr ⋄ core.w÷2 ⋄ core.h-400 ⋄ 1 ⋄ 1.0 ⋄ 0)
+
+
+    
       names←{
           (∧/' '=1⊃⍵):'<EMPTY SAVE>'
           1⊃⍵
@@ -205,23 +200,9 @@
       elapsed+←core.dt
       (click x y)←##.SDL_GetMouseState 0 0
       y←core.h-y
-      (0⊃(##.text.Si'scale')⊃menu_scope)←0.5+0.025×1○3×elapsed
-     
-      xy←(⊂1 2)⌷(⍉↑)menu_scope⌷⍨⊂##.text.Si'x_' 'y_'
-      (w h)←(⊂pi←##.text.Pi menu_scope⊃⍨⊂##.text.Si'ptr')∘⌷¨##.text.table⌷⍨⊂##.text.Ti'w_' 'h_'
-      tr←wh+bl←xy-0.5×wh←0.4×(⊂1 2)⌷(⍉↑)w h
-      m←∧/(bl∘(<⍤1)∧tr∘(>⍤1))x y
-     
-      ((⊂m/1↓pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥212 175 55 255
-      ((⊂(~m)/1↓pi)⌷(##.text.Ti'color')⊃##.text.table)←(4⍴256)⊥255 255 255 255
      
       ##.text.scope←menu_scope
       a←##.state.TICK
-      :If (click=1)∧(0∊⍸m)
-          a←##.state.NEXT
-      :ElseIf (click=1)∧(1∊⍸m)
-          a←##.state.QUIT
-      :EndIf
     ∇
 
     ∇ a←Update_saves core;click;x;y;m;xy;wh;bl;tr;w;h;pi
@@ -293,16 +274,6 @@
     ∇
 
     ∇ Draw_menu(pass ui_proj)
-      ⍝ Logo
-      scale←1@(⊂3 3)⊢1.1×∘.=⍨⍳4
-      x←128-⍨core.w÷2
-      y←core.h-370
-      mat←ui_proj+.×⍨scale+.×(x ⋄ y ⋄ 0 ⋄ 1)@3⊢∘.=⍨⍳4
-      _←##.SDL_PushGPUVertexUniformData cmd_buf 0(∊mat)(16×4)
-      _←##.SDL_BindGPUVertexBuffers pass 0(⊂apple_vb 0)1
-      _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_16BIT
-      _←##.SDL_BindGPUFragmentSamplers pass 0(⊂apple_texture apple_sampler)1
-      _←##.SDL_DrawGPUIndexedPrimitives pass 6 1 0 0 0
     ∇
 
     ∇ Draw_saves(_ _)

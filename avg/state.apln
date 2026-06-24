@@ -42,7 +42,7 @@
      ∆_MENU_TICK:→∆_MENU_EVENT_
      ∆_MENU_QUIT:##.menu_state.Release core ⋄ →0
      ∆_MENU_BACK:∘∘∘
-     ∆_MENU_NEXT:→∆_SAVES_EVENT_
+     ∆_MENU_NEXT:∘∘∘
      
      ⍝ -----------
      ⍝ Saves State
@@ -98,7 +98,7 @@
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
           (core.w core.h)←##.LSE_GetWindowResize 0 0
       :EndIf
-      
+     
       Exhaust_fn core
     ∇
 

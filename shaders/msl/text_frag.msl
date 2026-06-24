@@ -17,7 +17,10 @@ struct main0_in
 fragment main0_out main0(main0_in in [[stage_in]], texture2d<float> sample_tex [[texture(0)]], sampler sample_texSmplr [[sampler(0)]])
 {
     main0_out out = {};
-    out.o_color = in.color * sample_tex.sample(sample_texSmplr, in.uv);
+    float smoothing = 0.0625;
+    float _distance = sample_tex.sample(sample_texSmplr, in.uv).w;
+    float alpha = smoothstep(0.5 - smoothing, 0.5 + smoothing, _distance);
+    out.o_color = float4(in.color.xyz, in.color.w * alpha);
     return out;
 }
 

@@ -11,7 +11,7 @@
     'TTF_OpenFont' ptr (cstr f32)
     'TTF_CloseFont' ⍬ ptr
 
-    'TTF_SetFontSDF' ptr (ptr bool)
+    'TTF_SetFontSDF' bool (ptr bool)
     'TTF_SetFontWrapAlignment' ⍬ (ptr i32)
     'TTF_CreateGPUTextEngine' ptr ptr
     'TTF_DestroyGPUTextEngine' ⍬ ptr

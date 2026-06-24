@@ -46,7 +46,7 @@
     scope←(≢snames)⍴⊂⍬
     Si←snames∘⍳∘⊆
 
-    ∇ Init(device window);res;sam_params
+    ∇ Init(device window);res;sam_params;sdf
       res←##.TTF_Init
       'Error initializing SDL3_ttf'##.Assert res
       font←##.TTF_OpenFont'assets/APL387.ttf' 64
@@ -54,6 +54,10 @@
       _←##.TTF_SetFontSDF font 0
       engine←##.TTF_CreateGPUTextEngine device
       'Error creating font engine'##.Assert engine
+
+      sdf←##.TTF_SetFontSDF font 1
+      'Error setting SDF'##.Assert sdf
+
       Create_pipeline device window
       vb←##.SDL_CreateGPUBuffer device(
           ##.SDL_GPU_BUFFERUSAGE_VERTEX
