@@ -141,7 +141,7 @@
       _←##.SDL_BindGPUVertexBuffers pass 0(⊂vb 0)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       {
-          (seq ⋄ mat ⋄ (v i))←⍵
+          (seq mat (v i))←⍵
           _←{##.SDL_PushGPUVertexUniformData cmd_buf 0 mat(16×4) ⋄ 0}⍬
           _←##.LSE_FontGPUDraw pass sampler seq v i
       }¨↓⍉↑(sequences ⋄ ↓,[1+⍳2]models ⋄ ↓offsets)

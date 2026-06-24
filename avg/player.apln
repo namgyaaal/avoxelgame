@@ -241,7 +241,7 @@
           ⍝ ⍵ ←→ (fov, aspect ratio, znear, zfar)
           ⍝ Should be returned as (normals⋄distance)
           ⍝ (Near Far Right Left Top Bottom)
-          (fov ⋄ ar ⋄ zn ⋄ zf)←⍵
+          (fov ar zn zf)←⍵
           front←Get_look ⍬
           right←##.math.Norm front ##.math.Cross 0 1 0
           up←right ##.math.Cross front
