@@ -16,7 +16,6 @@
 
 
     'chksum'⎕CY'dfns'
-    ⎕IO←0
     (max_vertices max_indices) ← (4000 3000)
 
     font ← 0
@@ -36,14 +35,14 @@
     ⍝ Table of all loaded text
     ⍝ Hash utilized to minimize regenerating vertex data with chksum on color + str
     tnames←'ptr' 'str' 'color' 'w_' 'h_' 'hash'
-    table←(≢tnames)⍴⊂⍬
+    table←⍬⍨¨tnames
     Ti←tnames∘⍳∘⊆
     ⍝ Shorthand: given list of pointers return indices into table
     Pi←{(table⊃⍨Ti'ptr')⍳⍵}
 
     ⍝ Table of scoped text (whatever is rendered)
     snames ← 'ptr' 'x_' 'y_' 'center' 'scale' 'rotation'
-    scope←(≢snames)⍴⊂⍬
+    scope←⍬⍨¨≢snames
     Si←snames∘⍳∘⊆
 
     ∇ Init(device window);res;sam_params
@@ -115,7 +114,7 @@
       :If 0=⎕NC'ns'
           ns←()
       :EndIf
-      color←(4⍴256)⊥ns.⎕VGET⊂'color'(255 255 255 255)
+      color←256⊥ns.⎕VGET⊂'color'(255 255 255 255)
       ptr←##.TTF_CreateText ##.text.engine ##.text.font 0 0
       table⍪¨←(ptr ⋄ ⊂str ⋄ color ⋄ 0 ⋄ 0 ⋄ 0)
     ∇
@@ -141,7 +140,7 @@
       _←##.SDL_BindGPUVertexBuffers pass 0(⊂vb 0)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       {
-          (seq mat (v i))←⍵
+          (seq mat(v i))←⍵
           _←{##.SDL_PushGPUVertexUniformData cmd_buf 0 mat(16×4) ⋄ 0}⍬
           _←##.LSE_FontGPUDraw pass sampler seq v i
       }¨↓⍉↑(sequences ⋄ ↓,[1+⍳2]models ⋄ ↓offsets)
@@ -149,8 +148,8 @@
 
     ∇ Clear device
       _←##.TTF_DestroyText¨table⊃⍨Ti'ptr'
-      table←(≢tnames)⍴⊂⍬
-      scope←(≢scope)⍴⊂⍬
+      table←⍬⍨¨tnames
+      scope←⍬⍨¨scope
     ∇
 
     ∇ Release device
@@ -175,7 +174,7 @@
      
       sequences←⍬
       counts←0 2⍴0
-      table←(≢tnames)⍴⊂⍬
+      table←⍬⍨¨tnames
     ∇
 
     ∇ Create_pipeline(device window);v_shader;format;f_shader;vb_desc;vb_attr;blend_state;ct_desc

@@ -10,7 +10,7 @@
     u8_arr ← '<U1[]'
     u16_arr ← '<U2[]'
     u32_arr ← '<U4[]'
-    ptr ← 'P-'
+    ptr ← ,'P'
     cstr ← '<0C1[]'
 
     fns ← ⍬

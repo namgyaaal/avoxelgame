@@ -1,7 +1,4 @@
 :Namespace state
-    ⎕IO←0
-
-
     ⍝ State Machine Enumeration based off of "My Favorite Verbose Programming Technique"
     ⍝ https://github.com/Co-dfns/APL-Asteroids
     ⍝ Was previously doing namespace swapping for state handling
@@ -98,7 +95,7 @@
       :ElseIf ##.LSE_CheckEvent ##.SDL_EVENT_WINDOW_RESIZED
           (core.w core.h)←##.LSE_GetWindowResize 0 0
       :EndIf
-      
+     
       Exhaust_fn core
     ∇
 

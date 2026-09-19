@@ -1,6 +1,4 @@
 :Namespace menu_state
-    ⎕IO←0
-
     pipeline←0
 
     ⍝ General tb for everything at start then background vertices each frame
@@ -34,7 +32,7 @@
       new_time←⊃##.SDL_GetTicks
       core.dt←1000÷⍨time-⍨new_time
       time←new_time
-      
+     
       a←Update_menu core
       Draw_menu _Draw_with core
     ∇

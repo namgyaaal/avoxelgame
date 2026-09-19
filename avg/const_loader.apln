@@ -9,7 +9,7 @@
       ⍝ Three groups: Self, another enum, empty
       entries←' '∘≠⍛⊆¨''~∘⊂⍨⊃⎕NGET fp 1
       names←⊃¨entries
-      values←{1=≢⍵:¯1 ⋄ 2⊃⍵}¨entries
+      values←{1=≢⍵:¯1 ⋄ 1⊃⍵}¨entries
       ⍝ If it's an empty enum skip this process
       ⍝:If 0<+/(2∘=∘≢)¨entries
       :If 2∊≢¨entries
@@ -22,12 +22,12 @@
           ⍝ scope hmask onto vmask instead of all of values
           hmask←(2↑¨vmask/values)∊⊂'0x'
      
-          val_map←0@1⊢1⍨¨entries
-          (vmask/val_map)←dec@{hmask}(∊2⊃¨⎕VFI¨)@{~hmask}vmask/values
-          val_map{+\⍺-⍵\¯2-/0,⍵/+\¯1↓0,⍺}←1@1⊢1≠val_map
+          val_map←0@0⊢1⍨¨entries
+          (vmask/val_map)←dec@{hmask}(∊1⊃¨⎕VFI¨)@{~hmask}vmask/values
+          val_map{+\⍺-⍵\¯2-/0,⍵/+\¯1↓0,⍺}←1@0⊢1≠val_map
           (assign_mask/val_map)←val_map[assign_idx]
       :Else
-          val_map←¯1+⍳⍴names
+          val_map←⍳⍴names
       :EndIf
       ##.⎕VSET(↑names)val_map
     ∇

@@ -1,6 +1,4 @@
 :Namespace world_ui
-    ⎕IO←0
-
     pipeline←0
     (block_sampler block_vb)←0
     ib←0

@@ -1,5 +1,5 @@
 :Namespace sdl3_image
-    ptr ← 'P-'
+    ptr ← ,'P'
     cstr ← '<0C1[]'
 
     fns ← (

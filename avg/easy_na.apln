@@ -1,11 +1,7 @@
 :Namespace easy_na
       Clean_def←{
           ⍝ Cases where <>= have a space after the struct/type they're on.
-          ⍝ One-letter characters are too weird to handle properly, for now
-          ⍝ just use '-' in the definition and collapse it after done with
-          ⍝ parsing
-          ⍝ Dirty, but it works
-          ⍵/⍨(⍵='-')⍱(⍵=' ')∧(¯1⌽⍵∊'<>=')∨(1⌽⍵∊'[]')
+          ⍵/⍨~(⍵=' ')∧(¯1⌽⍵∊'<>=')∨(1⌽⍵∊'[]')
       }
 
       Build_args←{

@@ -28,7 +28,6 @@
     ⍝ index of chunks based off of their coordinates, which are the further
     ⍝ elements.
 
-    ⎕IO ← 0
     'packR'⎕CY'dfns'
 
     l ← 16 128 16
@@ -58,7 +57,7 @@
 
     chunks ← 0⍴⍨0,l
     cnames ← 'cx' 'cz' 'vb' 'wvb' 'idx_cnt' 'widx_cnt' 'dirty'
-    chunk_info ← (≢cnames)⍴⊂⍬
+    chunk_info ← ⍬⍨¨cnames
     chunks_rendered←0 ⍝ For render information
 
     I←{⍺[⍵]}
@@ -71,7 +70,7 @@
     ⍝   - enc_xz (x z as decoded list -- note that isn't globally unique but is locally)
       Cg←{
           ⍵≡'xz':↓⍉↑chunk_info⌷⍨⊂Ci'cx' 'cz'
-          ⍵≡'enc_xz':(,⍨2*16)⊥⍉⊃,/⍪¨chunk_info⌷⍨⊂Ci'cx' 'cz'
+          ⍵≡'enc_xz':(2*16)⊥↑chunk_info⌷⍨⊂Ci'cx' 'cz'
           chunk_info⊃⍨Ci ⍵
       }
 
@@ -99,7 +98,7 @@
     perms←⍬    ⍝ a bunch of random permutations into the gradients for terrain gen
     ⍝ Limit amount of terrain generations and unloading per frame.
     max_generations←1
-    max_unload←5
+    max_unload←2
 
     ⍝ FNV Hash Function based off of Hsu's implementation (?) in MicroUI-APL
     ⍝    with suggestions from dzaima and Marshall Lochbaum
@@ -109,7 +108,7 @@
     Hash_byte ← {256|⊃(147×(8⍴2)⊥≠⍥((8⍴2)∘⊤))/↓⍉1↓83 ⎕DR(¯1+2*31)⍪⍵}
     ⍝ File Save Information
     map←0 ⍝ set in world Init
-    mapi←(1500⌶)⍬ ⍝ (,⍨2*26)⊥x y
+    mapi←(1500⌶)⍬ ⍝ (2*16)⊥x y
     empty_rle←(l⋄(×/l⋄)⋄(0⋄))
 
 
@@ -182,7 +181,7 @@
 
     ∇ Queue_chunk(device blocks trans);x;z;vb
       (x z)←trans
-      chunk_info←chunk_info,¨x,z,⌽1@0⊢0⍴⍨¯2+≢cnames ⍝ dirty starts at 1, set and flip
+      chunk_info←chunk_info,¨x,z,1↑⍨2-≢cnames ⍝ dirty starts at 1, set and flip
       chunks⍪←blocks
     ∇
 
@@ -252,7 +251,7 @@
           (vs ic wvs wic)←Copy_chunk(chunks⌷⍨idxs⊃⍨≢⊃⍵ ⋄ p ⋄ tb_pos)
           pos←tb_pos ⋄ tb_pos+←vs+wvs
           ⍵,¨(≢copy_name)↑pos vs ic wvs wic ⍝ set vertex buffers later
-      }⍣{(tb_size≤tb_pos+vsize)∨(⊃⍺)≥⍥≢idxs}⊢(≢copy_name)⍴⊂⍬
+      }⍣{(tb_size≤tb_pos+vsize)∨(⊃⍺)≥⍥≢idxs}⊢⍬⍨¨copy_name
       _←##.SDL_UnmapGPUTransferBuffer device tb
       Cpi←copy_name∘⍳∘⊆       ⍝ Copy Index
       Cpg←{copy_table⊃⍨Cpi ⍵} ⍝ Copy Get
@@ -329,14 +328,14 @@
       chunk_info←m∘/¨chunk_info
      
       ⍝ Terrain generation step
-      m←mapi∊⍨(,⍨2*16)⊥⍉↑new
+      m←mapi∊⍨(2*16)⊥¨new
       Load_old_chunks⊃↓m⌿new
       Load_new_chunks⊃↓(~m)⌿new
     ∇
 
     ∇ Load_old_chunks coords;pair;idx
       :For pair :In coords
-          idx←(,⍨2*16)⊥pair
+          idx←(2*16)⊥pair
           blocks←0 packR ⎕FREAD(map ⋄ 2+mapi⍳idx)
           Queue_chunk device blocks pair
       :EndFor
@@ -362,7 +361,7 @@
       ⍝ Limit max chunks generated to prevent fps hitching
       :For pair :In (max_generations⌊≢)⍛↑coords
           pos←1 0 1\pair
-          mapi,←(,⍨2*16)⊥pair
+          mapi,←(2*16)⊥pair
      
           v←seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊pos÷4
           v2←seed,(⍉2⊥⍣¯1⍳8)+⍤1⊢⌊pos÷8

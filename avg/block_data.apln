@@ -1,6 +1,4 @@
 :Namespace block_data
-    ⎕IO←0
-
     atlas_len←5
     ⍝ Left Right Bottom Top Back Front
     data←(

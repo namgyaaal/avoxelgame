@@ -5,7 +5,6 @@
     ⍝ - Handles camera and camera goodies
     ⍝   (getting frustum, view matrix, etc)
 
-    ⎕IO ← 0
     ⍝ Constants
     cam_offset ← 1.45
     height ← 1.6

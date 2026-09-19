@@ -1,6 +1,4 @@
 :Namespace world_state
-    ⎕IO←0
-
     depth_texture←0
     world_pipeline←0
 
