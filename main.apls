@@ -9,4 +9,3 @@
 ⍝ Needed without LOAD=dir
 Run
 state.Play
-⎕ ← 'Complete'

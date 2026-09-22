@@ -42,7 +42,7 @@
 
     ⍝ Table of scoped text (whatever is rendered)
     snames ← 'ptr' 'x_' 'y_' 'center' 'scale' 'rotation'
-    scope←⍬⍨¨≢snames
+    scope←⍬⍨¨snames
     Si←snames∘⍳∘⊆
 
     ∇ Init(device window);res;sam_params

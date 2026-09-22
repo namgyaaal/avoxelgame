@@ -1,0 +1,2 @@
+ Demo
+1↓∊(⎕UCS 10),¨⊃⊃⎕SHELL './main.apls'
