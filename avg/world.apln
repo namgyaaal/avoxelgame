@@ -173,15 +173,15 @@
           tb
       )
       _←##.SDL_ReleaseGPUSampler device sampler
-      {
-          (packR chunks⌷⍨⊃⍵)⎕FREPLACE(map ⋄ 2+1⊃⍵)
-      }¨↓⍉↑(⍳≢chunks ⋄ mapi⍳Cg'enc_xz')
+      (⍳≢chunks){
+          (packR ⍺⌷chunks)⎕FREPLACE(map ⋄ 2+⍵)
+      }¨mapi⍳Cg'enc_xz'
       ⎕FUNTIE map
     ∇
 
     ∇ Queue_chunk(device blocks trans);x;z;vb
       (x z)←trans
-      chunk_info←chunk_info,¨x,z,1↑⍨2-≢cnames ⍝ dirty starts at 1, set and flip
+      chunk_info,¨←x,z,1↑⍨2-≢cnames ⍝ dirty starts at 1, set and flip
       chunks⍪←blocks
     ∇
 
