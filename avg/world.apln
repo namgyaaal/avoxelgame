@@ -40,6 +40,9 @@
     max_faces ← 6×⌈2÷⍨×/l
     wmax_faces ← (2÷⍨1⊃l)×(2*⍨⊃l) ⍝ w-water
 
+    water_level←0.84
+    water_cnt←0 ⍝ For wave effect
+
     ⍝ For each face we need 4 vertices and 6 indices
     ⍝ Furthermore, we need the amount of info per vertex and size of indices
     (vsize isize) ← (4×4×max_faces ⋄ 4×6×max_faces)
@@ -98,7 +101,7 @@
     perms←⍬    ⍝ a bunch of random permutations into the gradients for terrain gen
     ⍝ Limit amount of terrain generations and unloading per frame.
     max_generations←1
-    max_unload←2
+    max_unload←1
 
     ⍝ FNV Hash Function based off of Hsu's implementation (?) in MicroUI-APL
     ⍝    with suggestions from dzaima and Marshall Lochbaum
@@ -449,8 +452,12 @@
       mapi ⎕FREPLACE(map ⋄ 1)
     ∇
 
+    ∇ Update dt
+        water_cnt+←dt
+    ∇
 
-    ∇ Draw_chunks(core cmd_buf pass px pz lx lz proj_view);w;m;m2;vbs;inds;xz;ud;frs;n;d;h;t;t2;centers;extents;r
+
+    ∇ Draw_chunks(core cmd_buf pass px pz lx lz proj_view);w;m;m2;vbs;inds;xz;ud;frs;n;d;h;t;t2;centers;extents;r;wl
       ⍝ Frustum Culling
       (n d)←##.player.Get_frustum(○70÷180 ⋄ core.w÷core.h ⋄ 0.1 ⋄ 500)
       ⍝ https://web.archive.org/web/20220115111822/https://gdbooks.gitbooks.io/3dcollisions/content/Chapter2/static_aabb_plane.html
@@ -481,7 +488,8 @@
       vbs←m2/vbs
       inds←m2/Cg'widx_cnt'
      
-      ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0.84 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m2/Cg'xz'
+      wl←water_level+0.1×1○water_cnt
+      ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x wl z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m2/Cg'xz'
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16

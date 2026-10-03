@@ -8,7 +8,8 @@
     proj_view←view+.×proj
     time←0
 
-    toggle_ui←0
+    toggle_stats←0
+    toggle_ui←1
     regular_scope←⍬
     info_scope←⍬
     text_base←(
@@ -89,6 +90,8 @@
       :If ##.LSE_CheckEvent ##.SDL_EVENT_KEY_DOWN
           key←⊃##.LSE_GetKeyPressed
           :If key=##.SDLK_I
+              toggle_stats←~toggle_stats
+          :ElseIf key=##.SDLK_H
               toggle_ui←~toggle_ui
           :ElseIf key=##.SDLK_L
               lock_mouse←~lock_mouse
@@ -136,6 +139,7 @@
       (recent_fps low_fps)←60↑¨(recent_fps low_fps)
      
       ##.world.Update_range core.device ##.player.x ##.player.z
+      ##.world.Update dt
       ##.player.Update dt
       view←##.player.Get_view ⍬
       proj_view←view+.×proj
@@ -153,7 +157,7 @@
       ustr←'UTF-8'⎕UCS 2↓∊(⎕UCS 13 10)∘,¨text_copy
       (1⊃(##.text.Ti'str')⊃##.text.table)←ustr
      
-      :If 1=toggle_ui
+      :If 1=toggle_stats
           ##.text.scope←info_scope
       :Else
           ##.text.scope←regular_scope
@@ -182,11 +186,13 @@
           _←##.SDL_EndGPURenderPass pass
      
           ⍝ UI Render pass
-          color_info←⊂swap 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
-          pass←##.LSE_BeginDepthLessRenderPass cmd_buf color_info 1
-          ##.text.Draw cmd_buf pass ui_proj
-          ##.world_ui.Draw core cmd_buf pass
-          _←##.SDL_EndGPURenderPass pass
+          :If toggle_ui
+              color_info←⊂swap 0 0(0 0 0 0)0 0 0 0 0 0 0 0 0
+              pass←##.LSE_BeginDepthLessRenderPass cmd_buf color_info 1
+              ##.text.Draw cmd_buf pass ui_proj
+              ##.world_ui.Draw core cmd_buf pass
+              _←##.SDL_EndGPURenderPass pass
+          :EndIf
       :EndIf
       _←##.SDL_SubmitGPUCommandBuffer cmd_buf
     ∇

@@ -28,7 +28,7 @@
     (e_mx e_my) ← 0
 
     ⍝ Other
-    block_choices←##.block_data.Bi 'Grass' 'Dirt' 'Stone' 'Log' 'Leaf'
+    block_choices←##.block_data.Bi 'Grass' 'Dirt' 'Stone' 'Log' 'Leaf' 'Wood'
     block_select←⊃block_choices
 
 
@@ -148,7 +148,7 @@
      
       ekd←(##.SDLK_W ⋄ ##.SDLK_A ⋄ ##.SDLK_S ⋄ ##.SDLK_D
           ##.SDLK_SPACE ⋄ ##.SDLK_F
-          ##.SDLK_1 ⋄ ##.SDLK_2 ⋄ ##.SDLK_3 ⋄ ##.SDLK_4 ⋄ ##.SDLK_5)
+          ##.SDLK_1 ⋄ ##.SDLK_2 ⋄ ##.SDLK_3 ⋄ ##.SDLK_4 ⋄ ##.SDLK_5 ⋄ ##.SDLK_6)
       eku←(##.SDLK_W ⋄ ##.SDLK_A ⋄ ##.SDLK_S ⋄ ##.SDLK_D)
      
       bi←block_choices⍳block_select
@@ -167,6 +167,7 @@
      E_KD_3:bi←2 ⋄ →E_DONE
      E_KD_4:bi←3 ⋄ →E_DONE
      E_KD_5:bi←4 ⋄ →E_DONE
+     E_KD_6:bi←5 ⋄ →E_DONE
      E_KD_NONE: ⋄ →E_DONE
      E_KU_:→⎕LC+1+eku⍳⊃##.LSE_GetKeyPressed ⍬
      E_KU_W:e_w←0 ⋄ →E_DONE
