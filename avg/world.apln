@@ -99,9 +99,13 @@
     sns←()     ⍝ namespace for using world seed
     rand_vec←⍬ ⍝ randomized gradients
     perms←⍬    ⍝ a bunch of random permutations into the gradients for terrain gen
-    ⍝ Limit amount of terrain generations and unloading per frame.
-    max_generations←1
-    max_unload←1
+    
+    
+
+    ⍝ Limit the amount of disk reads/writes per frame
+    ⍝ ⎕F% and RLE
+    max_disk←2
+    disk_cnt←max_disk
 
     ⍝ FNV Hash Function based off of Hsu's implementation (?) in MicroUI-APL
     ⍝    with suggestions from dzaima and Marshall Lochbaum
@@ -312,15 +316,18 @@
     ∇
 
     ∇ Update_range(device x z);range;m;m2;pair;set_m;ax;az;y;p;rns;new;old
+      disk_cnt←max_disk ⍝ Refresh disk read/writes allowed
       (ax az)←(⌊16÷⍨x z)
       range←(ax az ⋄ )+,∘.,⍨(⍳1+2×view_distance)-view_distance
       new←range~Cg'xz'
       old←range~⍨Cg'xz'
      
       ⍝ Unload chunks
-      ⍝ ratelimit since packR+⎕FREPLACE takes a bit.
       m←~old∊⍨Cg'xz' ⍝ Kept
-      m←max_unload{1@(⍺↓⍸~⍵)⊢⍵}m
+      ⍝ only select up to max_disk-disk_cnt from stale chunks to unload
+      m←disk_cnt{1@(⍺↓⍸~⍵)⊢⍵}m 
+      disk_cnt-←+/~m
+
       { ⍝ (major cell index ⋄ index into chunk hash array)
           (packR chunks⌷⍨⊃⍵)⎕FREPLACE(map ⋄ 2+1⊃⍵)
       }{⍺⍺¨∘↓⍣(~0∊⍴⍵)⊢⍵}(~m)⌿⍉[⍳≢chunks ⋄ mapi⍳Cg'enc_xz']
@@ -337,7 +344,8 @@
     ∇
 
     ∇ Load_old_chunks coords;pair;idx
-      :For pair :In coords
+      :For pair :In (disk_cnt⌊≢)⍛↑coords
+          disk_cnt-←1
           idx←(2*16)⊥pair
           blocks←0 packR ⎕FREAD(map ⋄ 2+mapi⍳idx)
           Queue_chunk device blocks pair
@@ -362,7 +370,8 @@
       grid_hash←Hash_byte grid_k
      
       ⍝ Limit max chunks generated to prevent fps hitching
-      :For pair :In (max_generations⌊≢)⍛↑coords
+      :For pair :In (disk_cnt⌊≢)⍛↑coords
+          disk_cnt-←1
           pos←1 0 1\pair
           mapi,←(2*16)⊥pair
      
@@ -453,7 +462,7 @@
     ∇
 
     ∇ Update dt
-        water_cnt+←dt
+      water_cnt+←dt
     ∇
 
 
