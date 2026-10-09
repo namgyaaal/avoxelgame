@@ -181,6 +181,7 @@
       )
       _←##.SDL_ReleaseGPUSampler device sampler
       (⍳≢chunks){
+          0=≢chunks:
           (packR ⍺⌷chunks)⎕FREPLACE(map ⋄ 2+⍵)
       }¨mapi⍳Cg'enc_xz'
       ⎕FUNTIE map
@@ -348,17 +349,10 @@
       :If 0=≢coords
           :Return
       :EndIf
-      disk_cnt-←≢coords
-     
+      disk_cnt-←≢coords 
       coords{
           Queue_chunk device(0 packR ⍵)⍺
       }¨⎕FREAD(map ⋄ 2+mapi⍳(2*16)⊥⍉↑coords)
-      ⍝:For pair :In coords⍝(disk_cnt⌊≢)⍛↑coords
-      ⍝    ⍝disk_cnt-←1
-      ⍝    idx←(2*16)⊥pair
-      ⍝    blocks←0 packR ⎕FREAD(map ⋄ 2+mapi⍳idx)
-      ⍝    Queue_chunk device blocks pair
-      ⍝:EndFor
     ∇
 
     ∇ Load_new_chunks coords;pair;idx;i;v;v2;v3;l1;l2;r1;r2;r3;s1;s2;select;left;right;solid;d;sp;blocks;m;s;rns;ty;leaves;pos
@@ -484,21 +478,21 @@
       m←(~Cg'dirty')∧∧/(-r)(≤⍤1)d(-⍤1)⍨n(+.×⍤2 1)centers
      
       chunks_rendered←+/m
-
+     
       ⍝ Reset animation to normal
       _←##.SDL_PushGPUVertexUniformData cmd_buf 1 0 4
       ⍝ Fog Start -- Fog End [10, 15]
       _←##.SDL_PushGPUFragmentUniformData cmd_buf 0(view_distance×10 15)(4×2)
-
-
+     
+     
       ⍝ Render Solid
      
       m2←m∧0≠vbs←Cg'vb'
       vbs←m2/vbs
       inds←m2/Cg'idx_cnt'
      
-
-
+     
+     
       ⍝ Translation matrix for each chunk and rank-multiply to get MVPs for each
       ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x 0 z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m2/Cg'xz'
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
@@ -510,16 +504,16 @@
       m2←m∧0≠vbs←Cg'wvb'
       vbs←m2/vbs
       inds←m2/Cg'widx_cnt'
-
+     
       ⍝ Water Animation -- do transition here
-      _←##.SDL_PushGPUVertexUniformData cmd_buf 1 (-0>1○2.4×water_cnt) 4
+      _←##.SDL_PushGPUVertexUniformData cmd_buf 1(-0>1○2.4×water_cnt)4
      
       wl←water_level+0.1×1○water_cnt
       ud←∊proj_view(+.×⍤2)⍨⊃⍪/{(x z)←⍵ ⋄ ,[¯0.5](x wl z 1)@3⊢∘.=⍨⍳4}¨(⊃l)×m2/Cg'xz'
       _←##.SDL_BindGPUFragmentSamplers pass 0(⊂##.block_data.texture sampler)1
       _←##.SDL_BindGPUIndexBuffer pass(⊂ib 0)##.SDL_GPU_INDEXELEMENTSIZE_32BIT
       _←##.LSE_DrawListWithPushConstants cmd_buf pass vbs inds(≢vbs)ud 0 16
-
+     
     ∇
 
       Transform_points←{
