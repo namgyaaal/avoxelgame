@@ -9,9 +9,14 @@ layout (std140, set = 1, binding = 0) uniform MVPBlock {
     mat4 mvp;
 };
 
+// Used for block animation, defaulted to 0 everywhere else
+layout (std140, set = 1, binding = 1) uniform ShiftFrame {
+    float direction;
+};
+
 void main() {
     vec4 pos = vec4(position.x & 0x001F, position.y, position.z & 0x001F, 1.0);
     gl_Position = mvp * pos;
-    o_uv = vec3(position.z>>7, position.x>>7, position.w);
+    o_uv = vec3(position.z>>7, position.x>>7, position.w + int(direction));
     o_z_depth = gl_Position.z;
 }

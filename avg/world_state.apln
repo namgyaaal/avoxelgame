@@ -212,7 +212,7 @@
     ∇
 
     ∇ Create_pipelines(device window);default_format;depth_format;v_shader;f_shader;vb_desc;vb_attr;blend_state;ct_desc
-      (v_shader f_shader)←(v_ub:1 ⋄ f_ub:1 ⋄ f_sp:1)##.Create_shaders device'basic_vert' 'basic_frag'
+      (v_shader f_shader)←(v_ub:2 ⋄ f_ub:1 ⋄ f_sp:1)##.Create_shaders device'basic_vert' 'basic_frag'
       default_format←⊃##.SDL_GetGPUSwapchainTextureFormat device window
       depth_format←##.Get_depth_format device
      ⍝ Load shaders

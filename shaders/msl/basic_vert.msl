@@ -8,6 +8,11 @@ struct MVPBlock
     float4x4 mvp;
 };
 
+struct ShiftFrame
+{
+    float direction;
+};
+
 struct main0_out
 {
     float3 o_uv [[user(locn0)]];
@@ -20,12 +25,12 @@ struct main0_in
     uint4 position [[attribute(0)]];
 };
 
-vertex main0_out main0(main0_in in [[stage_in]], constant MVPBlock& _41 [[buffer(0)]])
+vertex main0_out main0(main0_in in [[stage_in]], constant MVPBlock& _41 [[buffer(0)]], constant ShiftFrame& _66 [[buffer(1)]])
 {
     main0_out out = {};
     float4 pos = float4(float(in.position.x & 31u), float(in.position.y), float(in.position.z & 31u), 1.0);
     out.gl_Position = _41.mvp * pos;
-    out.o_uv = float3(float(in.position.z >> uint(7)), float(in.position.x >> uint(7)), float(in.position.w));
+    out.o_uv = float3(float(in.position.z >> uint(7)), float(in.position.x >> uint(7)), float(in.position.w + uint(int(_66.direction))));
     out.o_z_depth = out.gl_Position.z;
     return out;
 }
