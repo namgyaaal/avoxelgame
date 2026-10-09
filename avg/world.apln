@@ -125,7 +125,7 @@
     Patch←{(⍵ 64 ⍵)(÷⍤1)⍨0.5+⍉16 64 16⊤⍳16×64×16}
     (f4 f6 f8 f16)←Patch¨64 80 128 256
     ⍝ Trilinear interpolate (⍺) arbitary points [0,1] in R*3 inside (⍵) 8-point cube
-    trilerp←{v←(2 ⋄ i←2÷⍨≢⍵)⍴⍵ ⋄ d←⍺[;4 2 1⍳i] ⋄ (1-d ⋄ d)+.×v}⍣3
+    trilerp←{v←⍵⍴⍨2,i←2÷⍨≢⍵ ⋄ d←⍺[;4 2 1⍳i] ⋄ (1-d ⋄ d)+.×v}⍣3
     ⍝ Give 3d noise a "surface"
     gradient_mask←∊((⌽7÷⍨1.1+⍳4),(196÷⍨⌽¯32+⍳60))+⍤¯1⍤2⊢16 64 16⍴0
 
